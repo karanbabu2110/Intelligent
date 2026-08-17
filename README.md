@@ -36,8 +36,9 @@ selected for reuse.
   - [Story 000.05.03 — Isolate Legacy Planning from Active Development](https://github.com/karanbabu2110/KAOS/issues/989)
   - [Story 000.05.04 — Verify Backlog Integrity and Operating Workflow](https://github.com/karanbabu2110/KAOS/issues/990)
 - Active feature: [Feature 000.06 — Establish Incremental Development Rules](https://github.com/karanbabu2110/KAOS/issues/821)
-- Active direct task: [Task 000.06.01 — Publish the One-Goal Incremental Delivery Workflow](https://github.com/karanbabu2110/KAOS/issues/1041)
-- Next direct task: [Task 000.06.02 — Define Proportional Quality and Safety Guardrails](https://github.com/karanbabu2110/KAOS/issues/1042)
+- Completed direct task: [Task 000.06.01 — Publish the One-Goal Incremental Delivery Workflow](https://github.com/karanbabu2110/KAOS/issues/1041)
+- Active direct task: [Task 000.06.02 — Define Proportional Quality and Safety Guardrails](https://github.com/karanbabu2110/KAOS/issues/1042)
+- Next direct task: [Task 000.06.03 — Validate and Integrate the Incremental Development Rules](https://github.com/karanbabu2110/KAOS/issues/1043)
 - Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and one focused startup test
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
@@ -57,6 +58,7 @@ selected for reuse.
   - [Legacy planning isolation](docs/evolution/legacy-planning-isolation.md)
   - [Backlog integrity checkpoint](docs/evolution/backlog-integrity-checkpoint.md)
   - [One-goal incremental development workflow](docs/evolution/incremental-development-workflow.md)
+  - [Proportional quality and safety guardrails](docs/evolution/proportional-quality-and-safety.md)
 
 ## Run the application
 

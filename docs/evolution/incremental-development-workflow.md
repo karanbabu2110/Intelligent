@@ -77,8 +77,9 @@ The current application baseline is verified with:
 ```
 
 Additional checks are added only when the increment introduces corresponding
-behavior or risk. The proportional quality and safety rules are defined by
-Task [#1042](https://github.com/karanbabu2110/KAOS/issues/1042).
+behavior or risk. Apply the
+[proportional quality and safety guardrails](proportional-quality-and-safety.md)
+to every increment.
 
 ### 5. Record the checkpoint
 
@@ -144,5 +145,5 @@ separate, explicit checkpoints.
 - **Limitations:** the current application still proves bootstrap behavior
   only; the workflow will be validated end to end in Task #1043.
 - **Next checkpoint:** complete Task
-  [#1042](https://github.com/karanbabu2110/KAOS/issues/1042), defining
-  proportional quality and safety guardrails.
+  [#1043](https://github.com/karanbabu2110/KAOS/issues/1043), validating and
+  integrating the Feature 000.06 rules.
