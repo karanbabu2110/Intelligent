@@ -35,12 +35,15 @@ selected for reuse.
   - [Story 000.05.02 — Configure the Evolutionary Execution Project](https://github.com/karanbabu2110/KAOS/issues/988)
   - [Story 000.05.03 — Isolate Legacy Planning from Active Development](https://github.com/karanbabu2110/KAOS/issues/989)
   - [Story 000.05.04 — Verify Backlog Integrity and Operating Workflow](https://github.com/karanbabu2110/KAOS/issues/990)
-- Active feature: [Feature 000.06 — Establish Incremental Development Rules](https://github.com/karanbabu2110/KAOS/issues/821)
+- Completed feature: [Feature 000.06 — Establish Incremental Development Rules](https://github.com/karanbabu2110/KAOS/issues/821)
 - Completed direct task: [Task 000.06.01 — Publish the One-Goal Incremental Delivery Workflow](https://github.com/karanbabu2110/KAOS/issues/1041)
 - Completed direct task: [Task 000.06.02 — Define Proportional Quality and Safety Guardrails](https://github.com/karanbabu2110/KAOS/issues/1042)
-- Active direct task: [Task 000.06.03 — Validate and Integrate the Incremental Development Rules](https://github.com/karanbabu2110/KAOS/issues/1043)
-- Next feature after merge: [Feature 000.07 — Define the Foundation Exit Criteria and First Capability Handoff](https://github.com/karanbabu2110/KAOS/issues/822)
-- Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and one focused startup test
+- Completed direct task: [Task 000.06.03 — Validate and Integrate the Incremental Development Rules](https://github.com/karanbabu2110/KAOS/issues/1043)
+- Active feature: [Feature 000.07 — Validate the Simplified Starting Point](https://github.com/karanbabu2110/KAOS/issues/822)
+- Completed direct task: [Task 000.07.01 — Verify the Simplified Application Baseline](https://github.com/karanbabu2110/KAOS/issues/1047)
+- Active direct task: [Task 000.07.02 — Publish the Epic 000 Exit and AI-Readiness Checkpoint](https://github.com/karanbabu2110/KAOS/issues/1048)
+- Next after Epic 000: [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), beginning with [Feature 001.01](https://github.com/karanbabu2110/KAOS/issues/839)
+- Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and two focused startup tests
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
   - [Reusable foundation asset inventory](docs/evolution/reusable-foundation-assets.md)
@@ -61,6 +64,8 @@ selected for reuse.
   - [One-goal incremental development workflow](docs/evolution/incremental-development-workflow.md)
   - [Proportional quality and safety guardrails](docs/evolution/proportional-quality-and-safety.md)
   - [Incremental development rules checkpoint](docs/evolution/incremental-development-rules-checkpoint.md)
+  - [Simplified application validation](docs/evolution/simplified-application-validation.md)
+  - [Epic 000 exit and AI-readiness checkpoint](docs/evolution/epic-000-exit-and-ai-readiness.md)
 
 ## Run the application
 
@@ -84,7 +89,6 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-Features 000.01 through 000.05 are complete. Feature 000.06's one-goal workflow
-and proportional guardrails are complete; Task #1043 is validating the rules,
-live roadmap state, and application baseline. After the feature-level pull
-request merges and its branch is deleted, Feature #822 is the only next goal.
+Features 000.01 through 000.06 and Task #1047 are complete. Task #1048 is the
+final Epic 000 checkpoint: it records that no additional platform-foundation
+gate is required, while keeping Epic #2 / Feature #839 as the next ordered goal.
