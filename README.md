@@ -19,13 +19,18 @@ selected for reuse.
   - [Story 000.02.01 — Inventory Registered Projects and Capability Surfaces](https://github.com/karanbabu2110/KAOS/issues/978)
   - [Story 000.02.02 — Classify Each Project and Capability from Current Evidence](https://github.com/karanbabu2110/KAOS/issues/979)
   - [Story 000.02.03 — Publish the Active Capability Classification and Dependency Path](https://github.com/karanbabu2110/KAOS/issues/980)
-- Active feature: [Feature 000.03 — Simplify the Active Gradle Build](https://github.com/karanbabu2110/KAOS/issues/818)
+- Completed feature: [Feature 000.03 — Simplify the Active Gradle Build](https://github.com/karanbabu2110/KAOS/issues/818)
 - Completed Feature 000.03 stories:
   - [Story 000.03.01 — Define the Minimal Active Gradle Project Graph](https://github.com/karanbabu2110/KAOS/issues/981)
   - [Story 000.03.02 — Apply the Active Gradle Build Simplification](https://github.com/karanbabu2110/KAOS/issues/982)
   - [Story 000.03.03 — Verify and Document the Focused Gradle Build](https://github.com/karanbabu2110/KAOS/issues/983)
-- Next feature after merge: [Feature 000.04 — Establish the Single KAOS Application](https://github.com/karanbabu2110/KAOS/issues/819)
-- Repository state: one root Gradle/Java 21 build; no application source or external dependency has been adopted
+- Active feature: [Feature 000.04 — Establish the Single KAOS Application](https://github.com/karanbabu2110/KAOS/issues/819)
+- Completed Feature 000.04 stories:
+  - [Story 000.04.01 — Select the Single KAOS Application Entry Point](https://github.com/karanbabu2110/KAOS/issues/984)
+  - [Story 000.04.02 — Establish the Package-First Application Structure](https://github.com/karanbabu2110/KAOS/issues/985)
+  - [Story 000.04.03 — Define Capability Growth and Extraction Triggers](https://github.com/karanbabu2110/KAOS/issues/986)
+- Next feature after merge: [Feature 000.05 — Reorganize the GitHub Backlog](https://github.com/karanbabu2110/KAOS/issues/820)
+- Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and one focused startup test
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
   - [Reusable foundation asset inventory](docs/evolution/reusable-foundation-assets.md)
@@ -36,6 +41,19 @@ selected for reuse.
   - [Active capability classification and dependency path](docs/evolution/active-capability-dependency-path.md)
   - [Minimal active Gradle graph contract](docs/evolution/minimal-gradle-graph.md)
   - [Focused Gradle build workflow](docs/evolution/focused-gradle-build.md)
+  - [Single KAOS application entry point](docs/evolution/single-application-entry-point.md)
+  - [Package-first application structure](docs/evolution/package-first-application-structure.md)
+  - [Capability boundary evolution rules](docs/evolution/capability-boundary-evolution.md)
+
+## Run the application
+
+```powershell
+./gradlew.bat run
+```
+
+The current application prints `KAOS application baseline is running.` and
+exits. This verifies the bootstrap only; no KAOS product capability is claimed
+yet.
 
 ## Development rule
 
@@ -49,6 +67,6 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-Feature 000.02 is complete. Feature 000.03 now has a verified one-root Gradle
-build and canonical developer workflow. Merge Feature 000.03 before Feature
-#819 begins with Story #984.
+Features 000.01 through 000.03 are complete. Feature 000.04 now has one runnable
+entry point, a verified package-first growth path, and evidence-based extraction
+triggers. Merge Feature #819 before Feature #820 begins with Story #987.
