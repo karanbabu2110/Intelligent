@@ -23,7 +23,8 @@ selected for reuse.
 - Completed Feature 000.03 stories:
   - [Story 000.03.01 — Define the Minimal Active Gradle Project Graph](https://github.com/karanbabu2110/KAOS/issues/981)
   - [Story 000.03.02 — Apply the Active Gradle Build Simplification](https://github.com/karanbabu2110/KAOS/issues/982)
-- Next story: [Story 000.03.03 — Verify and Document the Focused Gradle Build](https://github.com/karanbabu2110/KAOS/issues/983)
+  - [Story 000.03.03 — Verify and Document the Focused Gradle Build](https://github.com/karanbabu2110/KAOS/issues/983)
+- Next feature after merge: [Feature 000.04 — Establish the Single KAOS Application](https://github.com/karanbabu2110/KAOS/issues/819)
 - Repository state: one root Gradle/Java 21 build; no application source or external dependency has been adopted
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
@@ -34,6 +35,7 @@ selected for reuse.
   - [Active project and capability classification](docs/evolution/active-project-classification.md)
   - [Active capability classification and dependency path](docs/evolution/active-capability-dependency-path.md)
   - [Minimal active Gradle graph contract](docs/evolution/minimal-gradle-graph.md)
+  - [Focused Gradle build workflow](docs/evolution/focused-gradle-build.md)
 
 ## Development rule
 
@@ -47,6 +49,6 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-Feature 000.02 is complete. Feature 000.03 is active with an approved one-root
-Gradle graph that Story #982 has implemented. Story #983 will publish the final
-focused-build verification and developer handoff.
+Feature 000.02 is complete. Feature 000.03 now has a verified one-root Gradle
+build and canonical developer workflow. Merge Feature 000.03 before Feature
+#819 begins with Story #984.

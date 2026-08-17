@@ -171,5 +171,6 @@ Expected results:
 ## Handoff
 
 Story #982 implemented and proved the single-root graph without adopting
-historical capability source. Story #983 is next and will publish the canonical
-developer workflow and final Feature 000.03 verification checkpoint.
+historical capability source. The
+[focused Gradle build workflow](focused-gradle-build.md) records Story #983
+verification and the final Feature 000.03 handoff.
