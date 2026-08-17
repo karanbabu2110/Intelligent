@@ -85,6 +85,7 @@ Observed results:
 
 ## Handoff
 
-Story 000.01.02 is the next approved story. It will inspect this immutable
-snapshot and classify foundation assets as reuse now, reuse when needed, or
-historical evidence. Until then, this repository remains deliberately minimal.
+The [reusable foundation asset inventory](reusable-foundation-assets.md) records
+the Story 000.01.02 classifications from this immutable snapshot. Story
+000.01.03 is the next approved story. It will separate retained engineering
+assets from foundation-first assumptions that no longer constrain development.

@@ -9,10 +9,14 @@ selected for reuse.
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Active feature: [Feature 000.01 — Preserve the Existing Foundation Baseline](https://github.com/karanbabu2110/KAOS/issues/816)
-- Completed story: [Story 000.01.01 — Record the Foundation Baseline](https://github.com/karanbabu2110/KAOS/issues/835)
-- Next story: [Story 000.01.02 — Inventory Reusable Foundation Assets](https://github.com/karanbabu2110/KAOS/issues/836)
+- Completed stories:
+  - [Story 000.01.01 — Record the Foundation Baseline](https://github.com/karanbabu2110/KAOS/issues/835)
+  - [Story 000.01.02 — Inventory Reusable Foundation Assets](https://github.com/karanbabu2110/KAOS/issues/836)
+- Next story: [Story 000.01.03 — Separate Proven Assets from Foundation-First Assumptions](https://github.com/karanbabu2110/KAOS/issues/837)
 - Repository state: baseline documentation only; no application source has been adopted
-- Verified evidence: [Foundation baseline](docs/evolution/foundation-baseline.md)
+- Verified evidence:
+  - [Foundation baseline](docs/evolution/foundation-baseline.md)
+  - [Reusable foundation asset inventory](docs/evolution/reusable-foundation-assets.md)
 
 ## Development rule
 
@@ -26,6 +30,6 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-After the baseline record is accepted, Story 000.01.02 will inventory reusable
-foundation assets. No historical source should be copied into this repository
-before that evidence-based classification.
+Story 000.01.03 will separate retained engineering assets from foundation-first
+assumptions. No historical source should be copied into this repository before
+that decision is complete.
