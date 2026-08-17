@@ -30,7 +30,7 @@ and tasks created just in time under Epic 000 through Feature 000.07. See the
 
 | Field | Options | Verified distribution |
 | --- | --- | --- |
-| Status | Todo, In Progress, Done | 157 Todo, 4 In Progress, 77 Done |
+| Status | Todo, In Progress, Done | 155 Todo, 3 In Progress, 80 Done |
 | Horizon | Now, Next, Later, Vision | 81 Now, 15 Next, 142 Later, 0 Vision |
 | Priority | Critical, High, Medium, Low | 0 Critical, 6 High, 90 Medium, 142 Low |
 
@@ -45,7 +45,7 @@ corrected so the active chain is represented end to end.
 - **Todo:** default for every new, open item that is not on the current work
   chain.
 - **In Progress:** exactly the current roadmap, epic, feature, optional story,
-  and task chain. At this checkpoint: #814, #815, #822, and #1048.
+  and task chain. At this checkpoint: #814, #2, and #839.
 - **Done:** the issue is closed as completed and its evidence is recorded.
 
 Closing an issue and setting Done are both required. A project field does not
@@ -106,11 +106,11 @@ For each new story or task:
 
 ## Current and next work
 
-The active path is #814 -> #815 -> #822 -> #1048. Direct Task #1047 is
-complete. After Task #1048 validates and merges Feature 000.07, Epic
-[#2](https://github.com/karanbabu2110/KAOS/issues/2) and Feature
-[#839](https://github.com/karanbabu2110/KAOS/issues/839) are the next approved
-goal.
+The active path is #814 -> #2 -> #839. Epic 000, its seven features, and all 79
+descendants are closed and Done. Feature
+[#839](https://github.com/karanbabu2110/KAOS/issues/839) is the one approved
+goal; its stories or direct tasks are created just in time after its contract is
+reviewed.
 
 No historical project is needed to plan or execute this chain. The
 [legacy-planning isolation](legacy-planning-isolation.md) keeps historical

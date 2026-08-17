@@ -39,10 +39,12 @@ selected for reuse.
 - Completed direct task: [Task 000.06.01 — Publish the One-Goal Incremental Delivery Workflow](https://github.com/karanbabu2110/KAOS/issues/1041)
 - Completed direct task: [Task 000.06.02 — Define Proportional Quality and Safety Guardrails](https://github.com/karanbabu2110/KAOS/issues/1042)
 - Completed direct task: [Task 000.06.03 — Validate and Integrate the Incremental Development Rules](https://github.com/karanbabu2110/KAOS/issues/1043)
-- Active feature: [Feature 000.07 — Validate the Simplified Starting Point](https://github.com/karanbabu2110/KAOS/issues/822)
+- Completed feature: [Feature 000.07 — Validate the Simplified Starting Point](https://github.com/karanbabu2110/KAOS/issues/822)
 - Completed direct task: [Task 000.07.01 — Verify the Simplified Application Baseline](https://github.com/karanbabu2110/KAOS/issues/1047)
-- Active direct task: [Task 000.07.02 — Publish the Epic 000 Exit and AI-Readiness Checkpoint](https://github.com/karanbabu2110/KAOS/issues/1048)
-- Next after Epic 000: [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), beginning with [Feature 001.01](https://github.com/karanbabu2110/KAOS/issues/839)
+- Completed direct task: [Task 000.07.02 — Publish the Epic 000 Exit and AI-Readiness Checkpoint](https://github.com/karanbabu2110/KAOS/issues/1048)
+- Completed epic: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815)
+- Active epic: [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
+- Active feature: [Feature 001.01 — Minimal Java Application](https://github.com/karanbabu2110/KAOS/issues/839)
 - Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and two focused startup tests
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
@@ -89,6 +91,7 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-Features 000.01 through 000.06 and Task #1047 are complete. Task #1048 is the
-final Epic 000 checkpoint: it records that no additional platform-foundation
-gate is required, while keeping Epic #2 / Feature #839 as the next ordered goal.
+Epic 000 and all 79 descendants are complete. Feature PRs #2 through #8 are
+merged and their branches are deleted. Project 1 now activates only #814,
+Epic #2, and Feature #839; create its stories or direct tasks just in time after
+reviewing that feature's current contract.

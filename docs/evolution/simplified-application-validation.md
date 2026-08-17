@@ -97,6 +97,6 @@ Actual results are recorded in the final
 
 ## Next checkpoint
 
-Task [#1048](https://github.com/karanbabu2110/KAOS/issues/1048) will run and
-record the actual results, map Feature #822 acceptance criteria, decide whether
-the foundation gate can close, and hand off to Epic #2 / Feature #839.
+Task [#1048](https://github.com/karanbabu2110/KAOS/issues/1048) recorded the
+actual results, mapped Feature #822 acceptance criteria, closed the foundation
+gate, and handed off to Epic #2 / Feature #839.

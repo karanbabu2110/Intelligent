@@ -101,7 +101,7 @@ later feature introduces one.
 
 | Criterion | Evidence |
 | --- | --- |
-| Every included feature is complete | Features #816 through #822 are completed through one PR per feature; final closure follows this feature merge |
+| Every included feature is complete | Features #816 through #822 are closed and completed through one PR per feature |
 | Target outcome is demonstrated end to end | A new session can clone, understand, test, run, and extend one application from README and current #814 issues |
 | Focused and application validation passes | Focused test, clean lifecycle, canonical run, graph, dependencies, links, and diff pass |
 | Failure, safety, privacy, and recovery are proportional | Current absence is evidenced; guardrails define mandatory escalation for future risk |
@@ -123,9 +123,8 @@ and Project 1 to 238 items. The required active path before merge is:
 #814 -> #815 -> #822 -> #1048
 ```
 
-Task #1047 is closed and Done. Project status normalization and the final
-roadmap/project equality check are repeated before publishing the feature pull
-request.
+Task #1047 is closed and Done. The final roadmap/project equality check passed
+before the feature pull request was published.
 
 ## Known limitations and conscious deferrals
 
@@ -142,8 +141,12 @@ request.
 
 These are explicit future outcomes, not hidden blockers for closing Epic 000.
 
-## Handoff
+## Completed handoff
 
-Merge the one Feature 000.07 pull request. Then close Task #1048, Feature #822,
-and Epic #815; set them Done; delete the feature branch; and activate Epic #2 /
-Feature #839. Do not begin Epic 001 implementation as part of this checkpoint.
+Feature 000.07 merged through
+[PR #8](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/8)
+as `0d53faf`. Task #1048, Feature #822, and Epic #815 are closed and Done; the
+feature branch is deleted locally and remotely. Project 1 contains the same 238
+issues as the evolutionary roadmap with zero integrity defects, and its only
+In Progress items are #814, Epic #2, and Feature #839. Epic 001 implementation
+has not begun.
