@@ -34,6 +34,7 @@ Story #982 will create only these build entry points:
 | `gradlew`, `gradlew.bat` | Standard generated Gradle wrapper launchers |
 | `gradle/wrapper/gradle-wrapper.jar` | Standard generated wrapper bootstrap binary |
 | `gradle/wrapper/gradle-wrapper.properties` | Use Gradle 9.1.0 binary distribution with URL validation |
+| `.gitignore` | Exclude only local `.gradle/` state and root `build/` output |
 
 No `gradle.properties`, version catalog, repository declaration, dependency,
 quality plugin, Spring plugin, custom task, CI workflow, module descriptor, or
@@ -83,6 +84,28 @@ tasks.withType<JavaCompile>().configureEach {
 
 This provides standard `clean`, `compileJava`, `test`, `check`, and `build`
 tasks without selecting an application framework or third-party dependency.
+
+## Applied state
+
+Story #982 implemented this contract in the organization repository:
+
+- `settings.gradle.kts` contains only `rootProject.name = "KAOS"`;
+- `build.gradle.kts` contains only the built-in Java plugin, coordinates, Java
+  21 toolchain, and UTF-8 compiler setting;
+- Gradle's standard `wrapper` task generated Gradle 9.1.0 wrapper scripts, JAR,
+  and properties;
+- the generated wrapper JAR SHA-256 matches the preserved Gradle 9.1.0 wrapper
+  JAR: `76805E32C009C0CF0DD5D206BDDC9FB22EA42E84DB904B764F3047DE095493F3`;
+- `.gitignore` excludes only `.gradle/` local state and root `build/` output;
+- no include, included-build, project-dependency, repository, external
+  dependency, framework, or custom-plugin declaration exists.
+
+Applied validation on Windows 11 with OpenJDK 21.0.11:
+
+- `gradlew.bat --version`: Gradle 9.1.0, launcher JVM 21.0.11;
+- `gradlew.bat projects`: root project `KAOS`, no subprojects;
+- `gradlew.bat clean build`: successful; compilation and tests were `NO-SOURCE`;
+- `gradlew.bat test`: successful with expected `NO-SOURCE` result.
 
 ## Dependency constraints
 
@@ -147,6 +170,6 @@ Expected results:
 
 ## Handoff
 
-Story #982 is next. It will implement this contract, generate the wrapper, and
-prove that the actual registered graph is the single root project without
-adopting historical capability source.
+Story #982 implemented and proved the single-root graph without adopting
+historical capability source. Story #983 is next and will publish the canonical
+developer workflow and final Feature 000.03 verification checkpoint.

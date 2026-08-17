@@ -22,8 +22,9 @@ selected for reuse.
 - Active feature: [Feature 000.03 — Simplify the Active Gradle Build](https://github.com/karanbabu2110/KAOS/issues/818)
 - Completed Feature 000.03 stories:
   - [Story 000.03.01 — Define the Minimal Active Gradle Project Graph](https://github.com/karanbabu2110/KAOS/issues/981)
-- Next story: [Story 000.03.02 — Apply the Active Gradle Build Simplification](https://github.com/karanbabu2110/KAOS/issues/982)
-- Repository state: baseline documentation only; no application source has been adopted
+  - [Story 000.03.02 — Apply the Active Gradle Build Simplification](https://github.com/karanbabu2110/KAOS/issues/982)
+- Next story: [Story 000.03.03 — Verify and Document the Focused Gradle Build](https://github.com/karanbabu2110/KAOS/issues/983)
+- Repository state: one root Gradle/Java 21 build; no application source or external dependency has been adopted
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
   - [Reusable foundation asset inventory](docs/evolution/reusable-foundation-assets.md)
@@ -47,5 +48,5 @@ and documented by the active evolutionary roadmap.
 ## Next checkpoint
 
 Feature 000.02 is complete. Feature 000.03 is active with an approved one-root
-Gradle graph. Story #982 will implement the minimal build without importing
-historical capability projects.
+Gradle graph that Story #982 has implemented. Story #983 will publish the final
+focused-build verification and developer handoff.
