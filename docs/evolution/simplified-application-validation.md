@@ -81,8 +81,8 @@ an external system. The safe rollback is the task commit.
 | Projects | Root project only |
 | Dependencies | No production compile or runtime dependency |
 
-Actual results are recorded by Task #1048 in the final Epic 000 exit
-checkpoint.
+Actual results are recorded in the final
+[Epic 000 exit checkpoint](epic-000-exit-and-ai-readiness.md).
 
 ## Non-goals and limitations
 

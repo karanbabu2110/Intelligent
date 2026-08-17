@@ -40,9 +40,10 @@ selected for reuse.
 - Completed direct task: [Task 000.06.02 — Define Proportional Quality and Safety Guardrails](https://github.com/karanbabu2110/KAOS/issues/1042)
 - Completed direct task: [Task 000.06.03 — Validate and Integrate the Incremental Development Rules](https://github.com/karanbabu2110/KAOS/issues/1043)
 - Active feature: [Feature 000.07 — Validate the Simplified Starting Point](https://github.com/karanbabu2110/KAOS/issues/822)
-- Active direct task: [Task 000.07.01 — Verify the Simplified Application Baseline](https://github.com/karanbabu2110/KAOS/issues/1047)
-- Next direct task: [Task 000.07.02 — Publish the Epic 000 Exit and AI-Readiness Checkpoint](https://github.com/karanbabu2110/KAOS/issues/1048)
-- Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and one focused startup test
+- Completed direct task: [Task 000.07.01 — Verify the Simplified Application Baseline](https://github.com/karanbabu2110/KAOS/issues/1047)
+- Active direct task: [Task 000.07.02 — Publish the Epic 000 Exit and AI-Readiness Checkpoint](https://github.com/karanbabu2110/KAOS/issues/1048)
+- Next after Epic 000: [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), beginning with [Feature 001.01](https://github.com/karanbabu2110/KAOS/issues/839)
+- Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and two focused startup tests
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
   - [Reusable foundation asset inventory](docs/evolution/reusable-foundation-assets.md)
@@ -64,6 +65,7 @@ selected for reuse.
   - [Proportional quality and safety guardrails](docs/evolution/proportional-quality-and-safety.md)
   - [Incremental development rules checkpoint](docs/evolution/incremental-development-rules-checkpoint.md)
   - [Simplified application validation](docs/evolution/simplified-application-validation.md)
+  - [Epic 000 exit and AI-readiness checkpoint](docs/evolution/epic-000-exit-and-ai-readiness.md)
 
 ## Run the application
 
@@ -87,6 +89,6 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-Features 000.01 through 000.06 are complete. Feature 000.07 is the active Epic
-000 exit gate. Task #1047 verifies the simplified application directly; Task
-#1048 records the AI-readiness decision and hands off to Epic #2 / Feature #839.
+Features 000.01 through 000.06 and Task #1047 are complete. Task #1048 is the
+final Epic 000 checkpoint: it records that no additional platform-foundation
+gate is required, while keeping Epic #2 / Feature #839 as the next ordered goal.
