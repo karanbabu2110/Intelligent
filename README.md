@@ -37,8 +37,9 @@ selected for reuse.
   - [Story 000.05.04 — Verify Backlog Integrity and Operating Workflow](https://github.com/karanbabu2110/KAOS/issues/990)
 - Active feature: [Feature 000.06 — Establish Incremental Development Rules](https://github.com/karanbabu2110/KAOS/issues/821)
 - Completed direct task: [Task 000.06.01 — Publish the One-Goal Incremental Delivery Workflow](https://github.com/karanbabu2110/KAOS/issues/1041)
-- Active direct task: [Task 000.06.02 — Define Proportional Quality and Safety Guardrails](https://github.com/karanbabu2110/KAOS/issues/1042)
-- Next direct task: [Task 000.06.03 — Validate and Integrate the Incremental Development Rules](https://github.com/karanbabu2110/KAOS/issues/1043)
+- Completed direct task: [Task 000.06.02 — Define Proportional Quality and Safety Guardrails](https://github.com/karanbabu2110/KAOS/issues/1042)
+- Active direct task: [Task 000.06.03 — Validate and Integrate the Incremental Development Rules](https://github.com/karanbabu2110/KAOS/issues/1043)
+- Next feature after merge: [Feature 000.07 — Define the Foundation Exit Criteria and First Capability Handoff](https://github.com/karanbabu2110/KAOS/issues/822)
 - Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and one focused startup test
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
@@ -59,6 +60,7 @@ selected for reuse.
   - [Backlog integrity checkpoint](docs/evolution/backlog-integrity-checkpoint.md)
   - [One-goal incremental development workflow](docs/evolution/incremental-development-workflow.md)
   - [Proportional quality and safety guardrails](docs/evolution/proportional-quality-and-safety.md)
+  - [Incremental development rules checkpoint](docs/evolution/incremental-development-rules-checkpoint.md)
 
 ## Run the application
 
@@ -82,7 +84,7 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-Features 000.01 through 000.05 are complete. Feature 000.06 is active with
-direct just-in-time tasks. Task #1041 establishes the one-goal delivery loop;
-Task #1042 adds proportional quality and safety guardrails, and Task #1043
-validates the complete rules before Feature #822 begins.
+Features 000.01 through 000.05 are complete. Feature 000.06's one-goal workflow
+and proportional guardrails are complete; Task #1043 is validating the rules,
+live roadmap state, and application baseline. After the feature-level pull
+request merges and its branch is deleted, Feature #822 is the only next goal.

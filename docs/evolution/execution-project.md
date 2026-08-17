@@ -16,25 +16,26 @@ On 2026-08-17, live issue and project sets were compared by GitHub issue number:
 
 | Check | Result |
 | --- | ---: |
-| #814 hierarchy issues carrying `roadmap: evolutionary` | 227 |
-| Project 1 items | 227 |
+| #814 hierarchy issues carrying `roadmap: evolutionary` | 236 |
+| Project 1 items | 236 |
 | Missing project items | 0 |
 | Items outside the roadmap set | 0 |
 | Duplicate issue numbers | 0 |
 
 This includes the fixed 1-roadmap/19-epic/146-feature catalog and the stories
-and tasks created just in time under Epic 000. See the
+and tasks created just in time under Epic 000 through Feature 000.06. See the
 [roadmap hierarchy checkpoint](roadmap-hierarchy.md).
 
 ## Fields and current distribution
 
 | Field | Options | Verified distribution |
 | --- | --- | --- |
-| Status | Todo, In Progress, Done | 163 Todo, 5 In Progress, 59 Done |
-| Horizon | Now, Next, Later, Vision | 70 Now, 15 Next, 142 Later, 0 Vision |
-| Priority | Critical, High, Medium, Low | 0 Critical, 6 High, 79 Medium, 142 Low |
+| Status | Todo, In Progress, Done | 158 Todo, 4 In Progress, 74 Done |
+| Horizon | Now, Next, Later, Vision | 79 Now, 15 Next, 142 Later, 0 Vision |
+| Priority | Critical, High, Medium, Low | 0 Critical, 6 High, 88 Medium, 142 Low |
 
-Every one of the 227 items has all three values. The audit found 36 older task
+Every one of the 236 items has all three values. The original normalization
+found 36 older task
 items with blank Horizon and Priority. They were normalized from their single
 `horizon: now` and `priority: medium` labels. Two ancestor statuses were also
 corrected so the active chain is represented end to end.
@@ -44,7 +45,7 @@ corrected so the active chain is represented end to end.
 - **Todo:** default for every new, open item that is not on the current work
   chain.
 - **In Progress:** exactly the current roadmap, epic, feature, optional story,
-  and task chain. At this checkpoint: #814, #815, #820, #988, and #1032.
+  and task chain. At this checkpoint: #814, #815, #821, and #1043.
 - **Done:** the issue is closed as completed and its evidence is recorded.
 
 Closing an issue and setting Done are both required. A project field does not
@@ -105,10 +106,10 @@ For each new story or task:
 
 ## Current and next work
 
-The active path is #814 -> #815 -> #820 -> #988 -> #1032. Task #1033 is next,
-followed by #1034. After Story #988 completes, Story
-[#989](https://github.com/karanbabu2110/KAOS/issues/989) will isolate legacy
-planning from active development.
+The active path is #814 -> #815 -> #821 -> #1043. Direct Tasks #1041 and #1042
+are complete. After Task #1043 validates and merges Feature 000.06, Feature
+[#822](https://github.com/karanbabu2110/KAOS/issues/822) is the next approved
+goal.
 
 No historical project is needed to plan or execute this chain. Story #989 will
 separately verify that historical automation and references cannot create
