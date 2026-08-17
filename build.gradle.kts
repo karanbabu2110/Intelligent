@@ -1,5 +1,5 @@
 plugins {
-    java
+    application
 }
 
 group = "io.kaos"
@@ -9,6 +9,10 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+}
+
+application {
+    mainClass = "io.kaos.app.KaosApplication"
 }
 
 tasks.withType<JavaCompile>().configureEach {
