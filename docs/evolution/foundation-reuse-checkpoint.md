@@ -130,4 +130,5 @@ Feature [#817](https://github.com/karanbabu2110/KAOS/issues/817) is active. Its
 records Story [#978](https://github.com/karanbabu2110/KAOS/issues/978) evidence.
 The [active project and capability classification](active-project-classification.md)
 records Story #979 decisions without adopting historical names or structure.
-Story #980 is next.
+The [active capability classification and dependency path](active-capability-dependency-path.md)
+records the final Feature 000.02 decision and Feature #818 handoff.

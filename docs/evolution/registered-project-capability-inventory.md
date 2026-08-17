@@ -162,4 +162,6 @@ four entry points, three project-dependency edges, and no duplicate table row.
 
 The [active project and capability classification](active-project-classification.md)
 assigns exactly one approved present-state classification to every main-build
-project and the included build. Story #980 is the next approved work.
+project and the included build. The
+[active capability classification and dependency path](active-capability-dependency-path.md)
+publishes the required-now set and final Feature 000.02 handoff.

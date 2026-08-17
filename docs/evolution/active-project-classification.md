@@ -140,7 +140,7 @@ Validation compares this table with the Story #978 inventory and confirms:
 
 ## Handoff
 
-Story #980 is next. It will use these classifications to publish the required-now
-project set, the minimal next application and AI dependency path, and the
-historical registrations that may leave the active graph without deleting
-history.
+The [active capability classification and dependency path](active-capability-dependency-path.md)
+publishes the required-now project set, the minimal next application and AI
+dependency paths, and the historical registrations that may stay outside the
+active graph without deleting history.

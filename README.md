@@ -18,7 +18,8 @@ selected for reuse.
 - Completed Feature 000.02 stories:
   - [Story 000.02.01 — Inventory Registered Projects and Capability Surfaces](https://github.com/karanbabu2110/KAOS/issues/978)
   - [Story 000.02.02 — Classify Each Project and Capability from Current Evidence](https://github.com/karanbabu2110/KAOS/issues/979)
-- Next story: [Story 000.02.03 — Publish the Active Capability Classification and Dependency Path](https://github.com/karanbabu2110/KAOS/issues/980)
+  - [Story 000.02.03 — Publish the Active Capability Classification and Dependency Path](https://github.com/karanbabu2110/KAOS/issues/980)
+- Next feature after merge: [Feature 000.03 — Simplify the Active Gradle Build](https://github.com/karanbabu2110/KAOS/issues/818)
 - Repository state: baseline documentation only; no application source has been adopted
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
@@ -27,6 +28,7 @@ selected for reuse.
   - [Foundation reuse checkpoint](docs/evolution/foundation-reuse-checkpoint.md)
   - [Registered project and capability surface inventory](docs/evolution/registered-project-capability-inventory.md)
   - [Active project and capability classification](docs/evolution/active-project-classification.md)
+  - [Active capability classification and dependency path](docs/evolution/active-capability-dependency-path.md)
 
 ## Development rule
 
@@ -41,5 +43,6 @@ and documented by the active evolutionary roadmap.
 ## Next checkpoint
 
 Feature 000.01 is complete. Feature 000.02 is active, and its registered project
-inventory and evidence-backed classifications are published. Story #980 will
-select the minimal required-now project and dependency path.
+inventory, classifications, and one-root dependency-path decision are
+published. Merge the Feature 000.02 PR before Feature #818 begins with Story
+#981.
