@@ -67,8 +67,10 @@ need, fault-isolation need, or incompatible dependency that would justify a
 separate build or runtime.
 
 Packages provide the needed navigation and ownership boundary at effectively no
-operational cost. Story #986 will define the evidence required to graduate from
-a package to a module, repository, or service later.
+operational cost. The
+[capability boundary evolution rules](capability-boundary-evolution.md) define
+the evidence required to graduate from a package to a module, repository, or
+service later.
 
 ## Validation
 
@@ -88,7 +90,7 @@ Verified on 2026-08-17:
 
 ## Handoff
 
-Story [#986](https://github.com/karanbabu2110/KAOS/issues/986) is next. It will
-define observable growth and extraction triggers without extracting anything
-now. Feature [#819](https://github.com/karanbabu2110/KAOS/issues/819) remains
-active until that story is complete and the feature-level pull request merges.
+Story [#986](https://github.com/karanbabu2110/KAOS/issues/986) now defines
+observable growth and extraction triggers without extracting anything. Feature
+[#819](https://github.com/karanbabu2110/KAOS/issues/819) is ready for its
+feature-level pull request.
