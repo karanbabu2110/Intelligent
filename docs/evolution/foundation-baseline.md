@@ -86,6 +86,8 @@ Observed results:
 ## Handoff
 
 The [reusable foundation asset inventory](reusable-foundation-assets.md) records
-the Story 000.01.02 classifications from this immutable snapshot. Story
-000.01.03 is the next approved story. It will separate retained engineering
-assets from foundation-first assumptions that no longer constrain development.
+the Story 000.01.02 classifications from this immutable snapshot. The
+[foundation asset and assumption decisions](foundation-assumption-decisions.md)
+record which assets remain available, which foundation-first assumptions are
+retired, and which constraints stay protected. Story 000.01.04 is the next
+approved story.

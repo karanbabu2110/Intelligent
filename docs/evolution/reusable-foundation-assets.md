@@ -89,6 +89,8 @@ When an asset trigger occurs:
 
 ## Handoff
 
-Story 000.01.03 is next. It will turn this inventory into a clear separation
-between retained engineering assets and foundation-first assumptions that no
-longer constrain development.
+The [foundation asset and assumption decisions](foundation-assumption-decisions.md)
+turn this inventory into a clear separation between retained engineering
+assets, retired foundation-first assumptions, and protected constraints. Story
+000.01.04 is the next approved story and will publish the Feature 000.01 reuse
+checkpoint.
