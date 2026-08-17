@@ -17,7 +17,8 @@ selected for reuse.
   - [Story 000.01.04 — Publish the Foundation Reuse Checkpoint](https://github.com/karanbabu2110/KAOS/issues/838)
 - Completed Feature 000.02 stories:
   - [Story 000.02.01 — Inventory Registered Projects and Capability Surfaces](https://github.com/karanbabu2110/KAOS/issues/978)
-- Next story: [Story 000.02.02 — Classify Each Project and Capability from Current Evidence](https://github.com/karanbabu2110/KAOS/issues/979)
+  - [Story 000.02.02 — Classify Each Project and Capability from Current Evidence](https://github.com/karanbabu2110/KAOS/issues/979)
+- Next story: [Story 000.02.03 — Publish the Active Capability Classification and Dependency Path](https://github.com/karanbabu2110/KAOS/issues/980)
 - Repository state: baseline documentation only; no application source has been adopted
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
@@ -25,6 +26,7 @@ selected for reuse.
   - [Foundation asset and assumption decisions](docs/evolution/foundation-assumption-decisions.md)
   - [Foundation reuse checkpoint](docs/evolution/foundation-reuse-checkpoint.md)
   - [Registered project and capability surface inventory](docs/evolution/registered-project-capability-inventory.md)
+  - [Active project and capability classification](docs/evolution/active-project-classification.md)
 
 ## Development rule
 
@@ -39,5 +41,5 @@ and documented by the active evolutionary roadmap.
 ## Next checkpoint
 
 Feature 000.01 is complete. Feature 000.02 is active, and its registered project
-inventory is published. Story #979 will assign evidence-backed present-state
-classifications without treating project names as implemented capabilities.
+inventory and evidence-backed classifications are published. Story #980 will
+select the minimal required-now project and dependency path.

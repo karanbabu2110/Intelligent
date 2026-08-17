@@ -128,5 +128,6 @@ Observed results:
 Feature [#817](https://github.com/karanbabu2110/KAOS/issues/817) is active. Its
 [registered project and capability surface inventory](registered-project-capability-inventory.md)
 records Story [#978](https://github.com/karanbabu2110/KAOS/issues/978) evidence.
-Story #979 is next and will classify those surfaces without adopting their
-names or old structure as the new architecture.
+The [active project and capability classification](active-project-classification.md)
+records Story #979 decisions without adopting historical names or structure.
+Story #980 is next.

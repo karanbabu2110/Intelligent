@@ -160,6 +160,6 @@ four entry points, three project-dependency edges, and no duplicate table row.
 
 ## Handoff
 
-Story #979 is next. It will assign exactly one approved present-state
-classification to every main-build project, the included build, and each
-identified capability surface using this inventory as evidence.
+The [active project and capability classification](active-project-classification.md)
+assigns exactly one approved present-state classification to every main-build
+project and the included build. Story #980 is the next approved work.
