@@ -9,7 +9,7 @@ selected for reuse.
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed feature: [Feature 000.01 — Preserve the Existing Foundation Baseline](https://github.com/karanbabu2110/KAOS/issues/816)
-- Active feature: [Feature 000.02 — Reclassify Existing Modules and Capabilities](https://github.com/karanbabu2110/KAOS/issues/817)
+- Completed feature: [Feature 000.02 — Reclassify Existing Modules and Capabilities](https://github.com/karanbabu2110/KAOS/issues/817)
 - Completed Feature 000.01 stories:
   - [Story 000.01.01 — Record the Foundation Baseline](https://github.com/karanbabu2110/KAOS/issues/835)
   - [Story 000.01.02 — Inventory Reusable Foundation Assets](https://github.com/karanbabu2110/KAOS/issues/836)
@@ -19,8 +19,13 @@ selected for reuse.
   - [Story 000.02.01 — Inventory Registered Projects and Capability Surfaces](https://github.com/karanbabu2110/KAOS/issues/978)
   - [Story 000.02.02 — Classify Each Project and Capability from Current Evidence](https://github.com/karanbabu2110/KAOS/issues/979)
   - [Story 000.02.03 — Publish the Active Capability Classification and Dependency Path](https://github.com/karanbabu2110/KAOS/issues/980)
-- Next feature after merge: [Feature 000.03 — Simplify the Active Gradle Build](https://github.com/karanbabu2110/KAOS/issues/818)
-- Repository state: baseline documentation only; no application source has been adopted
+- Active feature: [Feature 000.03 — Simplify the Active Gradle Build](https://github.com/karanbabu2110/KAOS/issues/818)
+- Completed Feature 000.03 stories:
+  - [Story 000.03.01 — Define the Minimal Active Gradle Project Graph](https://github.com/karanbabu2110/KAOS/issues/981)
+  - [Story 000.03.02 — Apply the Active Gradle Build Simplification](https://github.com/karanbabu2110/KAOS/issues/982)
+  - [Story 000.03.03 — Verify and Document the Focused Gradle Build](https://github.com/karanbabu2110/KAOS/issues/983)
+- Next feature after merge: [Feature 000.04 — Establish the Single KAOS Application](https://github.com/karanbabu2110/KAOS/issues/819)
+- Repository state: one root Gradle/Java 21 build; no application source or external dependency has been adopted
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
   - [Reusable foundation asset inventory](docs/evolution/reusable-foundation-assets.md)
@@ -29,6 +34,8 @@ selected for reuse.
   - [Registered project and capability surface inventory](docs/evolution/registered-project-capability-inventory.md)
   - [Active project and capability classification](docs/evolution/active-project-classification.md)
   - [Active capability classification and dependency path](docs/evolution/active-capability-dependency-path.md)
+  - [Minimal active Gradle graph contract](docs/evolution/minimal-gradle-graph.md)
+  - [Focused Gradle build workflow](docs/evolution/focused-gradle-build.md)
 
 ## Development rule
 
@@ -42,7 +49,6 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-Feature 000.01 is complete. Feature 000.02 is active, and its registered project
-inventory, classifications, and one-root dependency-path decision are
-published. Merge the Feature 000.02 PR before Feature #818 begins with Story
-#981.
+Feature 000.02 is complete. Feature 000.03 now has a verified one-root Gradle
+build and canonical developer workflow. Merge Feature 000.03 before Feature
+#819 begins with Story #984.

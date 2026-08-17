@@ -144,7 +144,7 @@ Focused validation confirms:
 
 ## Next action
 
-Merge the single Feature 000.02 pull request. Then activate Feature
-[#818](https://github.com/karanbabu2110/KAOS/issues/818) and Story
-[#981](https://github.com/karanbabu2110/KAOS/issues/981) to define the concrete
-minimal Gradle graph from this decision before changing build files.
+Feature [#818](https://github.com/karanbabu2110/KAOS/issues/818) is active. Its
+[minimal active Gradle graph contract](minimal-gradle-graph.md) records Story
+[#981](https://github.com/karanbabu2110/KAOS/issues/981). Story #982 is next and
+will implement that contract.
