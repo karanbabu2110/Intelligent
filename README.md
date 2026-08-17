@@ -24,12 +24,15 @@ selected for reuse.
   - [Story 000.03.01 — Define the Minimal Active Gradle Project Graph](https://github.com/karanbabu2110/KAOS/issues/981)
   - [Story 000.03.02 — Apply the Active Gradle Build Simplification](https://github.com/karanbabu2110/KAOS/issues/982)
   - [Story 000.03.03 — Verify and Document the Focused Gradle Build](https://github.com/karanbabu2110/KAOS/issues/983)
-- Active feature: [Feature 000.04 — Establish the Single KAOS Application](https://github.com/karanbabu2110/KAOS/issues/819)
+- Completed feature: [Feature 000.04 — Establish the Single KAOS Application](https://github.com/karanbabu2110/KAOS/issues/819)
 - Completed Feature 000.04 stories:
   - [Story 000.04.01 — Select the Single KAOS Application Entry Point](https://github.com/karanbabu2110/KAOS/issues/984)
   - [Story 000.04.02 — Establish the Package-First Application Structure](https://github.com/karanbabu2110/KAOS/issues/985)
   - [Story 000.04.03 — Define Capability Growth and Extraction Triggers](https://github.com/karanbabu2110/KAOS/issues/986)
-- Next feature after merge: [Feature 000.05 — Reorganize the GitHub Backlog](https://github.com/karanbabu2110/KAOS/issues/820)
+- Active feature: [Feature 000.05 — Reorganize the GitHub Backlog](https://github.com/karanbabu2110/KAOS/issues/820)
+- Completed Feature 000.05 stories:
+  - [Story 000.05.01 — Establish the #814-Only Development Hierarchy](https://github.com/karanbabu2110/KAOS/issues/987)
+- Next story: [Story 000.05.02 — Configure the Evolutionary Execution Project](https://github.com/karanbabu2110/KAOS/issues/988)
 - Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and one focused startup test
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
@@ -44,6 +47,7 @@ selected for reuse.
   - [Single KAOS application entry point](docs/evolution/single-application-entry-point.md)
   - [Package-first application structure](docs/evolution/package-first-application-structure.md)
   - [Capability boundary evolution rules](docs/evolution/capability-boundary-evolution.md)
+  - [Evolutionary roadmap hierarchy](docs/evolution/roadmap-hierarchy.md)
 
 ## Run the application
 
@@ -67,6 +71,6 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-Features 000.01 through 000.03 are complete. Feature 000.04 now has one runnable
-entry point, a verified package-first growth path, and evidence-based extraction
-triggers. Merge Feature #819 before Feature #820 begins with Story #987.
+Features 000.01 through 000.04 are complete. Feature 000.05 is active, and its
+#814-only hierarchy is verified. Story #988 is next and will verify the
+organization execution project fields and membership.
