@@ -68,15 +68,16 @@ The equivalent Unix-like commands use `./gradlew`.
 
 - The application has no capability beyond deterministic startup.
 - No product configuration is consumed.
-- No behavioral test source exists yet; Story #985 must introduce the first
-  package-first behavior and focused test without inventing a framework need.
+- The only behavior is a startup identity, covered by one focused test added by
+  Story #985; product-capability testing begins with the first capability.
 - Distribution, deployment, long-running process behavior, and service
   extraction are deferred.
 
 ## Handoff
 
-Story [#985](https://github.com/karanbabu2110/KAOS/issues/985) is next. It will
-establish the smallest package-first internal structure around this one entry
-point. Feature [#819](https://github.com/karanbabu2110/KAOS/issues/819) remains
-active until Stories #985 and #986 are complete and one feature-level pull
-request is merged.
+Story [#985](https://github.com/karanbabu2110/KAOS/issues/985) established the
+[package-first application structure](package-first-application-structure.md)
+around this entry point. Story
+[#986](https://github.com/karanbabu2110/KAOS/issues/986) is next. Feature
+[#819](https://github.com/karanbabu2110/KAOS/issues/819) remains active until
+that story is complete and one feature-level pull request is merged.
