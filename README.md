@@ -33,7 +33,8 @@ selected for reuse.
 - Completed Feature 000.05 stories:
   - [Story 000.05.01 — Establish the #814-Only Development Hierarchy](https://github.com/karanbabu2110/KAOS/issues/987)
   - [Story 000.05.02 — Configure the Evolutionary Execution Project](https://github.com/karanbabu2110/KAOS/issues/988)
-- Next story: [Story 000.05.03 — Isolate Legacy Planning from Active Development](https://github.com/karanbabu2110/KAOS/issues/989)
+  - [Story 000.05.03 — Isolate Legacy Planning from Active Development](https://github.com/karanbabu2110/KAOS/issues/989)
+- Next story: [Story 000.05.04 — Verify Backlog Integrity and Operating Workflow](https://github.com/karanbabu2110/KAOS/issues/990)
 - Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and one focused startup test
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
@@ -50,6 +51,7 @@ selected for reuse.
   - [Capability boundary evolution rules](docs/evolution/capability-boundary-evolution.md)
   - [Evolutionary roadmap hierarchy](docs/evolution/roadmap-hierarchy.md)
   - [Evolutionary execution project](docs/evolution/execution-project.md)
+  - [Legacy planning isolation](docs/evolution/legacy-planning-isolation.md)
 
 ## Run the application
 
@@ -74,5 +76,6 @@ and documented by the active evolutionary roadmap.
 ## Next checkpoint
 
 Features 000.01 through 000.04 are complete. Feature 000.05 now has a verified
-#814-only hierarchy and fully normalized organization execution project. Story
-#989 is next and will isolate legacy planning from the active workflow.
+#814-only hierarchy, normalized organization execution project, and isolated
+historical planning. Story #990 is next and will run the final backlog integrity
+and operating-workflow proof.
