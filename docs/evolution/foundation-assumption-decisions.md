@@ -124,7 +124,7 @@ story checks that:
 
 ## Handoff
 
-Story 000.01.03 establishes the decisions. Story #838 is the next approved
-story and will consolidate the full Feature 000.01 evidence into a concise,
-resumable foundation reuse checkpoint. Feature #817 does not start until that
-checkpoint completes Feature #816.
+Story 000.01.03 establishes the decisions. The
+[foundation reuse checkpoint](foundation-reuse-checkpoint.md) consolidates the
+full Feature 000.01 evidence. Feature #817 does not start until Feature #816 is
+reviewed and merged.
