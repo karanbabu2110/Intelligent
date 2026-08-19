@@ -5,11 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.kaos.app.config.ApplicationConfiguration;
-import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
-import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 class KaosApplicationTest {
@@ -24,7 +21,7 @@ class KaosApplicationTest {
 
     @Test
     void startsThroughTheSelectedEntryPointAndReturnsAfterItsDiagnostic() {
-        CommandResult result = run();
+        KaosApplicationHarness.Result result = KaosApplicationHarness.run();
 
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(
@@ -34,7 +31,7 @@ class KaosApplicationTest {
 
     @Test
     void reportsStatusForTheExplicitStatusCommand() {
-        CommandResult result = run("status");
+        KaosApplicationHarness.Result result = KaosApplicationHarness.run("status");
 
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(
@@ -45,7 +42,7 @@ class KaosApplicationTest {
 
     @Test
     void printsHelpForTheHelpCommand() {
-        CommandResult result = run("help");
+        KaosApplicationHarness.Result result = KaosApplicationHarness.run("help");
 
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(KaosApplication.helpText(), result.standardOutput());
@@ -54,7 +51,7 @@ class KaosApplicationTest {
 
     @Test
     void printsHelpForTheLongHelpAlias() {
-        CommandResult result = run("--help");
+        KaosApplicationHarness.Result result = KaosApplicationHarness.run("--help");
 
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(KaosApplication.helpText(), result.standardOutput());
@@ -70,7 +67,8 @@ class KaosApplicationTest {
 
     @Test
     void usesTheConfiguredApplicationNameForTheStatusCommand() {
-        CommandResult result = run(new ApplicationConfiguration("Local KAOS"), "status");
+        KaosApplicationHarness.Result result =
+                KaosApplicationHarness.run(new ApplicationConfiguration("Local KAOS"), "status");
 
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(
@@ -83,7 +81,7 @@ class KaosApplicationTest {
     void rejectsAnUnknownCommandWithoutEchoingIt() {
         String untrustedCommand = "unknown-token-value";
 
-        CommandResult result = run(untrustedCommand);
+        KaosApplicationHarness.Result result = KaosApplicationHarness.run(untrustedCommand);
 
         assertEquals(KaosApplication.USAGE_ERROR, result.exitCode());
         assertEquals("", result.standardOutput());
@@ -97,7 +95,8 @@ class KaosApplicationTest {
     void rejectsExtraArgumentsWithoutEchoingThem() {
         String untrustedArgument = "private-token-value";
 
-        CommandResult result = run("status", untrustedArgument);
+        KaosApplicationHarness.Result result =
+                KaosApplicationHarness.run("status", untrustedArgument);
 
         assertEquals(KaosApplication.USAGE_ERROR, result.exitCode());
         assertEquals("", result.standardOutput());
@@ -109,7 +108,7 @@ class KaosApplicationTest {
 
     @Test
     void launchesAValidCommandThroughTheApplicationFailureBoundary() {
-        CommandResult result = launch(
+        KaosApplicationHarness.Result result = KaosApplicationHarness.launch(
                 () -> new ApplicationConfiguration(
                         ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
                 "status");
@@ -125,7 +124,7 @@ class KaosApplicationTest {
     void logsInvalidConfigurationWithoutDisclosingExceptionDetails() {
         String privateDetail = "private-invalid-value";
 
-        CommandResult result = launch(
+        KaosApplicationHarness.Result result = KaosApplicationHarness.launch(
                 () -> {
                     throw new IllegalArgumentException(privateDetail);
                 },
@@ -145,7 +144,7 @@ class KaosApplicationTest {
     void logsUnreadableConfigurationWithoutDisclosingExceptionDetails() {
         String privateDetail = "private-permission-detail";
 
-        CommandResult result = launch(
+        KaosApplicationHarness.Result result = KaosApplicationHarness.launch(
                 () -> {
                     throw new IllegalStateException(privateDetail);
                 },
@@ -165,7 +164,7 @@ class KaosApplicationTest {
     void logsUnexpectedConfigurationLoaderFailureWithoutDisclosingExceptionDetails() {
         String privateDetail = "private-runtime-detail";
 
-        CommandResult result = launch(
+        KaosApplicationHarness.Result result = KaosApplicationHarness.launch(
                 () -> {
                     throw new UnsupportedOperationException(privateDetail);
                 },
@@ -184,33 +183,31 @@ class KaosApplicationTest {
     @Test
     void logsUnexpectedCommandFailureWithoutMisclassifyingItAsConfiguration() {
         String privateDetail = "private-command-detail";
-        ByteArrayOutputStream capturedError = new ByteArrayOutputStream();
 
         try (PrintStream failingOutput = new PrintStream(OutputStream.nullOutputStream()) {
                     @Override
                     public void println(String value) {
                         throw new UnsupportedOperationException(privateDetail);
                     }
-                };
-                PrintStream testError =
-                        new PrintStream(capturedError, true, StandardCharsets.UTF_8)) {
-            int exitCode = KaosApplication.launch(
-                    new String[] {"status"},
-                    () -> new ApplicationConfiguration(
-                            ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
-                    failingOutput,
-                    testError);
+                }) {
+            KaosApplicationHarness.Result result = KaosApplicationHarness.capture(
+                    (output, errorOutput) -> KaosApplication.launch(
+                            new String[] {"status"},
+                            () -> new ApplicationConfiguration(
+                                    ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                            failingOutput,
+                            errorOutput));
 
-            String errorOutput = capturedError.toString(StandardCharsets.UTF_8);
-            assertEquals(KaosApplication.APPLICATION_ERROR, exitCode);
+            assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+            assertEquals("", result.standardOutput());
             assertEquals(
                     "ERROR [KAOS-APP-001] KAOS could not complete the requested command. "
                             + "Restart and retry."
                             + System.lineSeparator(),
-                    errorOutput);
-            assertFalse(errorOutput.contains(privateDetail));
-            assertFalse(errorOutput.contains(KaosApplication.INVALID_CONFIGURATION_CODE));
-            assertFalse(errorOutput.contains(KaosApplication.UNREADABLE_CONFIGURATION_CODE));
+                    result.errorOutput());
+            assertFalse(result.errorOutput().contains(privateDetail));
+            assertFalse(result.errorOutput().contains(KaosApplication.INVALID_CONFIGURATION_CODE));
+            assertFalse(result.errorOutput().contains(KaosApplication.UNREADABLE_CONFIGURATION_CODE));
         }
     }
 
@@ -220,54 +217,12 @@ class KaosApplicationTest {
 
         AssertionError thrown = assertThrows(
                 AssertionError.class,
-                () -> launch(
+                () -> KaosApplicationHarness.launch(
                         () -> {
                             throw failure;
                         },
                         "status"));
 
         assertEquals(failure, thrown);
-    }
-
-    private static CommandResult run(String... arguments) {
-        return run(
-                new ApplicationConfiguration(ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
-                arguments);
-    }
-
-    private static CommandResult run(
-            ApplicationConfiguration configuration, String... arguments) {
-        return capture((output, errorOutput) ->
-                KaosApplication.run(arguments, configuration, output, errorOutput));
-    }
-
-    private static CommandResult launch(
-            Supplier<ApplicationConfiguration> configurationLoader, String... arguments) {
-        return capture((output, errorOutput) ->
-                KaosApplication.launch(arguments, configurationLoader, output, errorOutput));
-    }
-
-    private static CommandResult capture(CommandInvocation invocation) {
-        ByteArrayOutputStream capturedOutput = new ByteArrayOutputStream();
-        ByteArrayOutputStream capturedError = new ByteArrayOutputStream();
-
-        try (PrintStream testOutput =
-                        new PrintStream(capturedOutput, true, StandardCharsets.UTF_8);
-                PrintStream testError =
-                        new PrintStream(capturedError, true, StandardCharsets.UTF_8)) {
-            int exitCode = invocation.invoke(testOutput, testError);
-            return new CommandResult(
-                    exitCode,
-                    capturedOutput.toString(StandardCharsets.UTF_8),
-                    capturedError.toString(StandardCharsets.UTF_8));
-        }
-    }
-
-    private record CommandResult(int exitCode, String standardOutput, String errorOutput) {
-    }
-
-    @FunctionalInterface
-    private interface CommandInvocation {
-        int invoke(PrintStream output, PrintStream errorOutput);
     }
 }
