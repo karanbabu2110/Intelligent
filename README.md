@@ -47,6 +47,8 @@ inside the verified single application.
 - Completed direct task: [Task 001.01.01 — Establish the KAOS 0.0.1 Version Contract](https://github.com/karanbabu2110/KAOS/issues/1049)
 - Completed direct task: [Task 001.01.02 — Validate and Publish the KAOS 0.0.1 Baseline](https://github.com/karanbabu2110/KAOS/issues/1050)
 - Active feature: [Feature 001.02 — Application Configuration](https://github.com/karanbabu2110/KAOS/issues/840)
+- Active direct task: [Task 001.02.01 — Implement Safe Local Application Configuration](https://github.com/karanbabu2110/KAOS/issues/1051)
+- Next direct task: [Task 001.02.02 — Validate and Document Application Configuration](https://github.com/karanbabu2110/KAOS/issues/1052)
 - Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and two focused startup tests
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
@@ -75,8 +77,10 @@ inside the verified single application.
 
 ## Version
 
-The current application version is **0.0.1**. Gradle artifacts use `0.0.1`,
-and the corresponding release tag is [`v0.0.1`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v0.0.1).
+The latest release is **0.0.1**, tagged as
+[`v0.0.1`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v0.0.1).
+Ongoing development uses Gradle version **0.0.2-SNAPSHOT** so unreleased work
+cannot be confused with that baseline.
 
 This is an initial-development baseline. It proves the runnable Java
 application and development workflow; it is not a production-ready KAOS or AI
@@ -91,6 +95,21 @@ capability release. See the [0.0.1 release notes](docs/releases/v0.0.1.md).
 The current application prints `KAOS application baseline is running.` and
 exits. This verifies the bootstrap only; no KAOS product capability is claimed
 yet.
+
+The application name can be overridden locally. For the Gradle run workflow,
+set the environment variable:
+
+```powershell
+$env:KAOS_APP_NAME = "Local KAOS"
+./gradlew.bat run
+```
+
+Direct JVM launches may instead set `-Dkaos.app.name="Local KAOS"`; that system
+property takes precedence over `KAOS_APP_NAME`.
+
+The default is `KAOS`. Names are trimmed, limited to 64 Unicode characters, and
+may contain letters, numbers, spaces, periods, underscores, or hyphens. No
+secret, provider, remote, or file configuration is implemented yet.
 
 ## Development rule
 
