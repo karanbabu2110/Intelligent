@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Evidence-based living architecture for the evolving KAOS application">
+  <meta name="theme-color" content="#07111f">
+  <title>KAOS Living Architecture</title>
+  <link rel="stylesheet" href="assets/styles/site.css">
+</head>
+<body>
+  <nav class="site-nav" aria-label="Architecture website navigation">
+    <div class="nav-inner">
+      <a class="brand" href="#overview">KAOS Architecture</a>
+      <ul class="nav-links">
+        <li><a href="#runtime">Runtime</a></li>
+        <li><a href="#capabilities">Capabilities</a></li>
+        <li><a href="#evolution">Evolution</a></li>
+        <li><a href="#evidence">Evidence</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main id="overview" class="shell">
+    <header class="hero">
+      <div>
+        <div class="eyebrow">Living architecture · evidence before structure</div>
+        <h1>KAOS grows one useful capability at a time.</h1>
+        <p class="lede">This website records what exists, what is approved next, and which boundaries remain only candidates. It is updated alongside implementation—not designed years ahead of it.</p>
+      </div>
+      <div class="stamp">
+        <strong>Verified 2026-08-20</strong>
+        Version 0.0.2-SNAPSHOT<br>
+        Java 21 · one Gradle project · one process
+      </div>
+    </header>
+
+    <div class="legend" aria-label="Architecture status legend">
+      <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
+      <span class="pill"><span class="dot next"></span>Next approved work</span>
+      <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
+    </div>
+
+    <section id="runtime" class="panel" aria-labelledby="runtime-heading">
+      <h2 id="runtime-heading">Current runtime and next integration</h2>
+      <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
+        <svg viewBox="0 0 1140 650" role="img" aria-labelledby="diagram-title diagram-description">
+          <title id="diagram-title">KAOS application architecture</title>
+          <desc id="diagram-description">A terminal invokes the implemented KAOS application. The application loads local configuration and routes status or help commands. Tests and Gradle verify the application. The next planned addition is an in-process AI package connecting to local Ollama.</desc>
+          <defs>
+            <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
+            <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
+            <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
+          </defs>
+
+          <text x="34" y="40" class="svg-label">LOCAL USER BOUNDARY</text>
+          <rect x="34" y="65" width="220" height="105" class="box box-implemented"></rect>
+          <text x="58" y="105" class="svg-title">Terminal</text>
+          <text x="58" y="132" class="svg-copy">status · help · --help</text>
+
+          <text x="340" y="40" class="svg-label">SINGLE JAVA 21 PROCESS</text>
+          <rect x="330" y="65" width="474" height="310" class="box box-implemented"></rect>
+          <text x="358" y="105" class="svg-title">io.kaos.app.KaosApplication</text>
+          <text x="358" y="132" class="svg-copy">Entry point · composition root · safe error boundary</text>
+          <rect x="365" y="166" width="190" height="93" class="box box-support"></rect>
+          <text x="387" y="202" class="svg-title">Command routing</text>
+          <text x="387" y="229" class="svg-copy">status or help</text>
+          <rect x="580" y="166" width="190" height="93" class="box box-support"></rect>
+          <text x="602" y="202" class="svg-title">Output</text>
+          <text x="602" y="229" class="svg-copy">stdout · safe stderr</text>
+          <rect x="365" y="284" width="405" height="60" class="box box-support"></rect>
+          <text x="387" y="320" class="svg-title">io.kaos.app.config.ApplicationConfiguration</text>
+
+          <path d="M254 117 L330 117" class="flow"></path>
+          <path d="M555 212 L580 212" class="flow"></path>
+
+          <rect x="34" y="270" width="220" height="128" class="box box-implemented"></rect>
+          <text x="58" y="307" class="svg-title">Local configuration</text>
+          <text x="58" y="335" class="svg-copy">1. system property</text>
+          <text x="58" y="357" class="svg-copy">2. environment variable</text>
+          <text x="58" y="379" class="svg-copy">3. safe default</text>
+          <path d="M254 334 L365 314" class="flow"></path>
+
+          <rect x="330" y="440" width="474" height="150" class="box box-support"></rect>
+          <text x="358" y="478" class="svg-title">Build and verification boundary</text>
+          <text x="358" y="507" class="svg-copy">Gradle application plugin · JUnit test harness · process tests</text>
+          <text x="358" y="533" class="svg-copy">clean verifyLocal → compile → test → package → smoke checks</text>
+          <text x="358" y="560" class="svg-copy">No production runtime dependency</text>
+          <path d="M566 440 L566 375" class="support-flow"></path>
+
+          <text x="875" y="40" class="svg-label">FEATURE 002.01 · NOT YET IMPLEMENTED</text>
+          <rect x="866" y="65" width="240" height="132" class="box box-next"></rect>
+          <text x="890" y="105" class="svg-title">io.kaos.ai</text>
+          <text x="890" y="133" class="svg-copy">First AI capability package</text>
+          <text x="890" y="158" class="svg-copy">Direct in-process composition</text>
+          <path d="M804 130 L866 130" class="planned-flow"></path>
+
+          <rect x="866" y="270" width="240" height="128" class="box box-next"></rect>
+          <text x="890" y="310" class="svg-title">Local Ollama</text>
+          <text x="890" y="338" class="svg-copy">Provider endpoint and model</text>
+          <text x="890" y="363" class="svg-copy">Contract defined just in time</text>
+          <path d="M986 197 L986 270" class="planned-flow"></path>
+        </svg>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="status-heading">
+      <h2 id="status-heading">Architecture status</h2>
+      <div class="grid">
+        <article class="card">
+          <div class="status implemented">Implemented</div>
+          <h3>Minimal application shell</h3>
+          <p>One root project, entry point, validated local configuration, command routing, safe errors, logging, tests, packaging, and local verification.</p>
+        </article>
+        <article class="card">
+          <div class="status next">Next</div>
+          <h3>First AI integration</h3>
+          <p>Feature 002.01 will establish Ollama connectivity inside the application. Its exact classes and contract are recorded only when implemented.</p>
+        </article>
+        <article class="card">
+          <div class="status future">Not justified today</div>
+          <h3>Distributed boundaries</h3>
+          <p>No Gradle submodule, reusable library, separate repository, plugin, message bus, database, or microservice currently exists.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="capabilities" class="panel" aria-labelledby="vision-heading">
+      <h2 id="vision-heading">Long-term capability candidates</h2>
+      <p class="rule">These names preserve the KAOS vision. They are not promises about packages, modules, repositories, deployment units, implementation order, or technology choices.</p>
+      <div class="capabilities">
+        <div class="capability"><strong>AI runtime</strong>Provider-neutral interaction after real provider learning.</div>
+        <div class="capability"><strong>Knowledge / RAG</strong>Ingestion, retrieval, and grounded responses.</div>
+        <div class="capability"><strong>Memory</strong>Useful retained context with explicit ownership.</div>
+        <div class="capability"><strong>Agents and tools</strong>Bounded action and orchestration capabilities.</div>
+        <div class="capability"><strong>Browser automation</strong>Web interaction when a real workflow requires it.</div>
+        <div class="capability"><strong>Desktop automation</strong>Local operating-system interaction and controls.</div>
+        <div class="capability"><strong>KAI developer assistant</strong>Development workflows built from proven KAOS capabilities.</div>
+      </div>
+    </section>
+
+    <section id="evolution" class="panel" aria-labelledby="evolution-heading">
+      <h2 id="evolution-heading">Boundary evolution ladder</h2>
+      <div class="ladder">
+        <div class="stage current"><strong>Package</strong>Current default: one capability package inside one application.</div>
+        <div class="stage"><strong>Gradle module</strong>Only for measured dependency, build, test, or artifact isolation.</div>
+        <div class="stage"><strong>Library or repository</strong>Only for real consumers and an independent release need.</div>
+        <div class="stage"><strong>Deployed service</strong>Only for proven deployment, scale, fault, hardware, or security isolation.</div>
+      </div>
+    </section>
+
+    <section id="evidence" class="panel" aria-labelledby="evidence-heading">
+      <h2 id="evidence-heading">Evidence and update contract</h2>
+      <table>
+        <thead><tr><th>Architectural claim</th><th>Repository evidence</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>One build and application</td><td><a href="../../settings.gradle.kts"><code>settings.gradle.kts</code></a> and <a href="../../build.gradle.kts"><code>build.gradle.kts</code></a></td><td>Implemented</td></tr>
+          <tr><td>Single process entry point</td><td><a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a></td><td>Implemented</td></tr>
+          <tr><td>Local validated configuration</td><td><a href="../../src/main/java/io/kaos/app/config/ApplicationConfiguration.java"><code>ApplicationConfiguration.java</code></a></td><td>Implemented</td></tr>
+          <tr><td>Package-first growth</td><td><a href="../../docs/evolution/package-first-application-structure.md">Package-first structure</a></td><td>Active rule</td></tr>
+          <tr><td>Evidence-gated extraction</td><td><a href="../../docs/evolution/capability-boundary-evolution.md">Boundary evolution decision</a></td><td>Active rule</td></tr>
+          <tr><td>Ollama connectivity</td><td><a href="https://github.com/karanbabu2110/KAOS/issues/845">Feature 002.01</a></td><td>Next; not implemented</td></tr>
+        </tbody>
+      </table>
+      <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>
+    </section>
+
+    <footer>
+      <a href="../../README.md">Back to the KAOS README</a> ·
+      <a href="README.md">Website maintenance guide</a> ·
+      Roadmap source: <a href="https://github.com/karanbabu2110/KAOS/issues/814">KAOS Evolutionary Development Roadmap #814</a>
+    </footer>
+  </main>
+</body>
+</html>

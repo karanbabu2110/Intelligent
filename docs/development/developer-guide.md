@@ -1,0 +1,237 @@
+# KAOS Developer Guide
+
+This is the practical entry point for developing the current KAOS application.
+It describes the application that exists now; planned capabilities do not add
+setup or operational requirements until they are implemented.
+
+## Prerequisites
+
+- Git
+- A Java 21 JDK available to the Gradle toolchain
+- PowerShell or Command Prompt on Windows, or a POSIX-compatible shell on
+  Linux/macOS
+- Network access the first time Gradle needs to download declared build or test
+  dependencies
+
+No system Gradle installation is required. Use the Gradle wrapper committed to
+the repository.
+
+Check the active Java runtime:
+
+```powershell
+java -version
+```
+
+## Get the repository
+
+```powershell
+git clone https://github.com/Knowledge-Autonomous-Operating-System/KAOS.git
+cd KAOS
+```
+
+All commands in this guide run from the repository root.
+
+## Verify a new checkout
+
+Windows PowerShell or Command Prompt:
+
+```powershell
+./gradlew.bat clean verifyLocal --no-daemon --warning-mode=all
+```
+
+Linux or macOS:
+
+```bash
+./gradlew clean verifyLocal --no-daemon --warning-mode=all
+```
+
+This canonical checkpoint compiles production and test source, runs all tests
+and checks, creates the application artifacts, runs deterministic `status` and
+`help` smoke checks, and prints the final success message only when every step
+passes.
+
+Use the faster incremental form after a previously verified clean checkout:
+
+```powershell
+./gradlew.bat verifyLocal --no-daemon
+```
+
+## Run the application
+
+Show the current local status:
+
+```powershell
+./gradlew.bat run --args=status
+```
+
+Show supported commands:
+
+```powershell
+./gradlew.bat run --args=help
+```
+
+The no-argument form is equivalent to `status`:
+
+```powershell
+./gradlew.bat run
+```
+
+The successful status output is:
+
+```text
+KAOS application baseline is running.
+```
+
+An unknown command or extra argument returns usage exit code `2`. A handled
+configuration or application failure returns exit code `1` and a safe coded
+error on standard error. Supplied values, exception messages, and stack traces
+are not logged.
+
+## Local configuration
+
+Override the display name for an ordinary local run:
+
+```powershell
+$env:KAOS_APP_NAME = "Local KAOS"
+./gradlew.bat run --args=status
+```
+
+Direct JVM launches may use the `kaos.app.name` system property. Configuration
+precedence is:
+
+1. `-Dkaos.app.name=...`
+2. `KAOS_APP_NAME`
+3. the safe default `KAOS`
+
+Names are trimmed, limited to 64 Unicode characters, and may contain letters,
+numbers, spaces, periods, underscores, or hyphens. Do not commit credentials or
+other secrets. No secret, provider, remote, or file configuration is currently
+implemented.
+
+## Run tests
+
+Run every test:
+
+```powershell
+./gradlew.bat test --no-daemon
+```
+
+Run the current application package tests for focused feedback:
+
+```powershell
+./gradlew.bat test --tests 'io.kaos.app.*' --no-daemon
+```
+
+Run only the real child-process and timeout scenarios:
+
+```powershell
+./gradlew.bat test --tests 'io.kaos.app.KaosApplicationProcessTest' --no-daemon
+```
+
+Force a focused suite to execute again even when Gradle considers it up to date:
+
+```powershell
+./gradlew.bat test --tests 'io.kaos.app.*' --no-daemon --rerun-tasks
+```
+
+Use `verifyLocal`, not only `test`, before completing an application feature.
+It additionally proves compilation, checks, packaging, and the real `status`
+and `help` application entry points.
+
+## Useful Gradle commands
+
+| Goal | Windows command |
+| --- | --- |
+| Compile production source | `./gradlew.bat classes` |
+| Run all tests | `./gradlew.bat test` |
+| Run checks and create artifacts | `./gradlew.bat build` |
+| List verification tasks | `./gradlew.bat tasks --group verification --no-daemon` |
+| Inspect full verification order | `./gradlew.bat clean verifyLocal --dry-run --no-daemon` |
+| Clean and fully verify | `./gradlew.bat clean verifyLocal --no-daemon --warning-mode=all` |
+
+For Linux/macOS, replace `./gradlew.bat` with `./gradlew`.
+
+## Generated outputs
+
+Gradle creates reproducible output under `build/`, including:
+
+- compiled production and test classes;
+- the test report at `build/reports/tests/test/index.html`;
+- JAR and distribution artifacts under `build/libs/` and
+  `build/distributions/`;
+- generated start scripts under `build/scripts/`.
+
+`./gradlew.bat clean` removes the Gradle build output so it can be regenerated.
+It does not remove application data because the current application creates no
+product state.
+
+## Development workflow
+
+1. Select one active feature under
+   [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814).
+2. Create the feature branch. Keep all of that feature's stories or direct tasks
+   on the same branch.
+3. Implement the smallest useful behavior and run focused tests during the
+   feedback loop.
+4. Update documentation that the behavior actually changes.
+5. Update the [living architecture website](../../ui/architecture/index.html)
+   when packages,
+   dependencies, integrations, data ownership, runtime flows, deployment, or
+   architectural status change. Leave it unchanged when the architecture did
+   not change.
+6. Run the complete clean `verifyLocal` checkpoint.
+7. Commit each story or task with its roadmap identifier and issue number, for
+   example `feat(STORY-002.01.01): connect to local Ollama #<issue>`.
+8. Open one pull request for the completed feature.
+
+Do not create a Git tag or GitHub release unless the user explicitly requests
+one.
+
+## Troubleshooting
+
+### Java or the toolchain is unavailable
+
+Run `java -version` and confirm that a Java 21 JDK is installed and available.
+Correct `JAVA_HOME` or the shell path when they reference an unavailable or
+incompatible runtime, then rerun the wrapper command.
+
+### Gradle cannot resolve dependencies
+
+The first build may require network access for declared build and test
+dependencies. Check the reported repository, proxy, TLS, or cache error and
+retry after correcting that environment problem. KAOS itself currently makes no
+runtime network request.
+
+### A test or verification task fails
+
+Use the first failing Gradle task and its report rather than the missing final
+success message. Correct the source, test, configuration, toolchain, cache, or
+dependency problem, then rerun the focused command. Finish with the clean
+`verifyLocal` checkpoint.
+
+### Local configuration changes the run output
+
+Inspect `KAOS_APP_NAME` and any `kaos.app.name` system property. The
+`verifyLocal` smoke tasks deliberately supply the safe `KAOS` name and should
+remain deterministic even when a developer has a local environment override.
+
+### Stop a running Gradle command
+
+Use the shell's normal interrupt, typically Ctrl+C. The current workflow has no
+background application worker, retry loop, external service, or product state
+requiring rollback.
+
+## Detailed references
+
+- [Local run and verification workflow](../evolution/local-run-and-verification-workflow.md)
+- [Application test harness](../evolution/application-test-harness.md)
+- [Basic command-line interaction](../evolution/basic-command-line-interaction.md)
+- [Application configuration](../evolution/application-configuration.md)
+- [Package-first application structure](../evolution/package-first-application-structure.md)
+- [Capability boundary evolution](../evolution/capability-boundary-evolution.md)
+- [Completed work and verified evidence](../evolution/completed-work-and-evidence.md)
+- [Architecture website structure and maintenance](../../ui/architecture/README.md)
+
+The detailed references retain acceptance evidence, internal contracts, and
+historical validation. This guide owns the current developer-facing commands
+and workflow and must be updated when they change.
