@@ -52,8 +52,11 @@ inside the verified single application.
 - Completed feature: [Feature 001.03 — Basic Command-Line Interaction](https://github.com/karanbabu2110/KAOS/issues/842)
 - Completed direct task: [Task 001.03.01 — Implement Basic One-Shot Command-Line Interaction](https://github.com/karanbabu2110/KAOS/issues/1053)
 - Completed direct task: [Task 001.03.02 — Validate and Document Command-Line Interaction](https://github.com/karanbabu2110/KAOS/issues/1054)
-- Active feature: [Feature 001.04 — Minimal Error Handling and Logging](https://github.com/karanbabu2110/KAOS/issues/841)
-- Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and seventeen focused application/configuration/CLI tests
+- Completed feature: [Feature 001.04 — Minimal Error Handling and Logging](https://github.com/karanbabu2110/KAOS/issues/841)
+- Completed direct task: [Task 001.04.01 — Implement Safe Application Error Handling and Logging](https://github.com/karanbabu2110/KAOS/issues/1055)
+- Completed direct task: [Task 001.04.02 — Validate and Document Error Handling and Logging](https://github.com/karanbabu2110/KAOS/issues/1056)
+- Active feature: [Feature 001.05 — Application Test Harness](https://github.com/karanbabu2110/KAOS/issues/844)
+- Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and twenty-three focused application/configuration/CLI/error tests
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
   - [Reusable foundation asset inventory](docs/evolution/reusable-foundation-assets.md)
@@ -80,6 +83,7 @@ inside the verified single application.
   - [KAOS 0.0.1 validation and publication checkpoint](docs/releases/v0.0.1-validation.md)
   - [Application configuration](docs/evolution/application-configuration.md)
   - [Basic command-line interaction](docs/evolution/basic-command-line-interaction.md)
+  - [Minimal error handling and logging](docs/evolution/minimal-error-handling-and-logging.md)
 
 ## Version
 
@@ -103,6 +107,11 @@ The no-argument form remains supported. Both forms print
 `./gradlew.bat run --args=help` for the exact supported syntax. Unknown
 commands or extra arguments produce safe guidance and a nonzero result without
 echoing the supplied values.
+
+Handled startup or application failures return exit code `1` and emit one safe
+record such as `ERROR [KAOS-CONFIG-001] ...` on standard error. Expected CLI
+usage errors retain exit code `2`. Exception messages, stack traces, arguments,
+and configured values are not logged.
 
 The application name can be overridden locally. For the Gradle run workflow,
 set the environment variable:
@@ -131,7 +140,7 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-Epic 000 and Features 001.01-001.03 are complete. Project 1 now activates #814,
-Epic #2, and Feature #841. Create Feature 001.04 stories or direct tasks just in
+Epic 000 and Features 001.01-001.04 are complete. Project 1 now activates #814,
+Epic #2, and Feature #844. Create Feature 001.05 stories or direct tasks just in
 time after reviewing its current contract; no tag or release is created unless
 the user explicitly requests one.
