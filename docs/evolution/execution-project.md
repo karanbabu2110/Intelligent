@@ -16,25 +16,25 @@ On 2026-08-19, live issue and project sets were compared by GitHub issue number:
 
 | Check | Result |
 | --- | ---: |
-| #814 hierarchy issues carrying `roadmap: evolutionary` | 240 |
-| Project 1 items | 240 |
+| #814 hierarchy issues carrying `roadmap: evolutionary` | 242 |
+| Project 1 items | 242 |
 | Missing project items | 0 |
 | Items outside the roadmap set | 0 |
 | Duplicate issue numbers | 0 |
 
 This includes the fixed 1-roadmap/19-epic/146-feature catalog and the stories
-and tasks created just in time through Feature 001.01. See the
+and tasks created just in time through Feature 001.02. See the
 [roadmap hierarchy checkpoint](roadmap-hierarchy.md).
 
 ## Fields and current distribution
 
 | Field | Options | Verified distribution |
 | --- | --- | --- |
-| Status | Todo, In Progress, Done | 154 Todo, 3 In Progress, 83 Done |
-| Horizon | Now, Next, Later, Vision | 86 Now, 12 Next, 142 Later, 0 Vision |
-| Priority | Critical, High, Medium, Low | 0 Critical, 6 High, 92 Medium, 142 Low |
+| Status | Todo, In Progress, Done | 153 Todo, 3 In Progress, 86 Done |
+| Horizon | Now, Next, Later, Vision | 89 Now, 11 Next, 142 Later, 0 Vision |
+| Priority | Critical, High, Medium, Low | 0 Critical, 6 High, 94 Medium, 142 Low |
 
-Every one of the 240 items has all three values. The original normalization
+Every one of the 242 items has all three values. The original normalization
 found 36 older task
 items with blank Horizon and Priority. They were normalized from their single
 `horizon: now` and `priority: medium` labels. Two ancestor statuses were also
@@ -45,7 +45,7 @@ corrected so the active chain is represented end to end.
 - **Todo:** default for every new, open item that is not on the current work
   chain.
 - **In Progress:** exactly the current roadmap, epic, feature, optional story,
-  and task chain. At this checkpoint: #814, #2, and #840.
+  and task chain. At this checkpoint: #814, #2, and #842.
 - **Done:** the issue is closed as completed and its evidence is recorded.
 
 Closing an issue and setting Done are both required. A project field does not
@@ -106,9 +106,9 @@ For each new story or task:
 
 ## Current and next work
 
-The active path is #814 -> #2 -> #840. Feature #839 and its two direct tasks
-delivered the `v0.0.1` application baseline and are closed and Done. Feature
-[#840](https://github.com/karanbabu2110/KAOS/issues/840) is the one approved
+The active path is #814 -> #2 -> #842. Features #839 and #840 and their direct
+tasks are closed and Done. Feature
+[#842](https://github.com/karanbabu2110/KAOS/issues/842) is the one approved
 goal; its stories or direct tasks are created just in time after its contract is
 reviewed.
 

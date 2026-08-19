@@ -46,8 +46,11 @@ inside the verified single application.
 - Completed feature: [Feature 001.01 — Minimal Java Application](https://github.com/karanbabu2110/KAOS/issues/839)
 - Completed direct task: [Task 001.01.01 — Establish the KAOS 0.0.1 Version Contract](https://github.com/karanbabu2110/KAOS/issues/1049)
 - Completed direct task: [Task 001.01.02 — Validate and Publish the KAOS 0.0.1 Baseline](https://github.com/karanbabu2110/KAOS/issues/1050)
-- Active feature: [Feature 001.02 — Application Configuration](https://github.com/karanbabu2110/KAOS/issues/840)
-- Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and two focused startup tests
+- Completed feature: [Feature 001.02 — Application Configuration](https://github.com/karanbabu2110/KAOS/issues/840)
+- Completed direct task: [Task 001.02.01 — Implement Safe Local Application Configuration](https://github.com/karanbabu2110/KAOS/issues/1051)
+- Completed direct task: [Task 001.02.02 — Validate and Document Application Configuration](https://github.com/karanbabu2110/KAOS/issues/1052)
+- Active feature: [Feature 001.03 — Basic Command-Line Interaction](https://github.com/karanbabu2110/KAOS/issues/842)
+- Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and eleven focused application/configuration tests
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
   - [Reusable foundation asset inventory](docs/evolution/reusable-foundation-assets.md)
@@ -72,11 +75,14 @@ inside the verified single application.
   - [Epic 000 exit and AI-readiness checkpoint](docs/evolution/epic-000-exit-and-ai-readiness.md)
   - [KAOS 0.0.1 release notes](docs/releases/v0.0.1.md)
   - [KAOS 0.0.1 validation and publication checkpoint](docs/releases/v0.0.1-validation.md)
+  - [Application configuration](docs/evolution/application-configuration.md)
 
 ## Version
 
-The current application version is **0.0.1**. Gradle artifacts use `0.0.1`,
-and the corresponding release tag is [`v0.0.1`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v0.0.1).
+The latest release is **0.0.1**, tagged as
+[`v0.0.1`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v0.0.1).
+Ongoing development uses Gradle version **0.0.2-SNAPSHOT** so unreleased work
+cannot be confused with that baseline.
 
 This is an initial-development baseline. It proves the runnable Java
 application and development workflow; it is not a production-ready KAOS or AI
@@ -92,6 +98,21 @@ The current application prints `KAOS application baseline is running.` and
 exits. This verifies the bootstrap only; no KAOS product capability is claimed
 yet.
 
+The application name can be overridden locally. For the Gradle run workflow,
+set the environment variable:
+
+```powershell
+$env:KAOS_APP_NAME = "Local KAOS"
+./gradlew.bat run
+```
+
+Direct JVM launches may instead set `-Dkaos.app.name="Local KAOS"`; that system
+property takes precedence over `KAOS_APP_NAME`.
+
+The default is `KAOS`. Names are trimmed, limited to 64 Unicode characters, and
+may contain letters, numbers, spaces, periods, underscores, or hyphens. No
+secret, provider, remote, or file configuration is implemented yet.
+
 ## Development rule
 
 Start with the smallest working application. Add packages, Gradle modules,
@@ -104,7 +125,7 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-Epic 000 and Feature 001.01 are complete. `v0.0.1` is the first published KAOS
-application baseline. Project 1 now activates #814, Epic #2, and Feature #840;
-create that feature's stories or direct tasks just in time after reviewing its
-current contract.
+Epic 000 and Features 001.01-001.02 are complete. Project 1 now activates #814,
+Epic #2, and Feature #842. Create Feature 001.03 stories or direct tasks just in
+time after reviewing its current contract; no tag or release is created unless
+the user explicitly requests one.
