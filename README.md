@@ -49,8 +49,11 @@ inside the verified single application.
 - Completed feature: [Feature 001.02 — Application Configuration](https://github.com/karanbabu2110/KAOS/issues/840)
 - Completed direct task: [Task 001.02.01 — Implement Safe Local Application Configuration](https://github.com/karanbabu2110/KAOS/issues/1051)
 - Completed direct task: [Task 001.02.02 — Validate and Document Application Configuration](https://github.com/karanbabu2110/KAOS/issues/1052)
-- Active feature: [Feature 001.03 — Basic Command-Line Interaction](https://github.com/karanbabu2110/KAOS/issues/842)
-- Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and eleven focused application/configuration tests
+- Completed feature: [Feature 001.03 — Basic Command-Line Interaction](https://github.com/karanbabu2110/KAOS/issues/842)
+- Completed direct task: [Task 001.03.01 — Implement Basic One-Shot Command-Line Interaction](https://github.com/karanbabu2110/KAOS/issues/1053)
+- Completed direct task: [Task 001.03.02 — Validate and Document Command-Line Interaction](https://github.com/karanbabu2110/KAOS/issues/1054)
+- Active feature: [Feature 001.04 — Minimal Error Handling and Logging](https://github.com/karanbabu2110/KAOS/issues/841)
+- Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and seventeen focused application/configuration/CLI tests
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
   - [Reusable foundation asset inventory](docs/evolution/reusable-foundation-assets.md)
@@ -76,6 +79,7 @@ inside the verified single application.
   - [KAOS 0.0.1 release notes](docs/releases/v0.0.1.md)
   - [KAOS 0.0.1 validation and publication checkpoint](docs/releases/v0.0.1-validation.md)
   - [Application configuration](docs/evolution/application-configuration.md)
+  - [Basic command-line interaction](docs/evolution/basic-command-line-interaction.md)
 
 ## Version
 
@@ -91,12 +95,14 @@ capability release. See the [0.0.1 release notes](docs/releases/v0.0.1.md).
 ## Run the application
 
 ```powershell
-./gradlew.bat run
+./gradlew.bat run --args=status
 ```
 
-The current application prints `KAOS application baseline is running.` and
-exits. This verifies the bootstrap only; no KAOS product capability is claimed
-yet.
+The no-argument form remains supported. Both forms print
+`KAOS application baseline is running.` and exit successfully. Run
+`./gradlew.bat run --args=help` for the exact supported syntax. Unknown
+commands or extra arguments produce safe guidance and a nonzero result without
+echoing the supplied values.
 
 The application name can be overridden locally. For the Gradle run workflow,
 set the environment variable:
@@ -125,7 +131,7 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-Epic 000 and Features 001.01-001.02 are complete. Project 1 now activates #814,
-Epic #2, and Feature #842. Create Feature 001.03 stories or direct tasks just in
+Epic 000 and Features 001.01-001.03 are complete. Project 1 now activates #814,
+Epic #2, and Feature #841. Create Feature 001.04 stories or direct tasks just in
 time after reviewing its current contract; no tag or release is created unless
 the user explicitly requests one.
