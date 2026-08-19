@@ -53,6 +53,19 @@ The wrapper is generated for this repository rather than copying the old build
 graph. Gradle 9.1.0 and Java 21 remain revisable when a current compatibility
 problem is observed.
 
+### Version evolution
+
+Story #982 used `0.1.0-SNAPSHOT` as provisional bootstrap metadata. Feature
+[#839](https://github.com/karanbabu2110/KAOS/issues/839) supersedes that
+provisional value with the first explicit application baseline:
+
+```kotlin
+version = "0.0.1"
+```
+
+The build version is `0.0.1`; the Git release tag adds the conventional `v`
+prefix as `v0.0.1`. This change does not alter the one-project graph.
+
 ## Exact build contract
 
 The intended `settings.gradle.kts` behavior is equivalent to:

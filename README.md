@@ -1,9 +1,8 @@
 # KAOS
 
-KAOS is being rebuilt as one evolving Java application, delivering one useful
-goal at a time. This organization repository is intentionally minimal: existing
-foundation work is being verified before any source or build structure is
-selected for reuse.
+KAOS is one evolving Java application, delivering one useful goal at a time.
+The development-model reset is complete; capabilities now grow incrementally
+inside the verified single application.
 
 ## Current development state
 
@@ -44,7 +43,10 @@ selected for reuse.
 - Completed direct task: [Task 000.07.02 — Publish the Epic 000 Exit and AI-Readiness Checkpoint](https://github.com/karanbabu2110/KAOS/issues/1048)
 - Completed epic: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815)
 - Active epic: [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
-- Active feature: [Feature 001.01 — Minimal Java Application](https://github.com/karanbabu2110/KAOS/issues/839)
+- Completed feature: [Feature 001.01 — Minimal Java Application](https://github.com/karanbabu2110/KAOS/issues/839)
+- Completed direct task: [Task 001.01.01 — Establish the KAOS 0.0.1 Version Contract](https://github.com/karanbabu2110/KAOS/issues/1049)
+- Completed direct task: [Task 001.01.02 — Validate and Publish the KAOS 0.0.1 Baseline](https://github.com/karanbabu2110/KAOS/issues/1050)
+- Active feature: [Feature 001.02 — Application Configuration](https://github.com/karanbabu2110/KAOS/issues/840)
 - Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and two focused startup tests
 - Verified evidence:
   - [Foundation baseline](docs/evolution/foundation-baseline.md)
@@ -68,6 +70,17 @@ selected for reuse.
   - [Incremental development rules checkpoint](docs/evolution/incremental-development-rules-checkpoint.md)
   - [Simplified application validation](docs/evolution/simplified-application-validation.md)
   - [Epic 000 exit and AI-readiness checkpoint](docs/evolution/epic-000-exit-and-ai-readiness.md)
+  - [KAOS 0.0.1 release notes](docs/releases/v0.0.1.md)
+  - [KAOS 0.0.1 validation and publication checkpoint](docs/releases/v0.0.1-validation.md)
+
+## Version
+
+The current application version is **0.0.1**. Gradle artifacts use `0.0.1`,
+and the corresponding release tag is [`v0.0.1`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v0.0.1).
+
+This is an initial-development baseline. It proves the runnable Java
+application and development workflow; it is not a production-ready KAOS or AI
+capability release. See the [0.0.1 release notes](docs/releases/v0.0.1.md).
 
 ## Run the application
 
@@ -91,7 +104,7 @@ and documented by the active evolutionary roadmap.
 
 ## Next checkpoint
 
-Epic 000 and all 79 descendants are complete. Feature PRs #2 through #8 are
-merged and their branches are deleted. Project 1 now activates only #814,
-Epic #2, and Feature #839; create its stories or direct tasks just in time after
-reviewing that feature's current contract.
+Epic 000 and Feature 001.01 are complete. `v0.0.1` is the first published KAOS
+application baseline. Project 1 now activates #814, Epic #2, and Feature #840;
+create that feature's stories or direct tasks just in time after reviewing its
+current contract.
