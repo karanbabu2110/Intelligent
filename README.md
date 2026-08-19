@@ -10,7 +10,7 @@ inside the verified single application.
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815) and [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
 - Active epic: [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
 - Active feature: [Feature 002.01 — Ollama Connectivity](https://github.com/karanbabu2110/KAOS/issues/845)
-- Repository state: one root Gradle/Java 21 application with one production entry point, no runtime dependency, and twenty-eight focused tests including five real child-process/timeout scenarios
+- Repository state: one root Gradle/Java 21 application with one production entry point, no third-party runtime library, one optional loopback Ollama integration, and thirty-nine focused tests
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -55,6 +55,18 @@ The no-argument form remains supported. Both forms print
 commands or extra arguments produce safe guidance and a nonzero result without
 echoing the supplied values.
 
+Check whether Ollama is reachable on the fixed local endpoint
+`http://127.0.0.1:11434/api/version`:
+
+```powershell
+./gradlew.bat run --args=ollama-status
+```
+
+A successful check prints only the validated Ollama version. The command sends
+no prompt, model name, credential, personal data, or file content. If Ollama is
+unavailable or its version response is invalid, KAOS returns a safe
+`KAOS-AI-001` error with recovery guidance.
+
 Handled startup or application failures return exit code `1` and emit one safe
 record such as `ERROR [KAOS-CONFIG-001] ...` on standard error. Expected CLI
 usage errors retain exit code `2`. Exception messages, stack traces, arguments,
@@ -73,7 +85,8 @@ property takes precedence over `KAOS_APP_NAME`.
 
 The default is `KAOS`. Names are trimmed, limited to 64 Unicode characters, and
 may contain letters, numbers, spaces, periods, underscores, or hyphens. No
-secret, provider, remote, or file configuration is implemented yet.
+secret, remote endpoint, model, prompt, or file configuration is implemented
+yet; Feature 002.01 deliberately owns one fixed loopback Ollama endpoint.
 
 ## Development rule
 
@@ -103,7 +116,7 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-001 are complete. Project 1 now activates #814, Epic #3, and Feature
-#845. Create Feature 002.01 stories or direct tasks just in
-time after reviewing its current contract; no tag or release is created unless
-the user explicitly requests one.
+Epics 000-001 are complete. Project 1 is executing #814, Epic #3, Feature #845,
+and its direct Tasks #1061-#1062. Complete and merge the single Feature 002.01
+pull request before activating Feature #846. No tag or release is created
+unless the user explicitly requests one.

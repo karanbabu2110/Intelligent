@@ -42,11 +42,11 @@
     </div>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
-      <h2 id="runtime-heading">Current runtime and next integration</h2>
+      <h2 id="runtime-heading">Current runtime and local AI integration</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 650" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes the implemented KAOS application. The application loads local configuration and routes status or help commands. Tests and Gradle verify the application. The next planned addition is an in-process AI package connecting to local Ollama.</desc>
+          <desc id="diagram-description">A terminal invokes the implemented KAOS application. The application loads local configuration and routes status, help, or Ollama status commands. The Ollama status command uses an in-process AI package to make one bounded request to the fixed local Ollama version endpoint. Tests and Gradle verify the application.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -56,20 +56,24 @@
           <text x="34" y="40" class="svg-label">LOCAL USER BOUNDARY</text>
           <rect x="34" y="65" width="220" height="105" class="box box-implemented"></rect>
           <text x="58" y="105" class="svg-title">Terminal</text>
-          <text x="58" y="132" class="svg-copy">status · help · --help</text>
+          <text x="58" y="132" class="svg-copy">status · help · ollama-status</text>
 
           <text x="340" y="40" class="svg-label">SINGLE JAVA 21 PROCESS</text>
-          <rect x="330" y="65" width="474" height="310" class="box box-implemented"></rect>
+          <rect x="330" y="65" width="474" height="340" class="box box-implemented"></rect>
           <text x="358" y="105" class="svg-title">io.kaos.app.KaosApplication</text>
           <text x="358" y="132" class="svg-copy">Entry point · composition root · safe error boundary</text>
           <rect x="365" y="166" width="190" height="93" class="box box-support"></rect>
           <text x="387" y="202" class="svg-title">Command routing</text>
-          <text x="387" y="229" class="svg-copy">status or help</text>
+          <text x="387" y="229" class="svg-copy">status · help · ollama-status</text>
           <rect x="580" y="166" width="190" height="93" class="box box-support"></rect>
           <text x="602" y="202" class="svg-title">Output</text>
           <text x="602" y="229" class="svg-copy">stdout · safe stderr</text>
-          <rect x="365" y="284" width="405" height="60" class="box box-support"></rect>
-          <text x="387" y="320" class="svg-title">io.kaos.app.config.ApplicationConfiguration</text>
+          <rect x="365" y="284" width="190" height="93" class="box box-support"></rect>
+          <text x="387" y="320" class="svg-title">App config</text>
+          <text x="387" y="347" class="svg-copy">validated local name</text>
+          <rect x="580" y="284" width="190" height="93" class="box box-implemented"></rect>
+          <text x="602" y="320" class="svg-title">Ollama connectivity</text>
+          <text x="602" y="347" class="svg-copy">io.kaos.ai.ollama</text>
 
           <path d="M254 117 L330 117" class="flow"></path>
           <path d="M555 212 L580 212" class="flow"></path>
@@ -79,27 +83,22 @@
           <text x="58" y="335" class="svg-copy">1. system property</text>
           <text x="58" y="357" class="svg-copy">2. environment variable</text>
           <text x="58" y="379" class="svg-copy">3. safe default</text>
-          <path d="M254 334 L365 314" class="flow"></path>
+          <path d="M254 334 L365 330" class="flow"></path>
+          <path d="M460 259 L675 284" class="flow"></path>
 
-          <rect x="330" y="440" width="474" height="150" class="box box-support"></rect>
-          <text x="358" y="478" class="svg-title">Build and verification boundary</text>
-          <text x="358" y="507" class="svg-copy">Gradle application plugin · JUnit test harness · process tests</text>
-          <text x="358" y="533" class="svg-copy">clean verifyLocal → compile → test → package → smoke checks</text>
-          <text x="358" y="560" class="svg-copy">No production runtime dependency</text>
-          <path d="M566 440 L566 375" class="support-flow"></path>
+          <rect x="330" y="460" width="474" height="150" class="box box-support"></rect>
+          <text x="358" y="498" class="svg-title">Build and verification boundary</text>
+          <text x="358" y="527" class="svg-copy">Gradle application plugin · JUnit test harness · process tests</text>
+          <text x="358" y="553" class="svg-copy">clean verifyLocal → compile → test → package → smoke checks</text>
+          <text x="358" y="580" class="svg-copy">No third-party production runtime library</text>
+          <path d="M566 460 L566 405" class="support-flow"></path>
 
-          <text x="875" y="40" class="svg-label">FEATURE 002.01 · NOT YET IMPLEMENTED</text>
-          <rect x="866" y="65" width="240" height="132" class="box box-next"></rect>
-          <text x="890" y="105" class="svg-title">io.kaos.ai</text>
-          <text x="890" y="133" class="svg-copy">First AI capability package</text>
-          <text x="890" y="158" class="svg-copy">Direct in-process composition</text>
-          <path d="M804 130 L866 130" class="planned-flow"></path>
-
-          <rect x="866" y="270" width="240" height="128" class="box box-next"></rect>
+          <text x="875" y="240" class="svg-label">LOCAL PROVIDER BOUNDARY</text>
+          <rect x="866" y="270" width="240" height="128" class="box box-implemented"></rect>
           <text x="890" y="310" class="svg-title">Local Ollama</text>
-          <text x="890" y="338" class="svg-copy">Provider endpoint and model</text>
-          <text x="890" y="363" class="svg-copy">Contract defined just in time</text>
-          <path d="M986 197 L986 270" class="planned-flow"></path>
+          <text x="890" y="338" class="svg-copy">127.0.0.1:11434</text>
+          <text x="890" y="363" class="svg-copy">GET /api/version only</text>
+          <path d="M770 330 L866 330" class="flow"></path>
         </svg>
       </div>
     </section>
@@ -113,9 +112,14 @@
           <p>One root project, entry point, validated local configuration, command routing, safe errors, logging, tests, packaging, and local verification.</p>
         </article>
         <article class="card">
+          <div class="status implemented">Implemented</div>
+          <h3>Local Ollama reachability</h3>
+          <p>Feature 002.01 adds one bounded version request through an in-process package. It sends no prompt, model, secret, or file content.</p>
+        </article>
+        <article class="card">
           <div class="status next">Next</div>
-          <h3>First AI integration</h3>
-          <p>Feature 002.01 will establish Ollama connectivity inside the application. Its exact classes and contract are recorded only when implemented.</p>
+          <h3>AI model configuration</h3>
+          <p>Feature 002.02 is the next approved step. Its configuration contract and implementation shape remain undecided until that work starts.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -159,7 +163,8 @@
           <tr><td>Local validated configuration</td><td><a href="../../src/main/java/io/kaos/app/config/ApplicationConfiguration.java"><code>ApplicationConfiguration.java</code></a></td><td>Implemented</td></tr>
           <tr><td>Package-first growth</td><td><a href="../../docs/evolution/package-first-application-structure.md">Package-first structure</a></td><td>Active rule</td></tr>
           <tr><td>Evidence-gated extraction</td><td><a href="../../docs/evolution/capability-boundary-evolution.md">Boundary evolution decision</a></td><td>Active rule</td></tr>
-          <tr><td>Ollama connectivity</td><td><a href="https://github.com/karanbabu2110/KAOS/issues/845">Feature 002.01</a></td><td>Next; not implemented</td></tr>
+          <tr><td>Local Ollama connectivity</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaConnectivity.java"><code>OllamaConnectivity.java</code></a> and <a href="../../src/test/java/io/kaos/ai/ollama/OllamaConnectivityTest.java"><code>OllamaConnectivityTest.java</code></a></td><td>Implemented</td></tr>
+          <tr><td>AI model configuration</td><td><a href="https://github.com/karanbabu2110/KAOS/issues/846">Feature 002.02</a></td><td>Next; not implemented</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

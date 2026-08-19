@@ -35,6 +35,18 @@ evidence when it helps the current goal.
   `feat(STORY-002.01.01): connect to local Ollama #<issue>`.
 - Do not create a Git tag or GitHub release unless the user explicitly asks.
 
+Prepare and test working-tree changes when needed, but do not commit them until
+the user has reviewed a simple pre-commit explanation. Before every commit:
+
+- list the files that will be included;
+- explain what changed in each file and why it is needed;
+- report the relevant validation results;
+- provide the exact proposed commit message; and
+- wait for the user's explicit approval to commit.
+
+Do not push the commit or open the feature pull request as a substitute for this
+approval checkpoint.
+
 Verify in proportion to the change. For application changes, use the focused
 tests during development and run the repository's complete `verifyLocal`
 checkpoint before completing the feature.
