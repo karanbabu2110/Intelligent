@@ -16,25 +16,25 @@ On 2026-08-19, live issue and project sets were compared by GitHub issue number:
 
 | Check | Result |
 | --- | ---: |
-| #814 hierarchy issues carrying `roadmap: evolutionary` | 242 |
-| Project 1 items | 242 |
+| #814 hierarchy issues carrying `roadmap: evolutionary` | 244 |
+| Project 1 items | 244 |
 | Missing project items | 0 |
 | Items outside the roadmap set | 0 |
 | Duplicate issue numbers | 0 |
 
 This includes the fixed 1-roadmap/19-epic/146-feature catalog and the stories
-and tasks created just in time through Feature 001.02. See the
+and tasks created just in time through Feature 001.03. See the
 [roadmap hierarchy checkpoint](roadmap-hierarchy.md).
 
 ## Fields and current distribution
 
 | Field | Options | Verified distribution |
 | --- | --- | --- |
-| Status | Todo, In Progress, Done | 153 Todo, 3 In Progress, 86 Done |
-| Horizon | Now, Next, Later, Vision | 89 Now, 11 Next, 142 Later, 0 Vision |
-| Priority | Critical, High, Medium, Low | 0 Critical, 6 High, 94 Medium, 142 Low |
+| Status | Todo, In Progress, Done | 152 Todo, 3 In Progress, 89 Done |
+| Horizon | Now, Next, Later, Vision | 92 Now, 10 Next, 142 Later, 0 Vision |
+| Priority | Critical, High, Medium, Low | 0 Critical, 6 High, 96 Medium, 142 Low |
 
-Every one of the 242 items has all three values. The original normalization
+Every one of the 244 items has all three values. The original normalization
 found 36 older task
 items with blank Horizon and Priority. They were normalized from their single
 `horizon: now` and `priority: medium` labels. Two ancestor statuses were also
@@ -106,9 +106,9 @@ For each new story or task:
 
 ## Current and next work
 
-The active path is #814 -> #2 -> #842. Features #839 and #840 and their direct
-tasks are closed and Done. Feature
-[#842](https://github.com/karanbabu2110/KAOS/issues/842) is the one approved
+The active path is #814 -> #2 -> #841. Features #839, #840, and #842 and their
+direct tasks are closed and Done. Feature
+[#841](https://github.com/karanbabu2110/KAOS/issues/841) is the one approved
 goal; its stories or direct tasks are created just in time after its contract is
 reviewed.
 
