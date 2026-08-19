@@ -1,5 +1,6 @@
 package io.kaos.app;
 
+import io.kaos.ai.ollama.OllamaConnectivity;
 import io.kaos.app.config.ApplicationConfiguration;
 import java.io.PrintStream;
 import java.util.Objects;
@@ -16,6 +17,7 @@ public final class KaosApplication {
     static final String INVALID_CONFIGURATION_CODE = "KAOS-CONFIG-001";
     static final String UNREADABLE_CONFIGURATION_CODE = "KAOS-CONFIG-002";
     static final String UNEXPECTED_APPLICATION_CODE = "KAOS-APP-001";
+    static final String OLLAMA_CONNECTIVITY_CODE = "KAOS-AI-001";
 
     private KaosApplication() {
     }
@@ -69,8 +71,23 @@ public final class KaosApplication {
             ApplicationConfiguration configuration,
             PrintStream output,
             PrintStream errorOutput) {
+        return run(
+                arguments,
+                configuration,
+                () -> new OllamaConnectivity().check(),
+                output,
+                errorOutput);
+    }
+
+    static int run(
+            String[] arguments,
+            ApplicationConfiguration configuration,
+            Supplier<OllamaConnectivity.Result> ollamaConnectivityCheck,
+            PrintStream output,
+            PrintStream errorOutput) {
         Objects.requireNonNull(arguments, "arguments");
         Objects.requireNonNull(configuration, "configuration");
+        Objects.requireNonNull(ollamaConnectivityCheck, "ollamaConnectivityCheck");
         Objects.requireNonNull(output, "output");
         Objects.requireNonNull(errorOutput, "errorOutput");
 
@@ -84,6 +101,10 @@ public final class KaosApplication {
             return SUCCESS;
         }
 
+        if (isCommand(arguments, "ollama-status")) {
+            return reportOllamaStatus(ollamaConnectivityCheck.get(), output, errorOutput);
+        }
+
         errorOutput.println(invalidArgumentsMessage(arguments));
         return USAGE_ERROR;
     }
@@ -95,12 +116,36 @@ public final class KaosApplication {
 
     static String helpText() {
         return """
-                Usage: kaos [status|help]
+                Usage: kaos [status|help|ollama-status]
 
                 Commands:
-                  status  Show local application status (default).
-                  help    Show this help. The --help alias is also supported.
+                  status         Show local application status (default).
+                  help           Show this help. The --help alias is also supported.
+                  ollama-status  Check connectivity to the local Ollama server.
                 """;
+    }
+
+    private static int reportOllamaStatus(
+            OllamaConnectivity.Result result,
+            PrintStream output,
+            PrintStream errorOutput) {
+        Objects.requireNonNull(result, "result");
+        if (result.reachable()) {
+            output.println("Local Ollama is reachable (version " + result.version() + ").");
+            return SUCCESS;
+        }
+
+        String recovery = switch (result.status()) {
+            case UNAVAILABLE ->
+                    "Local Ollama is unavailable. Start Ollama on 127.0.0.1:11434 and retry.";
+            case INVALID_RESPONSE ->
+                    "Local Ollama returned an invalid version response. Verify Ollama and retry.";
+            case INTERRUPTED ->
+                    "The Ollama connectivity check was interrupted. Retry the command.";
+            case REACHABLE -> throw new IllegalStateException("Reachable result has no version.");
+        };
+        logError(errorOutput, OLLAMA_CONNECTIVITY_CODE, recovery);
+        return APPLICATION_ERROR;
     }
 
     private static boolean isCommand(String[] arguments, String command) {

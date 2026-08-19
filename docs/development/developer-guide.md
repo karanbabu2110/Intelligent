@@ -12,6 +12,8 @@ setup or operational requirements until they are implemented.
   Linux/macOS
 - Network access the first time Gradle needs to download declared build or test
   dependencies
+- Optional: a local Ollama server on `127.0.0.1:11434` to demonstrate
+  `ollama-status`; it is not required to build or run automated tests
 
 No system Gradle installation is required. Use the Gradle wrapper committed to
 the repository.
@@ -82,6 +84,23 @@ The successful status output is:
 KAOS application baseline is running.
 ```
 
+Check the fixed local Ollama endpoint:
+
+```powershell
+./gradlew.bat run --args=ollama-status
+```
+
+When Ollama is available, the command prints a validated version such as:
+
+```text
+Local Ollama is reachable (version 0.32.1).
+```
+
+This command performs one bounded `GET /api/version` request to
+`http://127.0.0.1:11434`. It does not select a model, submit a prompt, stream a
+response, read credentials, or support a remote endpoint. `status` and `help`
+do not create the Ollama client or make a network request.
+
 An unknown command or extra argument returns usage exit code `2`. A handled
 configuration or application failure returns exit code `1` and a safe coded
 error on standard error. Supplied values, exception messages, and stack traces
@@ -105,7 +124,8 @@ precedence is:
 
 Names are trimmed, limited to 64 Unicode characters, and may contain letters,
 numbers, spaces, periods, underscores, or hyphens. Do not commit credentials or
-other secrets. No secret, provider, remote, or file configuration is currently
+other secrets. The Ollama endpoint is fixed to loopback in Feature 002.01. No
+secret, remote endpoint, model, prompt, or file configuration is currently
 implemented.
 
 ## Run tests
@@ -120,6 +140,12 @@ Run the current application package tests for focused feedback:
 
 ```powershell
 ./gradlew.bat test --tests 'io.kaos.app.*' --no-daemon
+```
+
+Run the Ollama connectivity and application integration tests together:
+
+```powershell
+./gradlew.bat test --tests 'io.kaos.ai.ollama.*' --tests 'io.kaos.app.*' --no-daemon
 ```
 
 Run only the real child-process and timeout scenarios:
@@ -200,7 +226,8 @@ incompatible runtime, then rerun the wrapper command.
 The first build may require network access for declared build and test
 dependencies. Check the reported repository, proxy, TLS, or cache error and
 retry after correcting that environment problem. KAOS itself currently makes no
-runtime network request.
+runtime network request for `status` or `help`; `ollama-status` makes only its
+documented loopback request.
 
 ### A test or verification task fails
 
@@ -215,11 +242,19 @@ Inspect `KAOS_APP_NAME` and any `kaos.app.name` system property. The
 `verifyLocal` smoke tasks deliberately supply the safe `KAOS` name and should
 remain deterministic even when a developer has a local environment override.
 
+### Ollama is unavailable
+
+Start Ollama locally and verify that its version endpoint responds at
+`http://127.0.0.1:11434/api/version`, then rerun `ollama-status`. Feature 002.01
+does not support changing the endpoint, retrying automatically, or connecting
+to a remote host. An invalid response should be treated as an Ollama
+installation/version problem rather than printed as raw provider data.
+
 ### Stop a running Gradle command
 
 Use the shell's normal interrupt, typically Ctrl+C. The current workflow has no
-background application worker, retry loop, external service, or product state
-requiring rollback.
+background application worker, retry loop, or product state requiring rollback.
+KAOS does not start or own the local Ollama process.
 
 ## Detailed references
 
@@ -231,6 +266,7 @@ requiring rollback.
 - [Capability boundary evolution](../evolution/capability-boundary-evolution.md)
 - [Completed work and verified evidence](../evolution/completed-work-and-evidence.md)
 - [Architecture website structure and maintenance](../../ui/architecture/README.md)
+- [Ollama connectivity](../evolution/ollama-connectivity.md)
 
 The detailed references retain acceptance evidence, internal contracts, and
 historical validation. This guide owns the current developer-facing commands

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import io.kaos.ai.ollama.OllamaConnectivity;
 import io.kaos.app.config.ApplicationConfiguration;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -56,6 +57,64 @@ class KaosApplicationTest {
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(KaosApplication.helpText(), result.standardOutput());
         assertEquals("", result.errorOutput());
+    }
+
+    @Test
+    void reportsAReachableLocalOllamaVersion() {
+        KaosApplicationHarness.Result result = runOllamaStatus(
+                new OllamaConnectivity.Result(
+                        OllamaConnectivity.Status.REACHABLE, "0.11.4"));
+
+        assertEquals(KaosApplication.SUCCESS, result.exitCode());
+        assertEquals(
+                "Local Ollama is reachable (version 0.11.4)." + System.lineSeparator(),
+                result.standardOutput());
+        assertEquals("", result.errorOutput());
+    }
+
+    @Test
+    void reportsUnavailableOllamaWithSafeRecoveryGuidance() {
+        KaosApplicationHarness.Result result = runOllamaStatus(
+                new OllamaConnectivity.Result(
+                        OllamaConnectivity.Status.UNAVAILABLE, ""));
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-001] Local Ollama is unavailable. "
+                        + "Start Ollama on 127.0.0.1:11434 and retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
+    }
+
+    @Test
+    void reportsAnInvalidOllamaResponseWithoutProviderDetails() {
+        KaosApplicationHarness.Result result = runOllamaStatus(
+                new OllamaConnectivity.Result(
+                        OllamaConnectivity.Status.INVALID_RESPONSE, ""));
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-001] Local Ollama returned an invalid version response. "
+                        + "Verify Ollama and retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
+    }
+
+    @Test
+    void reportsAnInterruptedOllamaCheckWithSafeRecoveryGuidance() {
+        KaosApplicationHarness.Result result = runOllamaStatus(
+                new OllamaConnectivity.Result(
+                        OllamaConnectivity.Status.INTERRUPTED, ""));
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-001] The Ollama connectivity check was interrupted. "
+                        + "Retry the command."
+                        + System.lineSeparator(),
+                result.errorOutput());
     }
 
     @Test
@@ -224,5 +283,17 @@ class KaosApplicationTest {
                         "status"));
 
         assertEquals(failure, thrown);
+    }
+
+    private static KaosApplicationHarness.Result runOllamaStatus(
+            OllamaConnectivity.Result ollamaResult) {
+        return KaosApplicationHarness.capture(
+                (output, errorOutput) -> KaosApplication.run(
+                        new String[] {"ollama-status"},
+                        new ApplicationConfiguration(
+                                ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                        () -> ollamaResult,
+                        output,
+                        errorOutput));
     }
 }
