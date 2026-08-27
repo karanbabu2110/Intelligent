@@ -46,7 +46,7 @@
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 650" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes the implemented KAOS application. The application loads validated local application-name configuration and, only for the Ollama model command, an explicit model selection. The Ollama package owns model selection and one bounded version request to the fixed local provider endpoint. Model inspection makes no provider request. Tests and Gradle verify the application.</desc>
+          <desc id="diagram-description">A terminal invokes the implemented KAOS application. The application validates local configuration and routes status, help, Ollama status, model, and prompt commands. The Ollama package owns local reachability, explicit model selection, and one bounded non-streamed prompt request to the fixed local provider. The provider returns one complete JSON response. Gradle, Jackson, and tests support and verify the application.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -56,8 +56,9 @@
           <text x="34" y="40" class="svg-label">LOCAL USER BOUNDARY</text>
           <rect x="34" y="65" width="220" height="115" class="box box-implemented"></rect>
           <text x="58" y="105" class="svg-title">Terminal</text>
-          <text x="58" y="132" class="svg-copy">status · help</text>
-          <text x="58" y="154" class="svg-copy">ollama-status · ollama-model</text>
+          <text x="58" y="126" class="svg-copy">status · help</text>
+          <text x="58" y="148" class="svg-copy">ollama-status · ollama-model</text>
+          <text x="58" y="170" class="svg-copy">ollama-prompt</text>
 
           <text x="340" y="40" class="svg-label">SINGLE JAVA 21 PROCESS</text>
           <rect x="330" y="65" width="474" height="340" class="box box-implemented"></rect>
@@ -66,7 +67,7 @@
           <rect x="365" y="166" width="190" height="93" class="box box-support"></rect>
           <text x="387" y="202" class="svg-title">Command routing</text>
           <text x="387" y="227" class="svg-copy">status · help</text>
-          <text x="387" y="249" class="svg-copy">Ollama status · model</text>
+          <text x="387" y="249" class="svg-copy">Ollama command routing</text>
           <rect x="580" y="166" width="190" height="93" class="box box-support"></rect>
           <text x="602" y="202" class="svg-title">Output</text>
           <text x="602" y="229" class="svg-copy">stdout · safe stderr</text>
@@ -74,8 +75,9 @@
           <text x="387" y="320" class="svg-title">App config</text>
           <text x="387" y="347" class="svg-copy">validated local name</text>
           <rect x="580" y="284" width="190" height="93" class="box box-implemented"></rect>
-          <text x="602" y="320" class="svg-title">Ollama capability</text>
-          <text x="602" y="347" class="svg-copy">reachability · model</text>
+          <text x="602" y="316" class="svg-title">Ollama capability</text>
+          <text x="602" y="341" class="svg-copy">reachability · model</text>
+          <text x="602" y="363" class="svg-copy">bounded prompt</text>
 
           <path d="M254 117 L330 117" class="flow"></path>
           <path d="M555 212 L580 212" class="flow"></path>
@@ -92,17 +94,18 @@
 
           <rect x="330" y="460" width="474" height="150" class="box box-support"></rect>
           <text x="358" y="498" class="svg-title">Build and verification boundary</text>
-          <text x="358" y="527" class="svg-copy">Gradle application plugin · JUnit test harness · process tests</text>
+          <text x="358" y="527" class="svg-copy">Gradle application plugin · Jackson JSON · JUnit tests</text>
           <text x="358" y="553" class="svg-copy">clean verifyLocal → compile → test → package → smoke checks</text>
-          <text x="358" y="580" class="svg-copy">No third-party production runtime library</text>
+          <text x="358" y="580" class="svg-copy">One direct production library: Jackson Databind 2.22.1</text>
           <path d="M566 460 L566 405" class="support-flow"></path>
 
           <text x="875" y="240" class="svg-label">LOCAL PROVIDER BOUNDARY</text>
           <rect x="866" y="270" width="240" height="128" class="box box-implemented"></rect>
           <text x="890" y="310" class="svg-title">Local Ollama</text>
           <text x="890" y="338" class="svg-copy">127.0.0.1:11434</text>
-          <text x="890" y="363" class="svg-copy">GET /api/version only</text>
-          <path d="M770 330 L866 330" class="flow"></path>
+          <text x="890" y="360" class="svg-copy">GET /api/version</text>
+          <text x="890" y="383" class="svg-copy">POST /api/generate</text>
+          <path d="M770 330 L866 330" class="flow" marker-start="url(#arrow-green)"></path>
         </svg>
       </div>
     </section>
@@ -126,9 +129,14 @@
           <p>Feature 002.02 resolves one explicit validated model from local process configuration. It assumes no default and makes no provider request.</p>
         </article>
         <article class="card">
-          <div class="status next">Next</div>
+          <div class="status implemented">Implemented</div>
           <h3>Prompt submission</h3>
-          <p>Feature 002.03 is the next approved step. Its request contract remains undecided until that work starts.</p>
+          <p>Feature 002.03 sends one bounded prompt to the selected local model and prints one complete non-streamed response. Prompts and raw failures are excluded from error output.</p>
+        </article>
+        <article class="card">
+          <div class="status next">Next</div>
+          <h3>Response streaming</h3>
+          <p>Feature 002.04 (#848) is the next approved step. Token delivery, progress, and cancellation behavior remain unimplemented until that feature establishes evidence.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -174,7 +182,8 @@
           <tr><td>Evidence-gated extraction</td><td><a href="../../docs/evolution/capability-boundary-evolution.md">Boundary evolution decision</a></td><td>Active rule</td></tr>
           <tr><td>Local Ollama connectivity</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaConnectivity.java"><code>OllamaConnectivity.java</code></a> and <a href="../../src/test/java/io/kaos/ai/ollama/OllamaConnectivityTest.java"><code>OllamaConnectivityTest.java</code></a></td><td>Implemented</td></tr>
           <tr><td>AI model configuration</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a> and <a href="../../src/test/java/io/kaos/ai/ollama/OllamaModelConfigurationTest.java"><code>OllamaModelConfigurationTest.java</code></a></td><td>Implemented</td></tr>
-          <tr><td>Prompt submission</td><td><a href="https://github.com/karanbabu2110/KAOS/issues/847">Feature 002.03</a></td><td>Next; not implemented</td></tr>
+          <tr><td>Prompt submission</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-prompt-submission.md">validation evidence</a></td><td>Implemented</td></tr>
+          <tr><td>Response streaming</td><td><a href="https://github.com/karanbabu2110/KAOS/issues/848">Feature 002.04</a></td><td>Next; not implemented</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

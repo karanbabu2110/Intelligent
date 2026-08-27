@@ -13,7 +13,8 @@ setup or operational requirements until they are implemented.
 - Network access the first time Gradle needs to download declared build or test
   dependencies
 - Optional: a local Ollama server on `127.0.0.1:11434` to demonstrate
-  `ollama-status`; it is not required to build or run automated tests
+  `ollama-status`, plus one installed model to demonstrate `ollama-prompt`;
+  neither is required to build or run automated tests
 
 No system Gradle installation is required. Use the Gradle wrapper committed to
 the repository.
@@ -118,6 +119,34 @@ Configured local Ollama model: qwen3:8b.
 not contact Ollama, check whether the model is installed, download or load a
 model, submit a prompt, or produce a response.
 
+Submit one prompt and wait for one complete response. PowerShell needs its
+stop-parsing token so nested quotes survive the Gradle batch wrapper:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+./gradlew.bat --% run --args="ollama-prompt \"Why is the sky blue?\""
+```
+
+On Linux or macOS:
+
+```bash
+export KAOS_OLLAMA_MODEL=qwen3:8b
+./gradlew run --args='ollama-prompt "Why is the sky blue?"'
+```
+
+The command validates a single 4,096-character prompt, loads the explicit
+model selection, sends `POST /api/generate` to the fixed loopback Ollama
+endpoint with `stream` set to `false`, and prints only the complete generated
+text. The response body is bounded to 1 MiB, generated text to 65,536
+characters, and the request to five minutes. There is no streaming, retry,
+conversation, system-prompt, tool, image, remote-provider, or persistence
+behavior.
+
+The CLI argument can remain in shell history and may be visible to local
+process inspection. Do not use this developer command for secrets or other
+private prompts. KAOS does not echo the prompt, raw provider body, configured
+model, exception, or stack trace when the request fails.
+
 An unknown command or extra argument returns usage exit code `2`. A handled
 configuration or application failure returns exit code `1` and a safe coded
 error on standard error. Supplied values, exception messages, and stack traces
@@ -146,7 +175,8 @@ The local Ollama model is configured separately:
 
 1. `-Dkaos.ollama.model=...` for a direct JVM launch
 2. `KAOS_OLLAMA_MODEL`
-3. no default; an explicit selection is required by `ollama-model`
+3. no default; an explicit selection is required by `ollama-model` and
+   `ollama-prompt`
 
 Model names are trimmed, limited to 128 ASCII characters, and accept ordinary
 or slash-separated identifiers containing letters, numbers, periods,
@@ -154,8 +184,8 @@ underscores, or hyphens, followed by an optional colon tag. Examples include
 `llama3.2:latest` and `hf.co/team/model-name:Q4_K_M`.
 
 Do not commit credentials or other secrets. The Ollama endpoint remains fixed
-to loopback. No secret, remote endpoint, prompt, or file configuration is
-currently implemented.
+to loopback. No secret, remote endpoint, prompt-file, or persistent
+configuration is currently implemented.
 
 ## Run tests
 
@@ -254,9 +284,9 @@ incompatible runtime, then rerun the wrapper command.
 
 The first build may require network access for declared build and test
 dependencies. Check the reported repository, proxy, TLS, or cache error and
-retry after correcting that environment problem. KAOS itself currently makes no
-runtime network request for `status` or `help`; `ollama-status` makes only its
-documented loopback request.
+retry after correcting that environment problem. `status`, `help`, and
+`ollama-model` make no provider request; `ollama-status` and `ollama-prompt`
+make only their documented loopback requests.
 
 ### A test or verification task fails
 
@@ -277,8 +307,9 @@ tasks deliberately supply the safe `KAOS` application name and do not invoke
 Set `KAOS_OLLAMA_MODEL` to one installed model name you intentionally chose,
 then rerun `ollama-model`. Remove spaces, control characters, empty namespace
 segments, or unsupported punctuation. KAOS does not echo invalid configured
-values in its error message and does not verify installation until a later
-feature introduces a model request.
+values in its error message. `ollama-prompt` is the first command that asks
+Ollama to use the configured model, so an unavailable model is reported only
+when that request is submitted.
 
 ### Ollama is unavailable
 
@@ -287,6 +318,15 @@ Start Ollama locally and verify that its version endpoint responds at
 does not support changing the endpoint, retrying automatically, or connecting
 to a remote host. An invalid response should be treated as an Ollama
 installation/version problem rather than printed as raw provider data.
+
+### An Ollama prompt fails or times out
+
+First run `ollama-status`, then use `ollama list` to confirm that the configured
+model is installed. A rejected request returns `KAOS-AI-002` without the raw
+Ollama body. A complete non-streamed generation may take several minutes while
+a model loads or generates on CPU; KAOS waits at most five minutes and then
+suggests retrying or choosing a faster installed model. Response Streaming
+Feature #848 is intentionally deferred and will provide progressive output.
 
 ### Stop a running Gradle command
 
@@ -306,6 +346,7 @@ KAOS does not start or own the local Ollama process.
 - [Architecture website structure and maintenance](../../ui/architecture/README.md)
 - [Ollama connectivity](../evolution/ollama-connectivity.md)
 - [Ollama model configuration](../evolution/ollama-model-configuration.md)
+- [Ollama prompt submission](../evolution/ollama-prompt-submission.md)
 
 The detailed references retain acceptance evidence, internal contracts, and
 historical validation. This guide owns the current developer-facing commands
