@@ -45,6 +45,17 @@ Change the displayed verification date only after checking the complete
 displayed architecture against current repository evidence. Never refresh the
 date merely because one section was edited.
 
+## Rotate current-feature emphasis
+
+When the website visually marks content as new or updated, treat that emphasis
+as transient recency metadata rather than architectural status. Before applying
+it to the current feature, remove the recency treatment from the previous
+feature without changing that content's implemented, next, or future status.
+Apply the treatment only to context actually added or revised in the current
+feature, name the feature in visible text, and never rely on color alone. Follow
+the class and label contract in `ui/architecture/README.md`; do not accumulate
+multiple generations of content presented as new.
+
 ## Preserve the website structure
 
 Follow the ownership documented in `ui/architecture/README.md`:

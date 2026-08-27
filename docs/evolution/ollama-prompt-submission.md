@@ -118,7 +118,7 @@ Verified on 2026-08-27:
 | Local-only boundary | Non-loopback endpoint construction is rejected; redirects are disabled |
 | Response limits | Oversized body, oversized text, malformed JSON, incomplete response, and unsafe output are rejected |
 | Runtime dependency | Jackson Databind `2.22.1`, Core `2.22.1`, and Annotations `2.22` only |
-| Architecture website | Local files, anchors, IDs, accessibility markup, responsive CSS, and UTF-8 content passed static checks; desktop/mobile browser rendering could not run because no controllable browser was connected |
+| Architecture website | Local files, anchors, IDs, accessibility markup, responsive CSS, UTF-8 content, and Feature 002.03 recency markers passed static checks; the page and stylesheet returned HTTP 200; desktop/mobile browser rendering could not run because no controllable browser was connected |
 
 Commands:
 

@@ -46,15 +46,16 @@ must not be bound to a public network interface for ordinary development.
 
 ## Information architecture
 
-The landing page answers five questions in order:
+The landing page answers six questions in order:
 
 1. What architecture is implemented and verified now?
 2. What is the next approved integration but not yet implemented?
-3. Which long-term capabilities preserve the vision without prescribing
+3. What context was added or updated by the current feature?
+4. Which long-term capabilities preserve the vision without prescribing
    topology?
-4. What evidence would justify a stronger module, repository, or service
+5. What evidence would justify a stronger module, repository, or service
    boundary?
-5. Which repository artifacts prove each architectural claim?
+6. Which repository artifacts prove each architectural claim?
 
 Use these status meanings consistently:
 
@@ -63,6 +64,10 @@ Use these status meanings consistently:
 | Implemented and verified | Current source/build behavior exists and has repository evidence |
 | Next approved work | Active #814 work is authorized but its implementation evidence does not exist yet |
 | Future candidate | Vision or option only; no package, module, service, order, or technology is promised |
+
+The magenta **new or updated** treatment is a separate recency marker, not an
+architectural status. It identifies only context changed by the current feature
+and always names that feature in visible text.
 
 Status must be expressed in text and visual styling; color alone is not enough.
 
@@ -77,6 +82,12 @@ architecture did not change, inspect the relevant view and leave it unchanged.
 Do not move a claim to implemented until linked source, build, test, or decision
 evidence exists. Change the verified date only after comparing the complete
 displayed architecture with the repository.
+
+Before highlighting a new architecture update, remove the recency classes and
+labels from the previous feature without changing its implemented, next, or
+future status. Then apply the recency treatment only to context added or revised
+by the current feature. The website must never accumulate multiple generations
+of content presented as new.
 
 ## Growth rules
 
@@ -105,6 +116,8 @@ artifacts, validation, ownership, and removal or rollback path here.
 - Compare every architectural claim with current source, build, tests, and
   active roadmap evidence.
 - Keep implemented, next, and future elements visibly and textually distinct.
+- Confirm only the current feature carries the new-or-updated treatment and
+  that its feature identifier is visible without relying on color.
 - Verify every local evidence and navigation link.
 - Render the site at desktop and mobile widths.
 - Confirm the page itself has no horizontal overflow; a wide diagram may scroll
