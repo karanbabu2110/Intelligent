@@ -1,6 +1,7 @@
 package io.kaos.app;
 
 import io.kaos.ai.ollama.OllamaConnectivity;
+import io.kaos.ai.ollama.OllamaModelConfiguration;
 import io.kaos.app.config.ApplicationConfiguration;
 import java.io.PrintStream;
 import java.util.Objects;
@@ -18,6 +19,8 @@ public final class KaosApplication {
     static final String UNREADABLE_CONFIGURATION_CODE = "KAOS-CONFIG-002";
     static final String UNEXPECTED_APPLICATION_CODE = "KAOS-APP-001";
     static final String OLLAMA_CONNECTIVITY_CODE = "KAOS-AI-001";
+    static final String INVALID_OLLAMA_MODEL_CODE = "KAOS-AI-CONFIG-001";
+    static final String UNREADABLE_OLLAMA_MODEL_CODE = "KAOS-AI-CONFIG-002";
 
     private KaosApplication() {
     }
@@ -75,6 +78,7 @@ public final class KaosApplication {
                 arguments,
                 configuration,
                 () -> new OllamaConnectivity().check(),
+                OllamaModelConfiguration::load,
                 output,
                 errorOutput);
     }
@@ -85,9 +89,26 @@ public final class KaosApplication {
             Supplier<OllamaConnectivity.Result> ollamaConnectivityCheck,
             PrintStream output,
             PrintStream errorOutput) {
+        return run(
+                arguments,
+                configuration,
+                ollamaConnectivityCheck,
+                OllamaModelConfiguration::load,
+                output,
+                errorOutput);
+    }
+
+    static int run(
+            String[] arguments,
+            ApplicationConfiguration configuration,
+            Supplier<OllamaConnectivity.Result> ollamaConnectivityCheck,
+            Supplier<OllamaModelConfiguration> ollamaModelConfigurationLoader,
+            PrintStream output,
+            PrintStream errorOutput) {
         Objects.requireNonNull(arguments, "arguments");
         Objects.requireNonNull(configuration, "configuration");
         Objects.requireNonNull(ollamaConnectivityCheck, "ollamaConnectivityCheck");
+        Objects.requireNonNull(ollamaModelConfigurationLoader, "ollamaModelConfigurationLoader");
         Objects.requireNonNull(output, "output");
         Objects.requireNonNull(errorOutput, "errorOutput");
 
@@ -105,6 +126,10 @@ public final class KaosApplication {
             return reportOllamaStatus(ollamaConnectivityCheck.get(), output, errorOutput);
         }
 
+        if (isCommand(arguments, "ollama-model")) {
+            return reportOllamaModel(ollamaModelConfigurationLoader, output, errorOutput);
+        }
+
         errorOutput.println(invalidArgumentsMessage(arguments));
         return USAGE_ERROR;
     }
@@ -116,13 +141,39 @@ public final class KaosApplication {
 
     static String helpText() {
         return """
-                Usage: kaos [status|help|ollama-status]
+                Usage: kaos [status|help|ollama-status|ollama-model]
 
                 Commands:
                   status         Show local application status (default).
                   help           Show this help. The --help alias is also supported.
                   ollama-status  Check connectivity to the local Ollama server.
+                  ollama-model   Show the explicitly configured local Ollama model.
                 """;
+    }
+
+    private static int reportOllamaModel(
+            Supplier<OllamaModelConfiguration> configurationLoader,
+            PrintStream output,
+            PrintStream errorOutput) {
+        try {
+            OllamaModelConfiguration configuration = configurationLoader.get();
+            output.println("Configured local Ollama model: " + configuration.modelName() + ".");
+            return SUCCESS;
+        } catch (IllegalArgumentException exception) {
+            logError(
+                    errorOutput,
+                    INVALID_OLLAMA_MODEL_CODE,
+                    "Invalid Ollama model configuration. Check kaos.ollama.model or "
+                            + "KAOS_OLLAMA_MODEL and retry.");
+            return APPLICATION_ERROR;
+        } catch (IllegalStateException exception) {
+            logError(
+                    errorOutput,
+                    UNREADABLE_OLLAMA_MODEL_CODE,
+                    "Ollama model configuration could not be read. Check process permissions "
+                            + "and retry.");
+            return APPLICATION_ERROR;
+        }
     }
 
     private static int reportOllamaStatus(

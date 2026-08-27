@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.kaos.ai.ollama.OllamaConnectivity;
+import io.kaos.ai.ollama.OllamaModelConfiguration;
 import io.kaos.app.config.ApplicationConfiguration;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -115,6 +116,68 @@ class KaosApplicationTest {
                         + "Retry the command."
                         + System.lineSeparator(),
                 result.errorOutput());
+    }
+
+    @Test
+    void reportsTheExplicitlyConfiguredOllamaModel() {
+        KaosApplicationHarness.Result result = runOllamaModel(
+                () -> new OllamaModelConfiguration("llama3.2:latest"));
+
+        assertEquals(KaosApplication.SUCCESS, result.exitCode());
+        assertEquals(
+                "Configured local Ollama model: llama3.2:latest." + System.lineSeparator(),
+                result.standardOutput());
+        assertEquals("", result.errorOutput());
+    }
+
+    @Test
+    void reportsInvalidOllamaModelConfigurationWithoutDisclosingItsValue() {
+        String privateDetail = "private-invalid-model";
+
+        KaosApplicationHarness.Result result = runOllamaModel(() -> {
+            throw new IllegalArgumentException(privateDetail);
+        });
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-CONFIG-001] Invalid Ollama model configuration. "
+                        + "Check kaos.ollama.model or KAOS_OLLAMA_MODEL and retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains(privateDetail));
+    }
+
+    @Test
+    void reportsUnreadableOllamaModelConfigurationWithoutExceptionDetails() {
+        String privateDetail = "private-permission-detail";
+
+        KaosApplicationHarness.Result result = runOllamaModel(() -> {
+            throw new IllegalStateException(privateDetail);
+        });
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-CONFIG-002] Ollama model configuration could not be read. "
+                        + "Check process permissions and retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains(privateDetail));
+    }
+
+    @Test
+    void statusDoesNotLoadOllamaModelConfiguration() {
+        KaosApplicationHarness.Result result = runWithModelLoader(
+                new String[] {"status"},
+                () -> {
+                    throw new AssertionError("model configuration must remain lazy");
+                });
+
+        assertEquals(KaosApplication.SUCCESS, result.exitCode());
+        assertEquals(
+                "KAOS application baseline is running." + System.lineSeparator(),
+                result.standardOutput());
     }
 
     @Test
@@ -293,6 +356,26 @@ class KaosApplicationTest {
                         new ApplicationConfiguration(
                                 ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
                         () -> ollamaResult,
+                        output,
+                        errorOutput));
+    }
+
+    private static KaosApplicationHarness.Result runOllamaModel(
+            java.util.function.Supplier<OllamaModelConfiguration> modelLoader) {
+        return runWithModelLoader(new String[] {"ollama-model"}, modelLoader);
+    }
+
+    private static KaosApplicationHarness.Result runWithModelLoader(
+            String[] arguments,
+            java.util.function.Supplier<OllamaModelConfiguration> modelLoader) {
+        return KaosApplicationHarness.capture(
+                (output, errorOutput) -> KaosApplication.run(
+                        arguments,
+                        new ApplicationConfiguration(
+                                ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                        () -> new OllamaConnectivity.Result(
+                                OllamaConnectivity.Status.REACHABLE, "test-version"),
+                        modelLoader,
                         output,
                         errorOutput));
     }
