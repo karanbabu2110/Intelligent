@@ -13,6 +13,8 @@
   --future: #8ea4c3;
   --future-soft: #1b293d;
   --accent: #69a9ff;
+  --change: #ff8bd4;
+  --change-soft: rgba(255, 139, 212, 0.11);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
 }
@@ -201,6 +203,29 @@ h3 {
   background: var(--future);
 }
 
+.change-swatch {
+  width: 0.68rem;
+  height: 0.68rem;
+  border: 2px solid var(--change);
+  border-radius: 0.18rem;
+  background: var(--change-soft);
+  box-shadow: 0 0 0 2px rgba(255, 139, 212, 0.12);
+}
+
+.change-note {
+  margin: 0 0 1.25rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(255, 139, 212, 0.55);
+  border-left: 4px solid var(--change);
+  border-radius: 0.7rem;
+  background: var(--change-soft);
+  color: var(--muted);
+}
+
+.change-note strong {
+  color: var(--change);
+}
+
 .panel {
   min-width: 0;
   margin-top: 1.25rem;
@@ -266,6 +291,12 @@ svg text {
   font-size: 14px;
 }
 
+.svg-change {
+  fill: var(--change);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .svg-label {
   fill: var(--muted);
   font-size: 12px;
@@ -306,6 +337,30 @@ svg text {
   border: 1px solid var(--line);
   border-radius: 0.85rem;
   background: var(--surface-strong);
+}
+
+.card.change-current {
+  border-color: rgba(255, 139, 212, 0.7);
+  background:
+    linear-gradient(135deg, var(--change-soft), transparent 58%),
+    var(--surface-strong);
+  box-shadow: inset 4px 0 0 var(--change);
+}
+
+.change-label {
+  display: block;
+  width: fit-content;
+  margin-bottom: 0.55rem;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid rgba(255, 139, 212, 0.6);
+  border-radius: 0.35rem;
+  background: var(--change-soft);
+  color: var(--change);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  line-height: 1.35;
+  text-transform: uppercase;
 }
 
 .card p {
@@ -416,6 +471,14 @@ th {
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+tr.change-current td {
+  background: var(--change-soft);
+}
+
+tr.change-current td:first-child {
+  box-shadow: inset 4px 0 0 var(--change);
 }
 
 code {
