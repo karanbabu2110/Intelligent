@@ -101,6 +101,23 @@ This command performs one bounded `GET /api/version` request to
 response, read credentials, or support a remote endpoint. `status` and `help`
 do not create the Ollama client or make a network request.
 
+Configure and inspect the model reserved for later AI commands:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+./gradlew.bat run --args=ollama-model
+```
+
+Successful output is:
+
+```text
+Configured local Ollama model: qwen3:8b.
+```
+
+`ollama-model` validates and displays local process configuration only. It does
+not contact Ollama, check whether the model is installed, download or load a
+model, submit a prompt, or produce a response.
+
 An unknown command or extra argument returns usage exit code `2`. A handled
 configuration or application failure returns exit code `1` and a safe coded
 error on standard error. Supplied values, exception messages, and stack traces
@@ -123,10 +140,22 @@ precedence is:
 3. the safe default `KAOS`
 
 Names are trimmed, limited to 64 Unicode characters, and may contain letters,
-numbers, spaces, periods, underscores, or hyphens. Do not commit credentials or
-other secrets. The Ollama endpoint is fixed to loopback in Feature 002.01. No
-secret, remote endpoint, model, prompt, or file configuration is currently
-implemented.
+numbers, spaces, periods, underscores, or hyphens.
+
+The local Ollama model is configured separately:
+
+1. `-Dkaos.ollama.model=...` for a direct JVM launch
+2. `KAOS_OLLAMA_MODEL`
+3. no default; an explicit selection is required by `ollama-model`
+
+Model names are trimmed, limited to 128 ASCII characters, and accept ordinary
+or slash-separated identifiers containing letters, numbers, periods,
+underscores, or hyphens, followed by an optional colon tag. Examples include
+`llama3.2:latest` and `hf.co/team/model-name:Q4_K_M`.
+
+Do not commit credentials or other secrets. The Ollama endpoint remains fixed
+to loopback. No secret, remote endpoint, prompt, or file configuration is
+currently implemented.
 
 ## Run tests
 
@@ -238,9 +267,18 @@ dependency problem, then rerun the focused command. Finish with the clean
 
 ### Local configuration changes the run output
 
-Inspect `KAOS_APP_NAME` and any `kaos.app.name` system property. The
-`verifyLocal` smoke tasks deliberately supply the safe `KAOS` name and should
-remain deterministic even when a developer has a local environment override.
+Inspect `KAOS_APP_NAME`, `KAOS_OLLAMA_MODEL`, and the corresponding
+`kaos.app.name` or `kaos.ollama.model` system property. The `verifyLocal` smoke
+tasks deliberately supply the safe `KAOS` application name and do not invoke
+`ollama-model`, so they remain deterministic without a model selection.
+
+### Ollama model configuration is rejected
+
+Set `KAOS_OLLAMA_MODEL` to one installed model name you intentionally chose,
+then rerun `ollama-model`. Remove spaces, control characters, empty namespace
+segments, or unsupported punctuation. KAOS does not echo invalid configured
+values in its error message and does not verify installation until a later
+feature introduces a model request.
 
 ### Ollama is unavailable
 
@@ -267,6 +305,7 @@ KAOS does not start or own the local Ollama process.
 - [Completed work and verified evidence](../evolution/completed-work-and-evidence.md)
 - [Architecture website structure and maintenance](../../ui/architecture/README.md)
 - [Ollama connectivity](../evolution/ollama-connectivity.md)
+- [Ollama model configuration](../evolution/ollama-model-configuration.md)
 
 The detailed references retain acceptance evidence, internal contracts, and
 historical validation. This guide owns the current developer-facing commands
