@@ -6,9 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.kaos.ai.ollama.OllamaConnectivity;
 import io.kaos.ai.ollama.OllamaModelConfiguration;
+import io.kaos.ai.ollama.OllamaPrompt;
+import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.app.config.ApplicationConfiguration;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 class KaosApplicationTest {
@@ -178,6 +183,141 @@ class KaosApplicationTest {
         assertEquals(
                 "KAOS application baseline is running." + System.lineSeparator(),
                 result.standardOutput());
+    }
+
+    @Test
+    void submitsOnePromptToTheConfiguredModelAndPrintsTheCompleteResponse() {
+        AtomicReference<String> selectedModel = new AtomicReference<>();
+        AtomicReference<String> submittedPrompt = new AtomicReference<>();
+
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                "Why local AI?",
+                () -> new OllamaModelConfiguration("qwen3:8b"),
+                (model, prompt) -> {
+                    selectedModel.set(model.modelName());
+                    submittedPrompt.set(prompt.text());
+                    return new OllamaPromptClient.Result(
+                            OllamaPromptClient.Status.SUCCESS, "A local answer.");
+                });
+
+        assertEquals(KaosApplication.SUCCESS, result.exitCode());
+        assertEquals("A local answer." + System.lineSeparator(), result.standardOutput());
+        assertEquals("", result.errorOutput());
+        assertEquals("qwen3:8b", selectedModel.get());
+        assertEquals("Why local AI?", submittedPrompt.get());
+    }
+
+    @Test
+    void rejectsAMissingPromptWithUsageGuidance() {
+        KaosApplicationHarness.Result result = KaosApplicationHarness.run("ollama-prompt");
+
+        assertEquals(KaosApplication.USAGE_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "Expected one quoted prompt. Run 'kaos help' for usage."
+                        + System.lineSeparator(),
+                result.errorOutput());
+    }
+
+    @Test
+    void rejectsAnInvalidPromptWithoutEchoingItOrLoadingTheModel() {
+        String privatePrompt = "private\u001b[31m-prompt";
+
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                privatePrompt,
+                () -> {
+                    throw new AssertionError("model must not load for an invalid prompt");
+                },
+                (model, prompt) -> {
+                    throw new AssertionError("invalid prompt must not be submitted");
+                });
+
+        assertEquals(KaosApplication.USAGE_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "Expected one valid quoted prompt. Run 'kaos help' for usage."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains(privatePrompt));
+    }
+
+    @Test
+    void reportsPromptRejectionWithoutEchoingPromptOrProviderDetails() {
+        String privatePrompt = "private prompt";
+        String privateProviderDetail = "private provider detail";
+
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                privatePrompt,
+                () -> new OllamaModelConfiguration("missing-model"),
+                (model, prompt) -> {
+                    assertFalse(prompt.text().contains(privateProviderDetail));
+                    return new OllamaPromptClient.Result(
+                            OllamaPromptClient.Status.REQUEST_FAILED, "");
+                });
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-002] Local Ollama rejected the prompt request. "
+                        + "Verify the configured model and retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains(privatePrompt));
+        assertFalse(result.errorOutput().contains(privateProviderDetail));
+    }
+
+    @Test
+    void reportsPromptTimeoutWithActionableGuidance() {
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                "private prompt",
+                () -> new OllamaModelConfiguration("slow-model"),
+                (model, prompt) -> new OllamaPromptClient.Result(
+                        OllamaPromptClient.Status.TIMED_OUT, ""));
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-002] The Ollama prompt request timed out. "
+                        + "Try again or select a faster local model."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains("private prompt"));
+    }
+
+    @Test
+    void reportsMissingModelConfigurationBeforeSubmittingThePrompt() {
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                "private prompt",
+                () -> {
+                    throw new IllegalArgumentException("private-model-detail");
+                },
+                (model, prompt) -> {
+                    throw new AssertionError("prompt must not submit without a model");
+                });
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-CONFIG-001] Invalid Ollama model configuration. "
+                        + "Check kaos.ollama.model or KAOS_OLLAMA_MODEL and retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains("private prompt"));
+        assertFalse(result.errorOutput().contains("private-model-detail"));
+    }
+
+    @Test
+    void statusDoesNotCreateThePromptClient() {
+        KaosApplicationHarness.Result result = runWithPromptSubmission(
+                new String[] {"status"},
+                () -> {
+                    throw new AssertionError("model configuration must remain lazy");
+                },
+                (model, prompt) -> {
+                    throw new AssertionError("prompt client must remain lazy");
+                });
+
+        assertEquals(KaosApplication.SUCCESS, result.exitCode());
     }
 
     @Test
@@ -361,13 +501,13 @@ class KaosApplicationTest {
     }
 
     private static KaosApplicationHarness.Result runOllamaModel(
-            java.util.function.Supplier<OllamaModelConfiguration> modelLoader) {
+            Supplier<OllamaModelConfiguration> modelLoader) {
         return runWithModelLoader(new String[] {"ollama-model"}, modelLoader);
     }
 
     private static KaosApplicationHarness.Result runWithModelLoader(
             String[] arguments,
-            java.util.function.Supplier<OllamaModelConfiguration> modelLoader) {
+            Supplier<OllamaModelConfiguration> modelLoader) {
         return KaosApplicationHarness.capture(
                 (output, errorOutput) -> KaosApplication.run(
                         arguments,
@@ -376,6 +516,33 @@ class KaosApplicationTest {
                         () -> new OllamaConnectivity.Result(
                                 OllamaConnectivity.Status.REACHABLE, "test-version"),
                         modelLoader,
+                        output,
+                        errorOutput));
+    }
+
+    private static KaosApplicationHarness.Result runOllamaPrompt(
+            String prompt,
+            Supplier<OllamaModelConfiguration> modelLoader,
+            BiFunction<OllamaModelConfiguration, OllamaPrompt, OllamaPromptClient.Result>
+                    submission) {
+        return runWithPromptSubmission(
+                new String[] {"ollama-prompt", prompt}, modelLoader, submission);
+    }
+
+    private static KaosApplicationHarness.Result runWithPromptSubmission(
+            String[] arguments,
+            Supplier<OllamaModelConfiguration> modelLoader,
+            BiFunction<OllamaModelConfiguration, OllamaPrompt, OllamaPromptClient.Result>
+                    submission) {
+        return KaosApplicationHarness.capture(
+                (output, errorOutput) -> KaosApplication.run(
+                        arguments,
+                        new ApplicationConfiguration(
+                                ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                        () -> new OllamaConnectivity.Result(
+                                OllamaConnectivity.Status.REACHABLE, "test-version"),
+                        modelLoader,
+                        submission,
                         output,
                         errorOutput));
     }

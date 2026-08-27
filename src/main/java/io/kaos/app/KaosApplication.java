@@ -2,9 +2,12 @@ package io.kaos.app;
 
 import io.kaos.ai.ollama.OllamaConnectivity;
 import io.kaos.ai.ollama.OllamaModelConfiguration;
+import io.kaos.ai.ollama.OllamaPrompt;
+import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.app.config.ApplicationConfiguration;
 import java.io.PrintStream;
 import java.util.Objects;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 /**
@@ -21,6 +24,7 @@ public final class KaosApplication {
     static final String OLLAMA_CONNECTIVITY_CODE = "KAOS-AI-001";
     static final String INVALID_OLLAMA_MODEL_CODE = "KAOS-AI-CONFIG-001";
     static final String UNREADABLE_OLLAMA_MODEL_CODE = "KAOS-AI-CONFIG-002";
+    static final String OLLAMA_PROMPT_CODE = "KAOS-AI-002";
 
     private KaosApplication() {
     }
@@ -79,6 +83,7 @@ public final class KaosApplication {
                 configuration,
                 () -> new OllamaConnectivity().check(),
                 OllamaModelConfiguration::load,
+                (model, prompt) -> new OllamaPromptClient().submit(model, prompt),
                 output,
                 errorOutput);
     }
@@ -94,6 +99,7 @@ public final class KaosApplication {
                 configuration,
                 ollamaConnectivityCheck,
                 OllamaModelConfiguration::load,
+                (model, prompt) -> new OllamaPromptClient().submit(model, prompt),
                 output,
                 errorOutput);
     }
@@ -105,10 +111,30 @@ public final class KaosApplication {
             Supplier<OllamaModelConfiguration> ollamaModelConfigurationLoader,
             PrintStream output,
             PrintStream errorOutput) {
+        return run(
+                arguments,
+                configuration,
+                ollamaConnectivityCheck,
+                ollamaModelConfigurationLoader,
+                (model, prompt) -> new OllamaPromptClient().submit(model, prompt),
+                output,
+                errorOutput);
+    }
+
+    static int run(
+            String[] arguments,
+            ApplicationConfiguration configuration,
+            Supplier<OllamaConnectivity.Result> ollamaConnectivityCheck,
+            Supplier<OllamaModelConfiguration> ollamaModelConfigurationLoader,
+            BiFunction<OllamaModelConfiguration, OllamaPrompt, OllamaPromptClient.Result>
+                    ollamaPromptSubmission,
+            PrintStream output,
+            PrintStream errorOutput) {
         Objects.requireNonNull(arguments, "arguments");
         Objects.requireNonNull(configuration, "configuration");
         Objects.requireNonNull(ollamaConnectivityCheck, "ollamaConnectivityCheck");
         Objects.requireNonNull(ollamaModelConfigurationLoader, "ollamaModelConfigurationLoader");
+        Objects.requireNonNull(ollamaPromptSubmission, "ollamaPromptSubmission");
         Objects.requireNonNull(output, "output");
         Objects.requireNonNull(errorOutput, "errorOutput");
 
@@ -130,6 +156,20 @@ public final class KaosApplication {
             return reportOllamaModel(ollamaModelConfigurationLoader, output, errorOutput);
         }
 
+        if (arguments.length == 2 && "ollama-prompt".equals(arguments[0])) {
+            return reportOllamaPrompt(
+                    arguments[1],
+                    ollamaModelConfigurationLoader,
+                    ollamaPromptSubmission,
+                    output,
+                    errorOutput);
+        }
+
+        if (arguments.length > 0 && "ollama-prompt".equals(arguments[0])) {
+            errorOutput.println("Expected one quoted prompt. Run 'kaos help' for usage.");
+            return USAGE_ERROR;
+        }
+
         errorOutput.println(invalidArgumentsMessage(arguments));
         return USAGE_ERROR;
     }
@@ -141,14 +181,72 @@ public final class KaosApplication {
 
     static String helpText() {
         return """
-                Usage: kaos [status|help|ollama-status|ollama-model]
+                Usage: kaos [status|help|ollama-status|ollama-model|ollama-prompt <prompt>]
 
                 Commands:
                   status         Show local application status (default).
                   help           Show this help. The --help alias is also supported.
                   ollama-status  Check connectivity to the local Ollama server.
                   ollama-model   Show the explicitly configured local Ollama model.
+                  ollama-prompt  Submit one quoted prompt and print one complete response.
                 """;
+    }
+
+    private static int reportOllamaPrompt(
+            String promptText,
+            Supplier<OllamaModelConfiguration> modelConfigurationLoader,
+            BiFunction<OllamaModelConfiguration, OllamaPrompt, OllamaPromptClient.Result>
+                    promptSubmission,
+            PrintStream output,
+            PrintStream errorOutput) {
+        OllamaPrompt prompt;
+        try {
+            prompt = new OllamaPrompt(promptText);
+        } catch (IllegalArgumentException exception) {
+            errorOutput.println("Expected one valid quoted prompt. Run 'kaos help' for usage.");
+            return USAGE_ERROR;
+        }
+
+        OllamaModelConfiguration model;
+        try {
+            model = modelConfigurationLoader.get();
+        } catch (IllegalArgumentException exception) {
+            logError(
+                    errorOutput,
+                    INVALID_OLLAMA_MODEL_CODE,
+                    "Invalid Ollama model configuration. Check kaos.ollama.model or "
+                            + "KAOS_OLLAMA_MODEL and retry.");
+            return APPLICATION_ERROR;
+        } catch (IllegalStateException exception) {
+            logError(
+                    errorOutput,
+                    UNREADABLE_OLLAMA_MODEL_CODE,
+                    "Ollama model configuration could not be read. Check process permissions "
+                            + "and retry.");
+            return APPLICATION_ERROR;
+        }
+
+        OllamaPromptClient.Result result = promptSubmission.apply(model, prompt);
+        if (result.successful()) {
+            output.println(result.response());
+            return SUCCESS;
+        }
+
+        String recovery = switch (result.status()) {
+            case UNAVAILABLE ->
+                    "Local Ollama is unavailable. Start Ollama on 127.0.0.1:11434 and retry.";
+            case REQUEST_FAILED ->
+                    "Local Ollama rejected the prompt request. Verify the configured model and retry.";
+            case INVALID_RESPONSE ->
+                    "Local Ollama returned an invalid prompt response. Verify Ollama and retry.";
+            case TIMED_OUT ->
+                    "The Ollama prompt request timed out. Try again or select a faster local model.";
+            case INTERRUPTED ->
+                    "The Ollama prompt request was interrupted. Retry the command.";
+            case SUCCESS -> throw new IllegalStateException("Successful result has no response.");
+        };
+        logError(errorOutput, OLLAMA_PROMPT_CODE, recovery);
+        return APPLICATION_ERROR;
     }
 
     private static int reportOllamaModel(

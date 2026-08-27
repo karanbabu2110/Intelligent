@@ -9,8 +9,8 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815) and [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
 - Active epic: [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
-- Active feature: [Feature 002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846)
-- Repository state: one root Gradle/Java 21 application with one production entry point, no third-party runtime library, optional loopback Ollama connectivity, explicit local model selection, and fifty-two focused tests
+- Active feature: [Feature 002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847)
+- Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, one bounded non-streamed prompt flow, one JSON runtime library, and seventy-four focused tests
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -78,6 +78,23 @@ KAOS requires an explicit selection and does not assume or download a default
 model. This command validates and displays the selection without contacting
 Ollama, submitting a prompt, or loading the model.
 
+Submit one prompt to the configured model and print one complete response. In
+PowerShell, `--%` preserves the nested quotes through the Gradle batch wrapper:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+./gradlew.bat --% run --args="ollama-prompt \"Why is the sky blue?\""
+```
+
+The request goes only to the fixed loopback endpoint
+`http://127.0.0.1:11434/api/generate`, uses JSON, and explicitly disables
+streaming. The prompt is limited to 4,096 characters; the response is limited
+to 1 MiB and 65,536 characters; and the complete request is bounded to five
+minutes. KAOS does not echo prompts or raw Ollama failures in errors. However,
+the quoted prompt can remain in shell history or be visible as a process
+argument, so this developer CLI is not an appropriate input surface for
+secrets or other private prompts.
+
 Handled startup or application failures return exit code `1` and emit one safe
 record such as `ERROR [KAOS-CONFIG-001] ...` on standard error. Expected CLI
 usage errors retain exit code `2`. Exception messages, stack traces, arguments,
@@ -101,7 +118,7 @@ underscores, or hyphens.
 The Ollama model uses `kaos.ollama.model` before `KAOS_OLLAMA_MODEL` and has no
 default. A model name is trimmed, limited to 128 ASCII characters, and supports
 ordinary or namespaced Ollama identifiers with an optional tag. No secret,
-remote endpoint, prompt, or file configuration is implemented.
+remote endpoint, prompt-file, or persistent configuration is implemented.
 
 ## Development rule
 
@@ -131,7 +148,7 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-001 and Feature #845 are complete. Project 1 is executing #814, Epic
-#3, Feature #846, and its direct Tasks #1063-#1064. Complete and merge the
-single Feature 002.02 pull request before activating Prompt Submission Feature
-#847. No tag or release is created unless the user explicitly requests one.
+Epics 000-001 and Features #845-#846 are complete. Project 1 is executing #814,
+Epic #3, Feature #847, and its direct Tasks #1065-#1066. Complete and merge the
+single Feature 002.03 pull request before activating Response Streaming Feature
+#848. No tag or release is created unless the user explicitly requests one.
