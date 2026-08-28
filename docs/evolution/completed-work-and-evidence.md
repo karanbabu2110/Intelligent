@@ -133,8 +133,56 @@ the current application state and next development checkpoint.
 - [Local run and verification workflow](local-run-and-verification-workflow.md)
 - [Epic 001 exit checkpoint](epic-001-exit.md)
 
+## Epic 002 — First AI Integration (in progress)
+
+[Epic 002](https://github.com/karanbabu2110/KAOS/issues/3) remains in progress.
+The following merged features form the verified `0.1.0` capability snapshot.
+
+### Feature 002.01 — Ollama Connectivity
+
+- [Feature 002.01](https://github.com/karanbabu2110/KAOS/issues/845)
+- [Task 002.01.01 — Implement Local Ollama Reachability](https://github.com/karanbabu2110/KAOS/issues/1061)
+- [Task 002.01.02 — Validate and Document Ollama Connectivity](https://github.com/karanbabu2110/KAOS/issues/1062)
+- Delivery: [PR #16](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/16)
+
+### Feature 002.02 — AI Model Configuration
+
+- [Feature 002.02](https://github.com/karanbabu2110/KAOS/issues/846)
+- [Task 002.02.01 — Implement Validated Ollama Model Selection](https://github.com/karanbabu2110/KAOS/issues/1063)
+- [Task 002.02.02 — Validate and Document AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/1064)
+- [Task 002.02.03 — Benchmark Context Window Ranges and Select the Default](https://github.com/karanbabu2110/KAOS/issues/1067)
+- [Task 002.02.04 — Evaluate Local Models by KAOS Scenario and Select Defaults](https://github.com/karanbabu2110/KAOS/issues/1068)
+- [Task 002.02.05 — Define Explicit Thinking Modes and Ordinary-Request Default](https://github.com/karanbabu2110/KAOS/issues/1069)
+- [Task 002.02.06 — Select Bounded Response Generation Defaults](https://github.com/karanbabu2110/KAOS/issues/1070)
+- Delivery: [original PR #17](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/17) and [measured optimization PR #20](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/20)
+
+### Feature 002.03 — Prompt Submission
+
+- [Feature 002.03](https://github.com/karanbabu2110/KAOS/issues/847)
+- [Task 002.03.01 — Implement Bounded Ollama Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/1065)
+- [Task 002.03.02 — Validate and Document Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/1066)
+- Delivery: [PR #18](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/18) and [architecture/documentation follow-up PR #19](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/19)
+
+### Epic 002 verified evidence so far
+
+- [Ollama connectivity](ollama-connectivity.md)
+- [AI model configuration](ollama-model-configuration.md)
+- [Context-window benchmark](ollama-context-window-benchmark.md)
+- [Model scenario benchmark](ollama-model-scenario-benchmark.md)
+- [Thinking policy and benchmark](ollama-thinking-policy-and-benchmark.md)
+- [Response-generation limit benchmark](ollama-response-generation-limit-benchmark.md)
+- [Prompt submission](ollama-prompt-submission.md)
+- [KAOS 0.1.0 release notes](../releases/v0.1.0.md)
+- [KAOS 0.1.0 validation and publication checkpoint](../releases/v0.1.0-validation.md)
+
+Response Streaming Feature
+[#848](https://github.com/karanbabu2110/KAOS/issues/848) is the next approved
+goal. Features 002.04-002.07 remain incomplete and are not part of this
+snapshot.
+
 ## Maintenance rule
 
-When an epic is completed, move its feature, story, task, and evidence links to
-this document. Keep only the active development chain and brief completed-epic
-summary in the root README.
+After each feature merge, add its feature, story/task, delivery, and evidence
+links to the relevant epic snapshot here. When an epic completes, finalize its
+section and move detailed completed links out of the root README. Keep only the
+active development chain and brief completed summaries in the README.

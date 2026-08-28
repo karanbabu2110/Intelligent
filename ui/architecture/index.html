@@ -30,7 +30,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-08-28</strong>
-        Version 0.0.2-SNAPSHOT<br>
+        Version 0.1.0<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -41,7 +41,7 @@
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
       <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 002.02 response-limit follow-up</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the bounded response-token configuration and explicit natural-versus-length completion boundary added by the reopened Feature 002.02. The emphasis moves to the next feature when this architecture changes again; the underlying implemented, next, and future statuses remain authoritative.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the bounded response-token configuration and explicit natural-versus-length completion boundary added by the completed Feature 002.02. The emphasis moves to the next feature when this architecture changes again; the underlying implemented, next, and future statuses remain authoritative.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">Current runtime and local AI integration</h2>
@@ -140,7 +140,7 @@
         <article class="card">
           <div class="status next">Next</div>
           <h3>Response streaming</h3>
-          <p>Feature 002.04 (#848) is the next approved feature after Feature 002.02 merges. Progressive token delivery, visible progress, and cancellation remain unimplemented.</p>
+          <p>Feature 002.04 (#848) is the next approved feature. Progressive token delivery, visible progress, and cancellation remain unimplemented.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -188,7 +188,7 @@
           <tr><td>AI model, context, and thinking configuration</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaThinkingMode.java"><code>OllamaThinkingMode.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, and <a href="../../docs/evolution/ollama-thinking-policy-and-benchmark.md">thinking benchmark</a></td><td>Implemented</td></tr>
           <tr><td>Prompt submission</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-prompt-submission.md">validation evidence</a></td><td>Implemented</td></tr>
           <tr class="change-current"><td><span class="change-label">Updated in Feature 002.02</span>Bounded response generation and completion handling</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, and <a href="../../docs/evolution/ollama-response-generation-limit-benchmark.md">response-limit benchmark</a></td><td>Implemented</td></tr>
-          <tr><td>Response streaming</td><td><a href="https://github.com/karanbabu2110/KAOS/issues/848">Feature 002.04</a></td><td>Next after Feature 002.02 merge; not implemented</td></tr>
+          <tr><td>Response streaming</td><td><a href="https://github.com/karanbabu2110/KAOS/issues/848">Feature 002.04</a></td><td>Next approved feature; not implemented</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

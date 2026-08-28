@@ -9,7 +9,8 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815) and [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
 - Active epic: [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
-- Active feature: [Feature 002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), reopened from measured prompt-performance evidence
+- Completed Epic 002 features: [002.01 — Ollama Connectivity](https://github.com/karanbabu2110/KAOS/issues/845), [002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), and [002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847)
+- Next approved feature: [002.04 — Response Streaming](https://github.com/karanbabu2110/KAOS/issues/848)
 - Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded non-streamed prompt flow, and one JSON runtime library
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
@@ -34,14 +35,16 @@ build outputs, troubleshooting, and the feature delivery workflow.
 
 ## Version
 
-The latest release is **0.0.1**, tagged as
-[`v0.0.1`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v0.0.1).
-Ongoing development uses Gradle version **0.0.2-SNAPSHOT** so unreleased work
-cannot be confused with that baseline.
+The prepared release is **0.1.0**, with the intended tag
+[`v0.1.0`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v0.1.0).
+The tag and GitHub pre-release are created only after this exact versioned
+checkpoint is merged and revalidated on `main`.
 
-This is an initial-development baseline. It proves the runnable Java
-application and development workflow; it is not a production-ready KAOS or AI
-capability release. See the [0.0.1 release notes](docs/releases/v0.0.1.md).
+This is the first useful local-AI development release: it can validate a local
+Ollama server, select and bound a model configuration, and submit one safe
+non-streamed prompt. It is not production-ready and has no stable public API,
+persistent-data schema, or compatibility guarantee. See the
+[0.1.0 release notes](docs/releases/v0.1.0.md).
 
 ## Run the application
 
@@ -190,9 +193,8 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-001 and Feature #845 are complete. Project 1 is executing #814, Epic
-#3, and reopened Feature #846. Its evidence-driven Tasks #1067-#1070 now
-implement context, model, thinking, and response-limit behavior on the feature
-branch. Verify and merge the complete feature pull request before returning to
-Response Streaming Feature #848. No tag or release is created unless the user
-explicitly requests one.
+Epics 000-001 and Features #845, #846, and #847 are complete. The prepared
+`0.1.0` checkpoint captures the current bounded, non-streamed local-AI
+application. After it is merged, validated, tagged, and published, continue
+Epic #3 with Response Streaming Feature #848. No later capability is included
+in `0.1.0`.
