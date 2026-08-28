@@ -12,9 +12,9 @@ setup or operational requirements until they are implemented.
   Linux/macOS
 - Network access the first time Gradle needs to download declared build or test
   dependencies
-- Optional: a local Ollama server on `127.0.0.1:11434` to demonstrate
-  `ollama-status`, plus one installed model to demonstrate `ollama-prompt`;
-  neither is required to build or run automated tests
+- Optional: [Ollama installed locally](https://docs.ollama.com/quickstart) to
+  demonstrate `ollama-status`, plus one installed model to demonstrate
+  `ollama-prompt`; neither is required to build or run automated tests
 
 No system Gradle installation is required. Use the Gradle wrapper committed to
 the repository.
@@ -85,6 +85,28 @@ The successful status output is:
 KAOS application baseline is running.
 ```
 
+### Start Ollama locally
+
+KAOS does not start or manage Ollama. Start it before using `ollama-status` or
+`ollama-prompt`.
+
+On Windows with the standard installer, launch **Ollama** from the Start menu.
+The application remains in the background and serves its local API on port
+`11434`.
+
+For a standalone CLI installation, or when intentionally managing the server
+from a terminal, run:
+
+```powershell
+ollama serve
+```
+
+Keep that terminal open while using KAOS, and use another terminal for the
+commands below. Do not also launch the Windows background application. If the
+command reports that port `11434` is already in use, another Ollama instance is
+probably already serving; check it with `ollama-status` rather than starting a
+second instance.
+
 Check the fixed local Ollama endpoint:
 
 ```powershell
@@ -101,6 +123,21 @@ This command performs one bounded `GET /api/version` request to
 `http://127.0.0.1:11434`. It does not select a model, submit a prompt, stream a
 response, read credentials, or support a remote endpoint. `status` and `help`
 do not create the Ollama client or make a network request.
+
+List the models installed in that Ollama instance:
+
+```powershell
+ollama ls
+```
+
+If the model you intentionally selected is missing, pull it explicitly:
+
+```powershell
+ollama pull qwen3:8b
+```
+
+Model downloads can require substantial network transfer, disk space, memory,
+and time. KAOS never runs `ollama pull` or chooses a model automatically.
 
 Configure and inspect the model reserved for later AI commands:
 
@@ -313,15 +350,17 @@ when that request is submitted.
 
 ### Ollama is unavailable
 
-Start Ollama locally and verify that its version endpoint responds at
-`http://127.0.0.1:11434/api/version`, then rerun `ollama-status`. Feature 002.01
-does not support changing the endpoint, retrying automatically, or connecting
-to a remote host. An invalid response should be treated as an Ollama
+Launch the installed Windows application or run `ollama serve` in a dedicated
+terminal, then rerun `ollama-status`. If `ollama serve` reports that port
+`11434` is already in use, do not start another copy; check the existing
+process. KAOS always verifies `http://127.0.0.1:11434/api/version` and does not
+support changing the endpoint, retrying automatically, or connecting to a
+remote host. An invalid response should be treated as an Ollama
 installation/version problem rather than printed as raw provider data.
 
 ### An Ollama prompt fails or times out
 
-First run `ollama-status`, then use `ollama list` to confirm that the configured
+First run `ollama-status`, then use `ollama ls` to confirm that the configured
 model is installed. A rejected request returns `KAOS-AI-002` without the raw
 Ollama body. A complete non-streamed generation may take several minutes while
 a model loads or generates on CPU; KAOS waits at most five minutes and then
@@ -332,7 +371,9 @@ Feature #848 is intentionally deferred and will provide progressive output.
 
 Use the shell's normal interrupt, typically Ctrl+C. The current workflow has no
 background application worker, retry loop, or product state requiring rollback.
-KAOS does not start or own the local Ollama process.
+KAOS does not start or own the local Ollama process. Stop a manually launched
+`ollama serve` with Ctrl+C in its terminal; stop the Windows background
+application from its tray menu when you intentionally want Ollama offline.
 
 ## Detailed references
 

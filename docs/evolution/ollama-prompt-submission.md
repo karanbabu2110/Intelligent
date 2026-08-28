@@ -38,10 +38,32 @@ enforced while reading rather than after an unbounded allocation.
 
 ## Run the behavior
 
-Confirm that Ollama is running and choose one model already installed locally:
+Start Ollama locally. The standard Windows application runs in the background
+after it is launched from the Start menu. For an intentionally manual CLI
+process, run the following in a dedicated terminal and keep it open:
 
 ```powershell
-ollama list
+ollama serve
+```
+
+Use a second terminal to verify the server and inspect locally installed
+models:
+
+```powershell
+./gradlew.bat run --args=ollama-status
+ollama ls
+```
+
+If the selected model is absent, the developer may explicitly download it;
+KAOS never does this automatically:
+
+```powershell
+ollama pull qwen3:8b
+```
+
+Then configure the chosen installed model:
+
+```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:8b"
 ./gradlew.bat run --args=ollama-model
 ```

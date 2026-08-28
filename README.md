@@ -55,6 +55,19 @@ The no-argument form remains supported. Both forms print
 commands or extra arguments produce safe guidance and a nonzero result without
 echoing the supplied values.
 
+Start Ollama before running KAOS AI commands. On Windows, launch **Ollama** from
+the Start menu; the installed application runs in the background. When using a
+manually managed CLI installation instead, run this in a dedicated terminal and
+leave it open:
+
+```powershell
+ollama serve
+```
+
+Use one startup method, not both. If `ollama serve` reports that port `11434`
+is already in use, the Windows application may already be serving; verify it
+with `ollama-status` below.
+
 Check whether Ollama is reachable on the fixed local endpoint
 `http://127.0.0.1:11434/api/version`:
 
@@ -66,6 +79,19 @@ A successful check prints only the validated Ollama version. The command sends
 no prompt, model name, credential, personal data, or file content. If Ollama is
 unavailable or its version response is invalid, KAOS returns a safe
 `KAOS-AI-001` error with recovery guidance.
+
+List the models already installed locally:
+
+```powershell
+ollama ls
+```
+
+If the model you intentionally chose is absent, download it explicitly before
+using KAOS. This requires network access, disk space, and time:
+
+```powershell
+ollama pull qwen3:8b
+```
 
 Select and inspect the model that later AI commands will use:
 
