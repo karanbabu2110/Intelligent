@@ -98,6 +98,48 @@ The 1.7B cold measurement includes an initial model-transition/setup delay and
 must not be interpreted as its normal load time. Its immediately repeated warm
 result and generation rate are the useful smoke-test evidence.
 
+### End-to-end KAOS confirmation
+
+After the controlled API comparison, the developer ran the same visible KAOS
+command and question with two explicitly selected models:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "<model>"
+./gradlew.bat --% run --args="ollama-prompt \"Why is the sky blue?\""
+```
+
+| Explicit model | Observed Gradle wall time | Outcome |
+| --- | ---: | --- |
+| `qwen3:8b` | 1 min 42 s | Correct but long response |
+| `qwen3:4b-instruct` | 10 s | Correct, shorter response |
+
+The observed reduction was 92 seconds, approximately 90% or 10.2 times faster
+for this run. This is practical end-to-end confirmation, not a controlled model
+benchmark: generated lengths differed, model cache/load state was not captured,
+and `ollama-prompt` does not display the resolved context or Ollama token timing.
+
+The Windows terminal also displayed corrupted Unicode punctuation such as
+`´┐¢` and replacement question marks in the instruct response. This is recorded
+as an output-encoding observation, not scored as model quality. Diagnosing or
+changing the Java, Gradle, PowerShell, or terminal encoding is outside Task
+#1068.
+
+The developer then repeated the comparison with `Java Program for 8 queens?`,
+a larger coding request than the controlled `twoSum` prompt:
+
+| Explicit model | Observed Gradle wall time | Code assessment |
+| --- | ---: | --- |
+| `qwen3:4b-instruct` | 18 s | Fast and structurally plausible, but does not compile because `System's` appears in `printBoardToMatrix` |
+| `qwen3:8b` | 4 min 36 s | Appears complete and compilable by inspection; the first solution label starts at zero because the counter increments after printing |
+
+The instruct run was 258 seconds shorter, approximately 93.5% or 15.3 times
+faster, but speed did not compensate for the compilation failure. This
+uncontrolled stress observation narrows the ordinary recommendation:
+`qwen3:4b-instruct` remains suitable for ordinary responses and simple coding
+help, while more involved code generation requires compile-and-test validation
+and may justify a larger or coding-specialized model. It does not establish a
+new automatic coding profile.
+
 Warm scenario timings from the 128-token comparison were:
 
 | Model | Summary | Coding | Reasoning |
@@ -197,4 +239,3 @@ must not silently download the recommendation or substitute another model.
    matrix instead of comparing unlike runs as though they were identical.
 8. Re-evaluate before changing a recommendation on different hardware or for a
    materially different KAOS workload.
-
