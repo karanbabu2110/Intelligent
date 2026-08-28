@@ -2,11 +2,17 @@ package io.kaos.ai.ollama;
 
 import java.util.regex.Pattern;
 
-/** Selects the one local Ollama model used by the current KAOS application. */
-public record OllamaModelConfiguration(String modelName) {
+/** Selects the local Ollama model and bounded context used by KAOS. */
+public record OllamaModelConfiguration(String modelName, int contextWindow) {
     public static final String MODEL_SYSTEM_PROPERTY = "kaos.ollama.model";
     public static final String MODEL_ENVIRONMENT_VARIABLE = "KAOS_OLLAMA_MODEL";
+    public static final String CONTEXT_WINDOW_SYSTEM_PROPERTY = "kaos.ollama.context-window";
+    public static final String CONTEXT_WINDOW_ENVIRONMENT_VARIABLE =
+            "KAOS_OLLAMA_CONTEXT_WINDOW";
     public static final int MAX_MODEL_NAME_LENGTH = 128;
+    public static final int DEFAULT_CONTEXT_WINDOW = 4_096;
+    public static final int MIN_CONTEXT_WINDOW = 2_048;
+    public static final int MAX_CONTEXT_WINDOW = 65_536;
 
     private static final Pattern SAFE_MODEL_NAME = Pattern.compile(
             "[A-Za-z0-9][A-Za-z0-9._-]*"
@@ -15,6 +21,12 @@ public record OllamaModelConfiguration(String modelName) {
 
     public OllamaModelConfiguration {
         modelName = validateModelName(modelName, "model name");
+        contextWindow = validateContextWindow(contextWindow, "context window");
+    }
+
+    /** Uses the evidence-selected ordinary-request context default. */
+    public OllamaModelConfiguration(String modelName) {
+        this(modelName, DEFAULT_CONTEXT_WINDOW);
     }
 
     /**
@@ -32,7 +44,9 @@ public record OllamaModelConfiguration(String modelName) {
         try {
             return resolve(
                     System.getProperty(MODEL_SYSTEM_PROPERTY),
-                    System.getenv(MODEL_ENVIRONMENT_VARIABLE));
+                    System.getenv(MODEL_ENVIRONMENT_VARIABLE),
+                    System.getProperty(CONTEXT_WINDOW_SYSTEM_PROPERTY),
+                    System.getenv(CONTEXT_WINDOW_ENVIRONMENT_VARIABLE));
         } catch (SecurityException exception) {
             throw new IllegalStateException(
                     "Unable to read local Ollama model configuration.", exception);
@@ -40,19 +54,35 @@ public record OllamaModelConfiguration(String modelName) {
     }
 
     static OllamaModelConfiguration resolve(
-            String systemPropertyValue, String environmentValue) {
-        if (systemPropertyValue != null) {
-            return new OllamaModelConfiguration(validateModelName(
-                    systemPropertyValue,
-                    "system property '" + MODEL_SYSTEM_PROPERTY + "'"));
+            String modelSystemProperty,
+            String modelEnvironmentValue,
+            String contextSystemProperty,
+            String contextEnvironmentValue) {
+        String modelName;
+        if (modelSystemProperty != null) {
+            modelName = validateModelName(
+                    modelSystemProperty,
+                    "system property '" + MODEL_SYSTEM_PROPERTY + "'");
+        } else if (modelEnvironmentValue != null) {
+            modelName = validateModelName(
+                    modelEnvironmentValue,
+                    "environment variable '" + MODEL_ENVIRONMENT_VARIABLE + "'");
+        } else {
+            throw new IllegalArgumentException(
+                    "An explicit local Ollama model must be configured.");
         }
-        if (environmentValue != null) {
-            return new OllamaModelConfiguration(validateModelName(
-                    environmentValue,
-                    "environment variable '" + MODEL_ENVIRONMENT_VARIABLE + "'"));
+
+        int contextWindow = DEFAULT_CONTEXT_WINDOW;
+        if (contextSystemProperty != null) {
+            contextWindow = validateContextWindow(
+                    contextSystemProperty,
+                    "system property '" + CONTEXT_WINDOW_SYSTEM_PROPERTY + "'");
+        } else if (contextEnvironmentValue != null) {
+            contextWindow = validateContextWindow(
+                    contextEnvironmentValue,
+                    "environment variable '" + CONTEXT_WINDOW_ENVIRONMENT_VARIABLE + "'");
         }
-        throw new IllegalArgumentException(
-                "An explicit local Ollama model must be configured.");
+        return new OllamaModelConfiguration(modelName, contextWindow);
     }
 
     private static String validateModelName(String value, String source) {
@@ -73,5 +103,31 @@ public record OllamaModelConfiguration(String modelName) {
                     source + " is not a supported Ollama model name.");
         }
         return normalized;
+    }
+
+    private static int validateContextWindow(String value, String source) {
+        if (value == null) {
+            throw new IllegalArgumentException(source + " must not be null.");
+        }
+
+        String normalized = value.strip();
+        if (normalized.isEmpty()
+                || !normalized.chars().allMatch(character -> character >= '0' && character <= '9')) {
+            throw new IllegalArgumentException(source + " must be a whole number of tokens.");
+        }
+        try {
+            return validateContextWindow(Integer.parseInt(normalized), source);
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException(source + " is outside the supported range.");
+        }
+    }
+
+    private static int validateContextWindow(int value, String source) {
+        if (value < MIN_CONTEXT_WINDOW || value > MAX_CONTEXT_WINDOW) {
+            throw new IllegalArgumentException(
+                    source + " must be between " + MIN_CONTEXT_WINDOW + " and "
+                            + MAX_CONTEXT_WINDOW + " tokens.");
+        }
+        return value;
     }
 }

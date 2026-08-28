@@ -9,8 +9,8 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815) and [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
 - Active epic: [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
-- Active feature: [Feature 002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847)
-- Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, one bounded non-streamed prompt flow, one JSON runtime library, and seventy-four focused tests
+- Active feature: [Feature 002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), reopened from measured prompt-performance evidence
+- Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded non-streamed prompt flow, and one JSON runtime library
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -71,6 +71,7 @@ Select and inspect the model that later AI commands will use:
 
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+$env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
 ./gradlew.bat run --args=ollama-model
 ```
 
@@ -116,9 +117,12 @@ Unicode characters, and may contain letters, numbers, spaces, periods,
 underscores, or hyphens.
 
 The Ollama model uses `kaos.ollama.model` before `KAOS_OLLAMA_MODEL` and has no
-default. A model name is trimmed, limited to 128 ASCII characters, and supports
-ordinary or namespaced Ollama identifiers with an optional tag. No secret,
-remote endpoint, prompt-file, or persistent configuration is implemented.
+default. Its context uses `kaos.ollama.context-window` before
+`KAOS_OLLAMA_CONTEXT_WINDOW`, then the measured 4,096-token ordinary default;
+accepted context values are 2,048 through 65,536. A model name is trimmed,
+limited to 128 ASCII characters, and supports ordinary or namespaced Ollama
+identifiers with an optional tag. No secret, remote endpoint, prompt-file, or
+persistent configuration is implemented.
 
 ## Development rule
 
@@ -148,7 +152,8 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-001 and Features #845-#846 are complete. Project 1 is executing #814,
-Epic #3, Feature #847, and its direct Tasks #1065-#1066. Complete and merge the
-single Feature 002.03 pull request before activating Response Streaming Feature
-#848. No tag or release is created unless the user explicitly requests one.
+Epics 000-001 and Feature #845 are complete. Project 1 is executing #814, Epic
+#3, reopened Feature #846, and its evidence-driven Tasks #1067-#1070. Complete
+the context, model, thinking, and response-limit work before returning to
+Response Streaming Feature #848. No tag or release is created unless the user
+explicitly requests one.

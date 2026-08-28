@@ -21,7 +21,7 @@ approved step.
 | Command | `ollama-prompt <prompt>` with exactly one quoted CLI argument |
 | Model | Explicit `kaos.ollama.model` or `KAOS_OLLAMA_MODEL`; no default |
 | Provider endpoint | Fixed `http://127.0.0.1:11434/api/generate` |
-| Request | JSON `POST` containing `model`, `prompt`, and `stream: false` |
+| Request | JSON `POST` containing `model`, `prompt`, `stream: false`, and configured `options.num_ctx` |
 | Success | Exit `0`; one complete generated response on standard output |
 | Prompt bound | 4,096 Unicode code points; blank and unsafe control input rejected |
 | Response bounds | 1 MiB response body and 65,536 generated Unicode code points |
@@ -71,7 +71,7 @@ The flow remains a direct in-process call:
 terminal
   -> KaosApplication command routing and safe error boundary
   -> OllamaPrompt validation
-  -> OllamaModelConfiguration
+  -> OllamaModelConfiguration (model + bounded context)
   -> OllamaPromptClient
   -> fixed loopback Ollama POST /api/generate
   <- one complete non-streamed JSON response
@@ -113,7 +113,7 @@ Verified on 2026-08-27:
 | Real local provider | Ollama `0.32.1` on fixed `127.0.0.1:11434` |
 | Installed model demonstration | `qwen3:8b` returned one complete answer through KAOS |
 | Real request duration | 2 minutes 43 seconds; succeeded within the five-minute bound |
-| Request inspection | `POST`, JSON content type, selected model, exact prompt, `stream: false` |
+| Request inspection | `POST`, JSON content type, selected model, exact prompt, `stream: false`, configured `options.num_ctx` |
 | Failure and privacy cases | Unavailable, timeout, rejection, invalid response, interruption, and invalid prompt return no prompt or raw provider data |
 | Local-only boundary | Non-loopback endpoint construction is rejected; redirects are disabled |
 | Response limits | Oversized body, oversized text, malformed JSON, incomplete response, and unsafe output are rejected |

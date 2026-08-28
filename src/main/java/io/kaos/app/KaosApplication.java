@@ -214,8 +214,7 @@ public final class KaosApplication {
             logError(
                     errorOutput,
                     INVALID_OLLAMA_MODEL_CODE,
-                    "Invalid Ollama model configuration. Check kaos.ollama.model or "
-                            + "KAOS_OLLAMA_MODEL and retry.");
+                    invalidOllamaConfigurationGuidance());
             return APPLICATION_ERROR;
         } catch (IllegalStateException exception) {
             logError(
@@ -255,14 +254,14 @@ public final class KaosApplication {
             PrintStream errorOutput) {
         try {
             OllamaModelConfiguration configuration = configurationLoader.get();
-            output.println("Configured local Ollama model: " + configuration.modelName() + ".");
+            output.println("Configured local Ollama model: " + configuration.modelName()
+                    + " (context window: " + configuration.contextWindow() + " tokens).");
             return SUCCESS;
         } catch (IllegalArgumentException exception) {
             logError(
                     errorOutput,
                     INVALID_OLLAMA_MODEL_CODE,
-                    "Invalid Ollama model configuration. Check kaos.ollama.model or "
-                            + "KAOS_OLLAMA_MODEL and retry.");
+                    invalidOllamaConfigurationGuidance());
             return APPLICATION_ERROR;
         } catch (IllegalStateException exception) {
             logError(
@@ -272,6 +271,11 @@ public final class KaosApplication {
                             + "and retry.");
             return APPLICATION_ERROR;
         }
+    }
+
+    private static String invalidOllamaConfigurationGuidance() {
+        return "Invalid Ollama configuration. Check model and context-window process settings "
+                + "and retry.";
     }
 
     private static int reportOllamaStatus(

@@ -130,7 +130,8 @@ class KaosApplicationTest {
 
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(
-                "Configured local Ollama model: llama3.2:latest." + System.lineSeparator(),
+                "Configured local Ollama model: llama3.2:latest "
+                        + "(context window: 4096 tokens)." + System.lineSeparator(),
                 result.standardOutput());
         assertEquals("", result.errorOutput());
     }
@@ -146,8 +147,8 @@ class KaosApplicationTest {
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
         assertEquals("", result.standardOutput());
         assertEquals(
-                "ERROR [KAOS-AI-CONFIG-001] Invalid Ollama model configuration. "
-                        + "Check kaos.ollama.model or KAOS_OLLAMA_MODEL and retry."
+                "ERROR [KAOS-AI-CONFIG-001] Invalid Ollama configuration. "
+                        + "Check model and context-window process settings and retry."
                         + System.lineSeparator(),
                 result.errorOutput());
         assertFalse(result.errorOutput().contains(privateDetail));
@@ -298,8 +299,8 @@ class KaosApplicationTest {
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
         assertEquals("", result.standardOutput());
         assertEquals(
-                "ERROR [KAOS-AI-CONFIG-001] Invalid Ollama model configuration. "
-                        + "Check kaos.ollama.model or KAOS_OLLAMA_MODEL and retry."
+                "ERROR [KAOS-AI-CONFIG-001] Invalid Ollama configuration. "
+                        + "Check model and context-window process settings and retry."
                         + System.lineSeparator(),
                 result.errorOutput());
         assertFalse(result.errorOutput().contains("private prompt"));

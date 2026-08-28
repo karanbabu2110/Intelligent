@@ -31,7 +31,7 @@ class OllamaPromptClientTest {
                 "application/json",
                 "{\"response\":\"A local answer.\",\"done\":true}")) {
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                    new OllamaModelConfiguration("qwen3:8b"),
+                    new OllamaModelConfiguration("qwen3:8b", 8_192),
                     new OllamaPrompt("Why local AI?"));
 
             assertTrue(result.successful());
@@ -44,6 +44,7 @@ class OllamaPromptClientTest {
             assertEquals("qwen3:8b", request.get("model").textValue());
             assertEquals("Why local AI?", request.get("prompt").textValue());
             assertFalse(request.get("stream").booleanValue());
+            assertEquals(8_192, request.get("options").get("num_ctx").intValue());
         }
     }
 

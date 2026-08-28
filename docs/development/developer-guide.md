@@ -106,13 +106,14 @@ Configure and inspect the model reserved for later AI commands:
 
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+$env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
 ./gradlew.bat run --args=ollama-model
 ```
 
 Successful output is:
 
 ```text
-Configured local Ollama model: qwen3:8b.
+Configured local Ollama model: qwen3:8b (context window: 4096 tokens).
 ```
 
 `ollama-model` validates and displays local process configuration only. It does
@@ -171,12 +172,23 @@ precedence is:
 Names are trimmed, limited to 64 Unicode characters, and may contain letters,
 numbers, spaces, periods, underscores, or hyphens.
 
-The local Ollama model is configured separately:
+The local Ollama model and its bounded context are configured separately:
 
 1. `-Dkaos.ollama.model=...` for a direct JVM launch
 2. `KAOS_OLLAMA_MODEL`
 3. no default; an explicit selection is required by `ollama-model` and
    `ollama-prompt`
+
+The context-window precedence is:
+
+1. `-Dkaos.ollama.context-window=...` for a direct JVM launch
+2. `KAOS_OLLAMA_CONTEXT_WINDOW`
+3. 4,096 tokens
+
+KAOS accepts whole values from 2,048 through 65,536 and sends the selection as
+Ollama `options.num_ctx`. Use 2,048 only for deliberately short smoke tests.
+The [controlled context benchmark](../evolution/ollama-context-window-benchmark.md)
+shows why 4,096 is the ordinary default and why larger values remain opt-in.
 
 Model names are trimmed, limited to 128 ASCII characters, and accept ordinary
 or slash-separated identifiers containing letters, numbers, periods,
@@ -297,8 +309,9 @@ dependency problem, then rerun the focused command. Finish with the clean
 
 ### Local configuration changes the run output
 
-Inspect `KAOS_APP_NAME`, `KAOS_OLLAMA_MODEL`, and the corresponding
-`kaos.app.name` or `kaos.ollama.model` system property. The `verifyLocal` smoke
+Inspect `KAOS_APP_NAME`, `KAOS_OLLAMA_MODEL`, `KAOS_OLLAMA_CONTEXT_WINDOW`, and
+the corresponding `kaos.app.name`, `kaos.ollama.model`, or
+`kaos.ollama.context-window` system property. The `verifyLocal` smoke
 tasks deliberately supply the safe `KAOS` application name and do not invoke
 `ollama-model`, so they remain deterministic without a model selection.
 
@@ -346,6 +359,7 @@ KAOS does not start or own the local Ollama process.
 - [Architecture website structure and maintenance](../../ui/architecture/README.md)
 - [Ollama connectivity](../evolution/ollama-connectivity.md)
 - [Ollama model configuration](../evolution/ollama-model-configuration.md)
+- [Ollama context-window benchmark](../evolution/ollama-context-window-benchmark.md)
 - [Ollama prompt submission](../evolution/ollama-prompt-submission.md)
 
 The detailed references retain acceptance evidence, internal contracts, and

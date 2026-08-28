@@ -1,5 +1,6 @@
 package io.kaos.ai.ollama;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,7 +56,8 @@ public final class OllamaPromptClient {
         Objects.requireNonNull(model, "model");
         Objects.requireNonNull(prompt, "prompt");
 
-        byte[] requestBody = encodeRequest(model.modelName(), prompt.text());
+        byte[] requestBody = encodeRequest(
+                model.modelName(), prompt.text(), model.contextWindow());
         HttpRequest request = HttpRequest.newBuilder(generateEndpoint)
                 .timeout(requestTimeout)
                 .header("Accept", "application/json")
@@ -95,9 +97,10 @@ public final class OllamaPromptClient {
         }
     }
 
-    private static byte[] encodeRequest(String model, String prompt) {
+    private static byte[] encodeRequest(String model, String prompt, int contextWindow) {
         try {
-            return JSON.writeValueAsBytes(new GenerateRequest(model, prompt, false));
+            return JSON.writeValueAsBytes(new GenerateRequest(
+                    model, prompt, false, new GenerateOptions(contextWindow)));
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Unable to encode validated Ollama request.", exception);
         }
@@ -165,7 +168,11 @@ public final class OllamaPromptClient {
         return timeout;
     }
 
-    private record GenerateRequest(String model, String prompt, boolean stream) {
+    private record GenerateRequest(
+            String model, String prompt, boolean stream, GenerateOptions options) {
+    }
+
+    private record GenerateOptions(@JsonProperty("num_ctx") int contextWindow) {
     }
 
     /** Safe outcome of one non-streamed prompt request. */
