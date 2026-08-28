@@ -21,6 +21,7 @@ public final class OllamaPromptClient {
             URI.create("http://127.0.0.1:11434/api/generate");
     public static final int MAX_RESPONSE_BYTES = 1_048_576;
     public static final int MAX_RESPONSE_CODE_POINTS = 65_536;
+    public static final int MAX_THINKING_CODE_POINTS = 65_536;
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
     private static final Duration REQUEST_TIMEOUT = Duration.ofMinutes(5);
@@ -57,7 +58,10 @@ public final class OllamaPromptClient {
         Objects.requireNonNull(prompt, "prompt");
 
         byte[] requestBody = encodeRequest(
-                model.modelName(), prompt.text(), model.contextWindow());
+                model.modelName(),
+                prompt.text(),
+                model.contextWindow(),
+                model.thinkingMode());
         HttpRequest request = HttpRequest.newBuilder(generateEndpoint)
                 .timeout(requestTimeout)
                 .header("Accept", "application/json")
@@ -81,11 +85,12 @@ public final class OllamaPromptClient {
                     return Result.failed(Status.INVALID_RESPONSE);
                 }
 
-                String generatedText = decodeCompletedResponse(boundedBody);
-                if (generatedText == null) {
+                CompletedResponse completed =
+                        decodeCompletedResponse(boundedBody, model.thinkingMode());
+                if (completed == null) {
                     return Result.failed(Status.INVALID_RESPONSE);
                 }
-                return Result.success(generatedText);
+                return Result.success(completed.thinking(), completed.response());
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -97,41 +102,62 @@ public final class OllamaPromptClient {
         }
     }
 
-    private static byte[] encodeRequest(String model, String prompt, int contextWindow) {
+    private static byte[] encodeRequest(
+            String model,
+            String prompt,
+            int contextWindow,
+            OllamaThinkingMode thinkingMode) {
         try {
             return JSON.writeValueAsBytes(new GenerateRequest(
-                    model, prompt, false, new GenerateOptions(contextWindow)));
+                    model,
+                    prompt,
+                    false,
+                    thinkingMode.enabled(),
+                    new GenerateOptions(contextWindow)));
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Unable to encode validated Ollama request.", exception);
         }
     }
 
-    private static String decodeCompletedResponse(byte[] body) {
+    private static CompletedResponse decodeCompletedResponse(
+            byte[] body, OllamaThinkingMode thinkingMode) {
         try {
             JsonNode root = JSON.readTree(body);
             JsonNode response = root == null ? null : root.get("response");
+            JsonNode thinking = root == null ? null : root.get("thinking");
             JsonNode done = root == null ? null : root.get("done");
             if (root == null
                     || !root.isObject()
                     || response == null
                     || !response.isTextual()
+                    || (thinking != null && !thinking.isTextual())
                     || done == null
                     || !done.isBoolean()
                     || !done.booleanValue()) {
                 return null;
             }
 
-            String text = response.textValue();
-            if (text == null
-                    || text.isBlank()
-                    || text.codePointCount(0, text.length()) > MAX_RESPONSE_CODE_POINTS
-                    || text.codePoints().anyMatch(OllamaPromptClient::isUnsafeOutputCharacter)) {
+            String responseText = response.textValue();
+            String thinkingText = thinking == null ? "" : thinking.textValue();
+            if (!isValidGeneratedText(responseText, MAX_RESPONSE_CODE_POINTS, false)
+                    || !isValidGeneratedText(thinkingText, MAX_THINKING_CODE_POINTS, true)) {
                 return null;
             }
-            return text;
+            if (thinkingMode == OllamaThinkingMode.OFF) {
+                thinkingText = "";
+            }
+            return new CompletedResponse(thinkingText, responseText);
         } catch (IOException exception) {
             return null;
         }
+    }
+
+    private static boolean isValidGeneratedText(
+            String text, int maximumCodePoints, boolean blankAllowed) {
+        return text != null
+                && (blankAllowed || !text.isBlank())
+                && text.codePointCount(0, text.length()) <= maximumCodePoints
+                && text.codePoints().noneMatch(OllamaPromptClient::isUnsafeOutputCharacter);
     }
 
     private static boolean isJson(HttpResponse<?> response) {
@@ -169,35 +195,49 @@ public final class OllamaPromptClient {
     }
 
     private record GenerateRequest(
-            String model, String prompt, boolean stream, GenerateOptions options) {
+            String model,
+            String prompt,
+            boolean stream,
+            boolean think,
+            GenerateOptions options) {
     }
 
     private record GenerateOptions(@JsonProperty("num_ctx") int contextWindow) {
     }
 
+    private record CompletedResponse(String thinking, String response) {
+    }
+
     /** Safe outcome of one non-streamed prompt request. */
-    public record Result(Status status, String response) {
+    public record Result(Status status, String thinking, String response) {
         public Result {
             Objects.requireNonNull(status, "status");
+            Objects.requireNonNull(thinking, "thinking");
             Objects.requireNonNull(response, "response");
             if (status == Status.SUCCESS && response.isBlank()) {
                 throw new IllegalArgumentException("Successful prompt result requires a response.");
             }
-            if (status != Status.SUCCESS && !response.isEmpty()) {
-                throw new IllegalArgumentException("Failed prompt result must not contain a response.");
+            if (status != Status.SUCCESS && (!thinking.isEmpty() || !response.isEmpty())) {
+                throw new IllegalArgumentException(
+                        "Failed prompt result must not contain generated data.");
             }
         }
 
-        static Result success(String response) {
-            return new Result(Status.SUCCESS, response);
+        static Result success(String thinking, String response) {
+            return new Result(Status.SUCCESS, thinking, response);
         }
 
         static Result failed(Status status) {
-            return new Result(status, "");
+            return new Result(status, "", "");
         }
 
         public boolean successful() {
             return status == Status.SUCCESS;
+        }
+
+        @Override
+        public String toString() {
+            return "Result[status=" + status + ", successful=" + successful() + "]";
         }
     }
 

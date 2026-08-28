@@ -116,13 +116,14 @@ KAOS never runs this installation command for you.
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
+$env:KAOS_OLLAMA_THINKING = "off"
 ./gradlew.bat run --args=ollama-model
 ```
 
 Successful output is:
 
 ```text
-Configured local Ollama model: qwen3:4b-instruct (context window: 4096 tokens).
+Configured local Ollama model: qwen3:4b-instruct (context window: 4096 tokens, thinking: off).
 ```
 
 `ollama-model` validates and displays local process configuration only. It does
@@ -134,6 +135,7 @@ stop-parsing token so nested quotes survive the Gradle batch wrapper:
 
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
+$env:KAOS_OLLAMA_THINKING = "off"
 ./gradlew.bat --% run --args="ollama-prompt \"Why is the sky blue?\""
 ```
 
@@ -141,13 +143,15 @@ On Linux or macOS:
 
 ```bash
 export KAOS_OLLAMA_MODEL=qwen3:4b-instruct
+export KAOS_OLLAMA_THINKING=off
 ./gradlew run --args='ollama-prompt "Why is the sky blue?"'
 ```
 
 The command validates a single 4,096-character prompt, loads the explicit
 model selection, sends `POST /api/generate` to the fixed loopback Ollama
 endpoint with `stream` set to `false`, and prints only the complete generated
-text. The response body is bounded to 1 MiB, generated text to 65,536
+text. It also sends `think: false` for this ordinary configuration. The response
+body is bounded to 1 MiB, generated text to 65,536
 characters, and the request to five minutes. There is no streaming, retry,
 conversation, system-prompt, tool, image, remote-provider, or persistence
 behavior.
@@ -199,6 +203,28 @@ Ollama `options.num_ctx`. Use 2,048 only for deliberately short smoke tests.
 The [controlled context benchmark](../evolution/ollama-context-window-benchmark.md)
 shows why 4,096 is the ordinary default and why larger values remain opt-in.
 
+The thinking-mode precedence is:
+
+1. `-Dkaos.ollama.thinking=off|on` for a direct JVM launch
+2. `KAOS_OLLAMA_THINKING=off|on`
+3. `off`
+
+Ordinary requests should use `qwen3:4b-instruct` with `off`. To opt into
+reasoning deliberately:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b"
+$env:KAOS_OLLAMA_THINKING = "on"
+./gradlew.bat run --args=ollama-model
+./gradlew.bat --% run --args="ollama-prompt \"<reasoning prompt>\""
+```
+
+KAOS sends the boolean mode explicitly. When thinking is on, it keeps Ollama's
+`thinking` field separate and prints only the final `response`. It does not
+display raw reasoning, infer a mode from the prompt, retry with thinking off,
+or substitute a model. An unsupported model therefore fails through the safe
+prompt-rejection path.
+
 Model names are trimmed, limited to 128 ASCII characters, and accept ordinary
 or slash-separated identifiers containing letters, numbers, periods,
 underscores, or hyphens, followed by an optional colon tag. Examples include
@@ -216,8 +242,9 @@ These names are recommendations, not KAOS defaults. Select and install models
 deliberately; a missing model is not downloaded or replaced automatically. The
 [model scenario benchmark](../evolution/ollama-model-scenario-benchmark.md)
 records the prompts, controls, quality observations, performance, hardware,
-licenses, and decision limits. Thinking behavior and generated-response limits
-remain Tasks #1069 and #1070 respectively.
+licenses, and decision limits. Thinking behavior is recorded in the
+[thinking policy and benchmark](../evolution/ollama-thinking-policy-and-benchmark.md).
+Generated-response limits remain Task #1070.
 
 Do not commit credentials or other secrets. The Ollama endpoint remains fixed
 to loopback. No secret, remote endpoint, prompt-file, or persistent
@@ -333,20 +360,23 @@ dependency problem, then rerun the focused command. Finish with the clean
 
 ### Local configuration changes the run output
 
-Inspect `KAOS_APP_NAME`, `KAOS_OLLAMA_MODEL`, `KAOS_OLLAMA_CONTEXT_WINDOW`, and
-the corresponding `kaos.app.name`, `kaos.ollama.model`, or
-`kaos.ollama.context-window` system property. The `verifyLocal` smoke
+Inspect `KAOS_APP_NAME`, `KAOS_OLLAMA_MODEL`, `KAOS_OLLAMA_CONTEXT_WINDOW`,
+`KAOS_OLLAMA_THINKING`, and
+the corresponding `kaos.app.name`, `kaos.ollama.model`,
+`kaos.ollama.context-window`, or `kaos.ollama.thinking` system property. The
+`verifyLocal` smoke
 tasks deliberately supply the safe `KAOS` application name and do not invoke
 `ollama-model`, so they remain deterministic without a model selection.
 
 ### Ollama model configuration is rejected
 
 Set `KAOS_OLLAMA_MODEL` to one installed model name you intentionally chose,
-then rerun `ollama-model`. Remove spaces, control characters, empty namespace
-segments, or unsupported punctuation. KAOS does not echo invalid configured
-values in its error message. `ollama-prompt` is the first command that asks
-Ollama to use the configured model, so an unavailable model is reported only
-when that request is submitted.
+set `KAOS_OLLAMA_THINKING` to `off` or `on`, then rerun `ollama-model`. Remove
+spaces, control characters, empty namespace segments, or unsupported model
+punctuation. KAOS does not echo invalid configured values in its error message.
+`ollama-prompt` is the first command that asks Ollama to use the configured
+model and thinking setting, so an unavailable model or unsupported thinking
+request is reported only when that request is submitted.
 
 ### Ollama is unavailable
 
@@ -385,6 +415,7 @@ KAOS does not start or own the local Ollama process.
 - [Ollama model configuration](../evolution/ollama-model-configuration.md)
 - [Ollama context-window benchmark](../evolution/ollama-context-window-benchmark.md)
 - [Ollama model scenario benchmark](../evolution/ollama-model-scenario-benchmark.md)
+- [Ollama thinking policy and benchmark](../evolution/ollama-thinking-policy-and-benchmark.md)
 - [Ollama prompt submission](../evolution/ollama-prompt-submission.md)
 
 The detailed references retain acceptance evidence, internal contracts, and

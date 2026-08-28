@@ -1,14 +1,18 @@
 package io.kaos.ai.ollama;
 
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /** Selects the local Ollama model and bounded context used by KAOS. */
-public record OllamaModelConfiguration(String modelName, int contextWindow) {
+public record OllamaModelConfiguration(
+        String modelName, int contextWindow, OllamaThinkingMode thinkingMode) {
     public static final String MODEL_SYSTEM_PROPERTY = "kaos.ollama.model";
     public static final String MODEL_ENVIRONMENT_VARIABLE = "KAOS_OLLAMA_MODEL";
     public static final String CONTEXT_WINDOW_SYSTEM_PROPERTY = "kaos.ollama.context-window";
     public static final String CONTEXT_WINDOW_ENVIRONMENT_VARIABLE =
             "KAOS_OLLAMA_CONTEXT_WINDOW";
+    public static final String THINKING_SYSTEM_PROPERTY = "kaos.ollama.thinking";
+    public static final String THINKING_ENVIRONMENT_VARIABLE = "KAOS_OLLAMA_THINKING";
     public static final int MAX_MODEL_NAME_LENGTH = 128;
     public static final int DEFAULT_CONTEXT_WINDOW = 4_096;
     public static final int MIN_CONTEXT_WINDOW = 2_048;
@@ -22,11 +26,17 @@ public record OllamaModelConfiguration(String modelName, int contextWindow) {
     public OllamaModelConfiguration {
         modelName = validateModelName(modelName, "model name");
         contextWindow = validateContextWindow(contextWindow, "context window");
+        thinkingMode = Objects.requireNonNull(thinkingMode, "thinkingMode");
     }
 
-    /** Uses the evidence-selected ordinary-request context default. */
+    /** Uses the ordinary-request thinking default. */
+    public OllamaModelConfiguration(String modelName, int contextWindow) {
+        this(modelName, contextWindow, OllamaThinkingMode.OFF);
+    }
+
+    /** Uses the evidence-selected ordinary-request context and thinking defaults. */
     public OllamaModelConfiguration(String modelName) {
-        this(modelName, DEFAULT_CONTEXT_WINDOW);
+        this(modelName, DEFAULT_CONTEXT_WINDOW, OllamaThinkingMode.OFF);
     }
 
     /**
@@ -46,7 +56,9 @@ public record OllamaModelConfiguration(String modelName, int contextWindow) {
                     System.getProperty(MODEL_SYSTEM_PROPERTY),
                     System.getenv(MODEL_ENVIRONMENT_VARIABLE),
                     System.getProperty(CONTEXT_WINDOW_SYSTEM_PROPERTY),
-                    System.getenv(CONTEXT_WINDOW_ENVIRONMENT_VARIABLE));
+                    System.getenv(CONTEXT_WINDOW_ENVIRONMENT_VARIABLE),
+                    System.getProperty(THINKING_SYSTEM_PROPERTY),
+                    System.getenv(THINKING_ENVIRONMENT_VARIABLE));
         } catch (SecurityException exception) {
             throw new IllegalStateException(
                     "Unable to read local Ollama model configuration.", exception);
@@ -58,6 +70,22 @@ public record OllamaModelConfiguration(String modelName, int contextWindow) {
             String modelEnvironmentValue,
             String contextSystemProperty,
             String contextEnvironmentValue) {
+        return resolve(
+                modelSystemProperty,
+                modelEnvironmentValue,
+                contextSystemProperty,
+                contextEnvironmentValue,
+                null,
+                null);
+    }
+
+    static OllamaModelConfiguration resolve(
+            String modelSystemProperty,
+            String modelEnvironmentValue,
+            String contextSystemProperty,
+            String contextEnvironmentValue,
+            String thinkingSystemProperty,
+            String thinkingEnvironmentValue) {
         String modelName;
         if (modelSystemProperty != null) {
             modelName = validateModelName(
@@ -82,7 +110,17 @@ public record OllamaModelConfiguration(String modelName, int contextWindow) {
                     contextEnvironmentValue,
                     "environment variable '" + CONTEXT_WINDOW_ENVIRONMENT_VARIABLE + "'");
         }
-        return new OllamaModelConfiguration(modelName, contextWindow);
+        OllamaThinkingMode thinkingMode = OllamaThinkingMode.OFF;
+        if (thinkingSystemProperty != null) {
+            thinkingMode = OllamaThinkingMode.parse(
+                    thinkingSystemProperty,
+                    "system property '" + THINKING_SYSTEM_PROPERTY + "'");
+        } else if (thinkingEnvironmentValue != null) {
+            thinkingMode = OllamaThinkingMode.parse(
+                    thinkingEnvironmentValue,
+                    "environment variable '" + THINKING_ENVIRONMENT_VARIABLE + "'");
+        }
+        return new OllamaModelConfiguration(modelName, contextWindow, thinkingMode);
     }
 
     private static String validateModelName(String value, String source) {

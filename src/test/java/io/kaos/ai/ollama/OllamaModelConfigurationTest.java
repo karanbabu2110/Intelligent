@@ -93,6 +93,7 @@ class OllamaModelConfigurationTest {
                 "qwen3:8b", null, null, null);
 
         assertEquals(4_096, configuration.contextWindow());
+        assertEquals(OllamaThinkingMode.OFF, configuration.thinkingMode());
     }
 
     @Test
@@ -142,5 +143,41 @@ class OllamaModelConfigurationTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new OllamaModelConfiguration("qwen3:8b", 65_537));
+    }
+
+    @Test
+    void usesTheThinkingEnvironmentSetting() {
+        OllamaModelConfiguration configuration = OllamaModelConfiguration.resolve(
+                "qwen3:4b", null, null, null, null, " on ");
+
+        assertEquals(OllamaThinkingMode.ON, configuration.thinkingMode());
+    }
+
+    @Test
+    void givesTheThinkingSystemPropertyPrecedence() {
+        OllamaModelConfiguration configuration = OllamaModelConfiguration.resolve(
+                "qwen3:4b", null, null, null, "off", "on");
+
+        assertEquals(OllamaThinkingMode.OFF, configuration.thinkingMode());
+    }
+
+    @Test
+    void rejectsBlankAutomaticOrProviderLevelThinkingValues() {
+        for (String value : new String[] {" ", "auto", "low", "medium", "high", "max"}) {
+            IllegalArgumentException exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> OllamaModelConfiguration.resolve(
+                            "qwen3:4b", null, null, null, value, null));
+
+            assertTrue(exception.getMessage().contains(
+                    OllamaModelConfiguration.THINKING_SYSTEM_PROPERTY));
+        }
+    }
+
+    @Test
+    void requiresANonNullThinkingMode() {
+        assertThrows(
+                NullPointerException.class,
+                () -> new OllamaModelConfiguration("qwen3:4b", 4_096, null));
     }
 }

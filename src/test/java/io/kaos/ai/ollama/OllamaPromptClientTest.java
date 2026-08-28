@@ -16,6 +16,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,6 +37,7 @@ class OllamaPromptClientTest {
 
             assertTrue(result.successful());
             assertEquals(OllamaPromptClient.Status.SUCCESS, result.status());
+            assertEquals("", result.thinking());
             assertEquals("A local answer.", result.response());
             assertEquals("POST", server.method());
             assertEquals("application/json", server.contentType());
@@ -44,7 +46,87 @@ class OllamaPromptClientTest {
             assertEquals("qwen3:8b", request.get("model").textValue());
             assertEquals("Why local AI?", request.get("prompt").textValue());
             assertFalse(request.get("stream").booleanValue());
+            assertFalse(request.get("think").booleanValue());
             assertEquals(8_192, request.get("options").get("num_ctx").intValue());
+        }
+    }
+
+    @Test
+    void sendsThinkingOnAndKeepsThinkingSeparateFromTheFinalAnswer() throws Exception {
+        String privateThinking = "private reasoning trace";
+        try (LocalGenerateServer server = LocalGenerateServer.responding(
+                200,
+                "application/json",
+                "{\"thinking\":\"" + privateThinking
+                        + "\",\"response\":\"Final answer.\",\"done\":true}")) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration(
+                            "qwen3:4b", 4_096, OllamaThinkingMode.ON),
+                    new OllamaPrompt("Solve this deliberately."));
+
+            JsonNode request = JSON.readTree(server.requestBody());
+            assertTrue(request.get("think").booleanValue());
+            assertEquals(privateThinking, result.thinking());
+            assertEquals("Final answer.", result.response());
+            assertFalse(result.toString().contains(privateThinking));
+            assertFalse(result.toString().contains("Final answer."));
+        }
+    }
+
+    @Test
+    void ordinaryThinkingOffDoesNotRetainUnexpectedSeparateThinking() throws Exception {
+        try (LocalGenerateServer server = LocalGenerateServer.responding(
+                200,
+                "application/json",
+                "{\"thinking\":\"unexpected trace\","
+                        + "\"response\":\"Final answer.\",\"done\":true}")) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3:4b-instruct"),
+                    new OllamaPrompt("Answer ordinarily."));
+
+            assertEquals("", result.thinking());
+            assertEquals("Final answer.", result.response());
+        }
+    }
+
+    @Test
+    void rejectsUnsafeThinkingWithoutReturningIt() throws Exception {
+        String privateThinking = "private\u001b[31mreasoning";
+        try (LocalGenerateServer server = LocalGenerateServer.responding(
+                200,
+                "application/json",
+                "{\"thinking\":\"private\\u001b[31mreasoning\","
+                        + "\"response\":\"Final answer.\",\"done\":true}")) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration(
+                            "qwen3:4b", 4_096, OllamaThinkingMode.ON),
+                    new OllamaPrompt("Solve this deliberately."));
+
+            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            assertEquals("", result.thinking());
+            assertEquals("", result.response());
+            assertFalse(result.toString().contains(privateThinking));
+        }
+    }
+
+    @Test
+    void rejectsThinkingThatExceedsItsTextBound() throws Exception {
+        String oversizedThinking = "x".repeat(OllamaPromptClient.MAX_THINKING_CODE_POINTS + 1);
+        try (LocalGenerateServer server = LocalGenerateServer.responding(
+                200,
+                "application/json",
+                JSON.writeValueAsString(Map.of(
+                        "thinking", oversizedThinking,
+                        "response", "Final answer.",
+                        "done", true)))) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration(
+                            "qwen3:4b", 4_096, OllamaThinkingMode.ON),
+                    new OllamaPrompt("Solve this deliberately."));
+
+            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            assertEquals("", result.thinking());
+            assertEquals("", result.response());
         }
     }
 

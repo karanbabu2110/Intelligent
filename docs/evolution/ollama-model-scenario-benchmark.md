@@ -140,6 +140,20 @@ help, while more involved code generation requires compile-and-test validation
 and may justify a larger or coding-specialized model. It does not establish a
 new automatic coding profile.
 
+The developer repeated the same 8-Queens request after the explicit thinking
+contract was implemented, leaving thinking at its ordinary `off` default:
+
+| Explicit model | Observed Gradle wall time | Manual review |
+| --- | ---: | --- |
+| `qwen3:4b-instruct` | 19 s | Compilable-looking answer, but the solver returns after its first solution while the explanation claims that it collects all 92 solutions |
+| `qwen3:8b` | 1 min 5 s | Compilable-looking all-solutions solver, but the displayed example board is not reliable evidence that the generated program was executed |
+
+The repeated instruct run was 46 seconds shorter, approximately 70.8% or 3.4
+times faster. Neither response was compiled or executed as part of the manual
+run, so both remain unverified generated code. This reinforces the decision:
+model size alone is not a correctness check, and any generated code that KAOS
+might later apply must pass compilation, tests, and human review.
+
 Warm scenario timings from the 128-token comparison were:
 
 | Model | Summary | Coding | Reasoning |

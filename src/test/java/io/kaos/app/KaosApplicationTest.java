@@ -131,7 +131,8 @@ class KaosApplicationTest {
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(
                 "Configured local Ollama model: llama3.2:latest "
-                        + "(context window: 4096 tokens)." + System.lineSeparator(),
+                        + "(context window: 4096 tokens, thinking: off)."
+                        + System.lineSeparator(),
                 result.standardOutput());
         assertEquals("", result.errorOutput());
     }
@@ -148,7 +149,7 @@ class KaosApplicationTest {
         assertEquals("", result.standardOutput());
         assertEquals(
                 "ERROR [KAOS-AI-CONFIG-001] Invalid Ollama configuration. "
-                        + "Check model and context-window process settings and retry."
+                        + "Check model, context-window, and thinking process settings and retry."
                         + System.lineSeparator(),
                 result.errorOutput());
         assertFalse(result.errorOutput().contains(privateDetail));
@@ -198,12 +199,15 @@ class KaosApplicationTest {
                     selectedModel.set(model.modelName());
                     submittedPrompt.set(prompt.text());
                     return new OllamaPromptClient.Result(
-                            OllamaPromptClient.Status.SUCCESS, "A local answer.");
+                            OllamaPromptClient.Status.SUCCESS,
+                            "private reasoning trace",
+                            "A local answer.");
                 });
 
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals("A local answer." + System.lineSeparator(), result.standardOutput());
         assertEquals("", result.errorOutput());
+        assertFalse(result.standardOutput().contains("private reasoning trace"));
         assertEquals("qwen3:8b", selectedModel.get());
         assertEquals("Why local AI?", submittedPrompt.get());
     }
@@ -253,7 +257,7 @@ class KaosApplicationTest {
                 (model, prompt) -> {
                     assertFalse(prompt.text().contains(privateProviderDetail));
                     return new OllamaPromptClient.Result(
-                            OllamaPromptClient.Status.REQUEST_FAILED, "");
+                            OllamaPromptClient.Status.REQUEST_FAILED, "", "");
                 });
 
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
@@ -273,7 +277,7 @@ class KaosApplicationTest {
                 "private prompt",
                 () -> new OllamaModelConfiguration("slow-model"),
                 (model, prompt) -> new OllamaPromptClient.Result(
-                        OllamaPromptClient.Status.TIMED_OUT, ""));
+                        OllamaPromptClient.Status.TIMED_OUT, "", ""));
 
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
         assertEquals("", result.standardOutput());
@@ -300,7 +304,7 @@ class KaosApplicationTest {
         assertEquals("", result.standardOutput());
         assertEquals(
                 "ERROR [KAOS-AI-CONFIG-001] Invalid Ollama configuration. "
-                        + "Check model and context-window process settings and retry."
+                        + "Check model, context-window, and thinking process settings and retry."
                         + System.lineSeparator(),
                 result.errorOutput());
         assertFalse(result.errorOutput().contains("private prompt"));

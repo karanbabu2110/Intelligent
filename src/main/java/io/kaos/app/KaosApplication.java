@@ -255,7 +255,9 @@ public final class KaosApplication {
         try {
             OllamaModelConfiguration configuration = configurationLoader.get();
             output.println("Configured local Ollama model: " + configuration.modelName()
-                    + " (context window: " + configuration.contextWindow() + " tokens).");
+                    + " (context window: " + configuration.contextWindow()
+                    + " tokens, thinking: "
+                    + configuration.thinkingMode().configurationValue() + ").");
             return SUCCESS;
         } catch (IllegalArgumentException exception) {
             logError(
@@ -274,8 +276,8 @@ public final class KaosApplication {
     }
 
     private static String invalidOllamaConfigurationGuidance() {
-        return "Invalid Ollama configuration. Check model and context-window process settings "
-                + "and retry.";
+        return "Invalid Ollama configuration. Check model, context-window, and thinking process "
+                + "settings and retry.";
     }
 
     private static int reportOllamaStatus(

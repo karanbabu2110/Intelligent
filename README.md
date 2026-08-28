@@ -72,6 +72,7 @@ Select and inspect the model that later AI commands will use:
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
+$env:KAOS_OLLAMA_THINKING = "off"
 ./gradlew.bat run --args=ollama-model
 ```
 
@@ -84,14 +85,16 @@ PowerShell, `--%` preserves the nested quotes through the Gradle batch wrapper:
 
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
+$env:KAOS_OLLAMA_THINKING = "off"
 ./gradlew.bat --% run --args="ollama-prompt \"Why is the sky blue?\""
 ```
 
 The request goes only to the fixed loopback endpoint
 `http://127.0.0.1:11434/api/generate`, uses JSON, and explicitly disables
-streaming. The prompt is limited to 4,096 characters; the response is limited
-to 1 MiB and 65,536 characters; and the complete request is bounded to five
-minutes. KAOS does not echo prompts or raw Ollama failures in errors. However,
+streaming. Ordinary requests explicitly disable thinking. The prompt is limited
+to 4,096 characters; the response is limited to 1 MiB and 65,536 characters;
+and the complete request is bounded to five minutes. KAOS does not echo prompts
+or raw Ollama failures in errors. However,
 the quoted prompt can remain in shell history or be visible as a process
 argument, so this developer CLI is not an appropriate input surface for
 secrets or other private prompts.
@@ -103,6 +106,20 @@ opt-in reasoning where extra latency and token use are acceptable. These are
 developer profiles, not hard-coded defaults or automatic fallbacks. See the
 [model scenario benchmark](docs/evolution/ollama-model-scenario-benchmark.md)
 for the controlled process, results, and limitations.
+
+Enable reasoning only by deliberately selecting both a supported reasoning
+model and thinking mode:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b"
+$env:KAOS_OLLAMA_THINKING = "on"
+./gradlew.bat --% run --args="ollama-prompt \"<reasoning prompt>\""
+```
+
+KAOS sends `think: true` but prints only the final answer; the provider's
+thinking trace remains separate and hidden. Unsupported models fail safely and
+are not replaced or retried automatically. See the
+[thinking policy and benchmark](docs/evolution/ollama-thinking-policy-and-benchmark.md).
 
 Handled startup or application failures return exit code `1` and emit one safe
 record such as `ERROR [KAOS-CONFIG-001] ...` on standard error. Expected CLI
@@ -129,7 +146,9 @@ default. Its context uses `kaos.ollama.context-window` before
 `KAOS_OLLAMA_CONTEXT_WINDOW`, then the measured 4,096-token ordinary default;
 accepted context values are 2,048 through 65,536. A model name is trimmed,
 limited to 128 ASCII characters, and supports ordinary or namespaced Ollama
-identifiers with an optional tag. No secret, remote endpoint, prompt-file, or
+identifiers with an optional tag. Thinking uses `kaos.ollama.thinking` before
+`KAOS_OLLAMA_THINKING`, then defaults to `off`; only `off` and `on` are
+accepted. No secret, remote endpoint, prompt-file, automatic thinking mode, or
 persistent configuration is implemented.
 
 ## Development rule
