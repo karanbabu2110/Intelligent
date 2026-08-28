@@ -9,8 +9,8 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815) and [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
 - Active epic: [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
-- Active feature: [Feature 002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847)
-- Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, one bounded non-streamed prompt flow, one JSON runtime library, and seventy-four focused tests
+- Active feature: [Feature 002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), reopened from measured prompt-performance evidence
+- Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded non-streamed prompt flow, and one JSON runtime library
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -70,7 +70,10 @@ unavailable or its version response is invalid, KAOS returns a safe
 Select and inspect the model that later AI commands will use:
 
 ```powershell
-$env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
+$env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
+$env:KAOS_OLLAMA_THINKING = "off"
+$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "512"
 ./gradlew.bat run --args=ollama-model
 ```
 
@@ -82,18 +85,49 @@ Submit one prompt to the configured model and print one complete response. In
 PowerShell, `--%` preserves the nested quotes through the Gradle batch wrapper:
 
 ```powershell
-$env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
+$env:KAOS_OLLAMA_THINKING = "off"
+$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "512"
 ./gradlew.bat --% run --args="ollama-prompt \"Why is the sky blue?\""
 ```
 
 The request goes only to the fixed loopback endpoint
 `http://127.0.0.1:11434/api/generate`, uses JSON, and explicitly disables
-streaming. The prompt is limited to 4,096 characters; the response is limited
-to 1 MiB and 65,536 characters; and the complete request is bounded to five
-minutes. KAOS does not echo prompts or raw Ollama failures in errors. However,
+streaming. Ordinary requests explicitly disable thinking and use a 512-token
+generation default. The prompt is limited to 4,096 characters; the response is
+limited to 1 MiB and 65,536 characters; and the complete request is bounded to
+five minutes. A provider length stop returns `KAOS-AI-003` without printing a
+partial answer. KAOS does not echo prompts
+or raw Ollama failures in errors. However,
 the quoted prompt can remain in shell history or be visible as a process
 argument, so this developer CLI is not an appropriate input surface for
 secrets or other private prompts.
+
+The model remains your explicit choice. Current measurements recommend
+`qwen3:1.7b` only for a fast connectivity smoke test,
+`qwen3:4b-instruct` for ordinary local development, and `qwen3:4b` only for
+opt-in reasoning where extra latency and token use are acceptable. These are
+developer profiles, not hard-coded defaults or automatic fallbacks. See the
+[model scenario benchmark](docs/evolution/ollama-model-scenario-benchmark.md)
+for the controlled process, results, and limitations.
+
+Enable reasoning only by deliberately selecting both a supported reasoning
+model and thinking mode:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b"
+$env:KAOS_OLLAMA_THINKING = "on"
+./gradlew.bat --% run --args="ollama-prompt \"<reasoning prompt>\""
+```
+
+KAOS sends `think: true` but prints only the final answer; the provider's
+thinking trace remains separate and hidden. Unsupported models fail safely and
+are not replaced or retried automatically. See the
+[thinking policy and benchmark](docs/evolution/ollama-thinking-policy-and-benchmark.md).
+Thinking-on requests default to 2,048 generated tokens. Set
+`KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT` to a deliberate value from 64 through 4,096
+when a request needs a different bounded maximum. See the
+[response-generation limit benchmark](docs/evolution/ollama-response-generation-limit-benchmark.md).
 
 Handled startup or application failures return exit code `1` and emit one safe
 record such as `ERROR [KAOS-CONFIG-001] ...` on standard error. Expected CLI
@@ -116,9 +150,17 @@ Unicode characters, and may contain letters, numbers, spaces, periods,
 underscores, or hyphens.
 
 The Ollama model uses `kaos.ollama.model` before `KAOS_OLLAMA_MODEL` and has no
-default. A model name is trimmed, limited to 128 ASCII characters, and supports
-ordinary or namespaced Ollama identifiers with an optional tag. No secret,
-remote endpoint, prompt-file, or persistent configuration is implemented.
+default. Its context uses `kaos.ollama.context-window` before
+`KAOS_OLLAMA_CONTEXT_WINDOW`, then the measured 4,096-token ordinary default;
+accepted context values are 2,048 through 65,536. A model name is trimmed,
+limited to 128 ASCII characters, and supports ordinary or namespaced Ollama
+identifiers with an optional tag. Thinking uses `kaos.ollama.thinking` before
+`KAOS_OLLAMA_THINKING`, then defaults to `off`; only `off` and `on` are
+accepted. No secret, remote endpoint, prompt-file, automatic thinking mode, or
+persistent configuration is implemented. Response generation uses
+`kaos.ollama.response-token-limit` before
+`KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT`, then 512 for thinking off or 2,048 for
+thinking on; only whole values from 64 through 4,096 are accepted.
 
 ## Development rule
 
@@ -148,7 +190,9 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-001 and Features #845-#846 are complete. Project 1 is executing #814,
-Epic #3, Feature #847, and its direct Tasks #1065-#1066. Complete and merge the
-single Feature 002.03 pull request before activating Response Streaming Feature
-#848. No tag or release is created unless the user explicitly requests one.
+Epics 000-001 and Feature #845 are complete. Project 1 is executing #814, Epic
+#3, and reopened Feature #846. Its evidence-driven Tasks #1067-#1070 now
+implement context, model, thinking, and response-limit behavior on the feature
+branch. Verify and merge the complete feature pull request before returning to
+Response Streaming Feature #848. No tag or release is created unless the user
+explicitly requests one.
