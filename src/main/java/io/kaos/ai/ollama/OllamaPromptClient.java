@@ -61,7 +61,8 @@ public final class OllamaPromptClient {
                 model.modelName(),
                 prompt.text(),
                 model.contextWindow(),
-                model.thinkingMode());
+                model.thinkingMode(),
+                model.responseTokenLimit());
         HttpRequest request = HttpRequest.newBuilder(generateEndpoint)
                 .timeout(requestTimeout)
                 .header("Accept", "application/json")
@@ -85,12 +86,12 @@ public final class OllamaPromptClient {
                     return Result.failed(Status.INVALID_RESPONSE);
                 }
 
-                CompletedResponse completed =
+                Result completed =
                         decodeCompletedResponse(boundedBody, model.thinkingMode());
                 if (completed == null) {
                     return Result.failed(Status.INVALID_RESPONSE);
                 }
-                return Result.success(completed.thinking(), completed.response());
+                return completed;
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -106,26 +107,28 @@ public final class OllamaPromptClient {
             String model,
             String prompt,
             int contextWindow,
-            OllamaThinkingMode thinkingMode) {
+            OllamaThinkingMode thinkingMode,
+            int responseTokenLimit) {
         try {
             return JSON.writeValueAsBytes(new GenerateRequest(
                     model,
                     prompt,
                     false,
                     thinkingMode.enabled(),
-                    new GenerateOptions(contextWindow)));
+                    new GenerateOptions(contextWindow, responseTokenLimit)));
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Unable to encode validated Ollama request.", exception);
         }
     }
 
-    private static CompletedResponse decodeCompletedResponse(
+    private static Result decodeCompletedResponse(
             byte[] body, OllamaThinkingMode thinkingMode) {
         try {
             JsonNode root = JSON.readTree(body);
             JsonNode response = root == null ? null : root.get("response");
             JsonNode thinking = root == null ? null : root.get("thinking");
             JsonNode done = root == null ? null : root.get("done");
+            JsonNode doneReason = root == null ? null : root.get("done_reason");
             if (root == null
                     || !root.isObject()
                     || response == null
@@ -133,20 +136,29 @@ public final class OllamaPromptClient {
                     || (thinking != null && !thinking.isTextual())
                     || done == null
                     || !done.isBoolean()
-                    || !done.booleanValue()) {
+                    || !done.booleanValue()
+                    || doneReason == null
+                    || !doneReason.isTextual()) {
                 return null;
             }
 
             String responseText = response.textValue();
             String thinkingText = thinking == null ? "" : thinking.textValue();
-            if (!isValidGeneratedText(responseText, MAX_RESPONSE_CODE_POINTS, false)
+            String completionReason = doneReason.textValue();
+            boolean tokenLimitReached = "length".equals(completionReason);
+            if (!("stop".equals(completionReason) || tokenLimitReached)
+                    || !isValidGeneratedText(
+                            responseText, MAX_RESPONSE_CODE_POINTS, tokenLimitReached)
                     || !isValidGeneratedText(thinkingText, MAX_THINKING_CODE_POINTS, true)) {
                 return null;
+            }
+            if (tokenLimitReached) {
+                return Result.failed(Status.TOKEN_LIMIT_REACHED);
             }
             if (thinkingMode == OllamaThinkingMode.OFF) {
                 thinkingText = "";
             }
-            return new CompletedResponse(thinkingText, responseText);
+            return Result.success(thinkingText, responseText);
         } catch (IOException exception) {
             return null;
         }
@@ -202,10 +214,9 @@ public final class OllamaPromptClient {
             GenerateOptions options) {
     }
 
-    private record GenerateOptions(@JsonProperty("num_ctx") int contextWindow) {
-    }
-
-    private record CompletedResponse(String thinking, String response) {
+    private record GenerateOptions(
+            @JsonProperty("num_ctx") int contextWindow,
+            @JsonProperty("num_predict") int responseTokenLimit) {
     }
 
     /** Safe outcome of one non-streamed prompt request. */
@@ -244,6 +255,7 @@ public final class OllamaPromptClient {
     /** Minimal categories that later AI failure-handling work may refine. */
     public enum Status {
         SUCCESS,
+        TOKEN_LIMIT_REACHED,
         UNAVAILABLE,
         REQUEST_FAILED,
         INVALID_RESPONSE,

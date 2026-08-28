@@ -21,22 +21,30 @@ approved step.
 | Command | `ollama-prompt <prompt>` with exactly one quoted CLI argument |
 | Model | Explicit `kaos.ollama.model` or `KAOS_OLLAMA_MODEL`; no default |
 | Provider endpoint | Fixed `http://127.0.0.1:11434/api/generate` |
-| Request | JSON `POST` containing `model`, `prompt`, `stream: false`, explicit boolean `think`, and configured `options.num_ctx` |
+| Request | JSON `POST` containing `model`, `prompt`, `stream: false`, explicit boolean `think`, and configured `options.num_ctx` plus `options.num_predict` |
 | Success | Exit `0`; one complete final response on standard output; thinking is never printed |
 | Prompt bound | 4,096 Unicode code points; blank and unsafe control input rejected |
 | Response bounds | 1 MiB body; 65,536 Unicode code points each for final response and separated thinking |
 | Time bounds | Two-second connection establishment and five-minute complete request |
-| Failure | Exit `1`; safe `KAOS-AI-002` recovery category on standard error |
+| Completion | Provider `done_reason: stop` succeeds; `length` returns safe `KAOS-AI-003` without partial output |
+| Failure | Exit `1`; safe `KAOS-AI-002` provider/transport category or `KAOS-AI-003` length-boundary category on standard error |
 | State | One synchronous request; nothing persisted by KAOS |
 | Ownership | `io.kaos.ai.ollama` inside the single root application |
 
 KAOS accepts only a successful JSON response with a textual final `response`
-field and `done: true`. A textual `thinking` field is retained separately only
+field, `done: true`, and `done_reason: stop`. A textual `thinking` field is retained separately only
 when thinking is on; it is never terminal output. The client rejects redirects,
 non-JSON content, incomplete or malformed JSON, blank or oversized final
 output, invalid or unsafe thinking, and unsafe terminal control characters. It
 reads at most 1 MiB plus one byte, so the body limit is enforced while reading
 rather than after an unbounded allocation.
+
+`done_reason: length` is detected before output and becomes
+`TOKEN_LIMIT_REACHED`. KAOS discards partial answer and thinking data and tells
+the user to review the response-token limit and context window. Missing or
+unknown reasons are invalid responses. The measured defaults and override
+range are recorded in the
+[response-generation limit benchmark](ollama-response-generation-limit-benchmark.md).
 
 ## Run the behavior
 
@@ -46,6 +54,7 @@ Confirm that Ollama is running and choose one model already installed locally:
 ollama list
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_OLLAMA_THINKING = "off"
+$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "512"
 ./gradlew.bat run --args=ollama-model
 ```
 
@@ -61,6 +70,7 @@ The POSIX-shell equivalent is:
 ```bash
 export KAOS_OLLAMA_MODEL=qwen3:4b-instruct
 export KAOS_OLLAMA_THINKING=off
+export KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT=512
 ./gradlew run --args='ollama-prompt "Why is the sky blue?"'
 ```
 
@@ -75,12 +85,12 @@ The flow remains a direct in-process call:
 terminal
   -> KaosApplication command routing and safe error boundary
   -> OllamaPrompt validation
-  -> OllamaModelConfiguration (model + bounded context + off/on thinking)
+  -> OllamaModelConfiguration (model + bounded context + off/on thinking + response tokens)
   -> OllamaPromptClient
   -> fixed loopback Ollama POST /api/generate
   <- one complete non-streamed JSON response
   <- thinking kept separate when enabled
-  <- final response only on stdout
+  <- final response only after natural stop; length completion becomes a safe error
 ```
 
 `com.fasterxml.jackson.core:jackson-databind:2.22.1` is the first direct
@@ -101,6 +111,8 @@ repository, or service is not.
   error.
 - KAOS does not display or stringify separated thinking data. An unsupported
   thinking request fails safely without automatic fallback.
+- KAOS does not print length-truncated output or retry with a larger token
+  budget. The user explicitly controls a larger bounded retry.
 - The developer CLI is not a secret-input surface. A prompt can remain in shell
   history and may be visible to local process inspection; private prompts need
   a later input mechanism designed for that requirement.
@@ -116,14 +128,16 @@ Verified on 2026-08-28:
 | Check | Result |
 | --- | --- |
 | Focused prompt and application tests | Passed |
-| Complete automated suite | 88 passed, 0 failed, 0 errors, 0 skipped |
+| Complete automated suite | 97 passed, 0 failed, 0 errors, 0 skipped |
 | Real local provider | Ollama `0.32.1` on fixed `127.0.0.1:11434` |
 | Installed model demonstration | `qwen3:8b` returned one complete answer through KAOS |
 | Real request duration | 2 minutes 43 seconds; succeeded within the five-minute bound |
-| Request inspection | `POST`, JSON content type, selected model, exact prompt, `stream: false`, configured `options.num_ctx`, and explicit boolean `think` |
+| Request inspection | `POST`, JSON content type, selected model, exact prompt, `stream: false`, configured `options.num_ctx` and `options.num_predict`, and explicit boolean `think` |
+| Natural completion demonstration | 512-token ordinary request returned exact `LIMIT_OK`; exit `0` |
+| Length completion demonstration | 64-token Java request returned only safe `KAOS-AI-003`; no partial answer; exit `1` |
 | Failure and privacy cases | Unavailable, timeout, rejection, invalid response, interruption, and invalid prompt return no prompt or raw provider data |
 | Local-only boundary | Non-loopback endpoint construction is rejected; redirects are disabled |
-| Response limits | Oversized body, oversized text, malformed JSON, incomplete response, and unsafe output are rejected |
+| Response limits | Provider length completion, oversized body/text, malformed JSON, unknown completion, incomplete response, and unsafe output are rejected without partial terminal output |
 | Runtime dependency | Jackson Databind `2.22.1`, Core `2.22.1`, and Annotations `2.22` only |
 | Architecture website | Local files, anchors, IDs, accessibility markup, responsive CSS, UTF-8 content, and Feature 002.02 recency markers passed static checks; page assets returned HTTP 200; 1440 x 900 and 390 x 844 browser rendering passed without horizontal overflow |
 
@@ -145,7 +159,8 @@ server and do not require Ollama or an installed model.
   cancellation UI while a model is generating.
 - The CLI supports one prompt and one response, not conversation history,
   system prompts, templates, tools, images, structured output, embeddings, or
-  general model options beyond context and boolean thinking.
+  general model options beyond context, boolean thinking, and response-token
+  limit.
 - The CLI argument may be retained by the shell or exposed to local process
   inspection.
 - KAOS does not discover, install, pull, preload, unload, or persist models.
@@ -170,7 +185,8 @@ server and do not require Ollama or an installed model.
 ## Handoff
 
 Feature 002.03 is complete. Reopened Feature
-[#846](https://github.com/karanbabu2110/KAOS/issues/846) now owns measured
-context, model, thinking, and response-limit follow-ups before Response
-Streaming Feature [#848](https://github.com/karanbabu2110/KAOS/issues/848)
-resumes. Do not create a tag or release without an explicit user request.
+[#846](https://github.com/karanbabu2110/KAOS/issues/846) now records the
+implemented context, model, thinking, and response-limit decisions. Complete
+and merge its feature pull request before Response Streaming Feature
+[#848](https://github.com/karanbabu2110/KAOS/issues/848) resumes. Do not create
+a tag or release without an explicit user request.

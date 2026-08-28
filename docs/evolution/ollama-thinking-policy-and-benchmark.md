@@ -90,8 +90,9 @@ The warm model received two deterministic reasoning prompts:
 
 All modes first used the same 1,024 generated-token ceiling. `off` and boolean
 `on` were then repeated at 2,048 for the ordering prompt because 1,024 did not
-produce a complete final answer. These are benchmark-only bounds; Task #1070
-owns the product response-generation limit.
+produce a complete final answer. The later
+[response-generation limit benchmark](ollama-response-generation-limit-benchmark.md)
+uses these results to select the product defaults.
 
 ## 1,024-token results
 
@@ -184,7 +185,7 @@ Verified on 2026-08-28:
 | Check | Result |
 | --- | --- |
 | Focused configuration, prompt-client, and application tests | Passed |
-| Complete local verification | 88 passed, 0 failed, 0 errors, 0 skipped |
+| Complete local verification | 97 passed, 0 failed, 0 errors, 0 skipped |
 | Ordinary real-provider run | `qwen3:4b-instruct`, 4K context, thinking off; exact `OFF_OK` response |
 | Explicit-reasoning real-provider run | `qwen3:4b`, 4K context, thinking on; final answer printed without the separated trace |
 | Request contract | Every request sends explicit boolean `think`; enabled responses retain `thinking` separately from `response` |
@@ -204,7 +205,7 @@ Verified on 2026-08-28:
 - Raw reasoning is not terminal progress. Opt-in thinking streaming remains
   Task 002.04.02 under Feature #848.
 - `AUTO`, provider-specific profiles, prompt classification, routing, and
-  response-generation limits remain unimplemented.
+  automatic limit expansion remain unimplemented.
 
 ## Reproduction checklist
 

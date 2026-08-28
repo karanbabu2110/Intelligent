@@ -39,16 +39,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 002.02 thinking follow-up</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 002.02 response-limit follow-up</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the explicit off/on thinking policy and separated thinking-versus-answer boundary added by the reopened Feature 002.02. The emphasis moves to the next feature when this architecture changes again; the underlying implemented, next, and future statuses remain authoritative.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the bounded response-token configuration and explicit natural-versus-length completion boundary added by the reopened Feature 002.02. The emphasis moves to the next feature when this architecture changes again; the underlying implemented, next, and future statuses remain authoritative.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">Current runtime and local AI integration</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 650" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes the implemented KAOS application. The application validates local configuration and routes status, help, Ollama status, model, and prompt commands. The Ollama package owns local reachability, explicit model, context, and off/on thinking selection, plus one bounded non-streamed prompt request to the fixed local provider. Every prompt sends the context window and boolean thinking choice. The provider returns separated thinking and final response fields; KAOS prints only the final response. Gradle, Jackson, and tests support and verify the application.</desc>
+          <desc id="diagram-description">A terminal invokes the implemented KAOS application. The application validates local configuration and routes status, help, Ollama status, model, and prompt commands. The Ollama package owns local reachability, explicit model, context, off/on thinking, and bounded response-token selection, plus one non-streamed prompt request to the fixed local provider. Every prompt sends the context window, boolean thinking choice, and generated-token maximum. The provider returns separated thinking and final response fields with a completion reason. KAOS prints only a naturally completed final response and reports a length boundary without partial output. Gradle, Jackson, and tests support and verify the application.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -79,7 +79,7 @@
           <rect x="580" y="284" width="190" height="93" class="box box-implemented"></rect>
           <text x="602" y="316" class="svg-title">Ollama capability</text>
           <text x="602" y="341" class="svg-copy">reachability · model</text>
-          <text x="602" y="363" class="svg-copy">prompt · num_ctx · think</text>
+          <text x="602" y="363" class="svg-copy svg-change">UPDATED · num_predict</text>
 
           <path d="M254 117 L330 117" class="flow"></path>
           <path d="M555 212 L580 212" class="flow"></path>
@@ -88,9 +88,9 @@
           <text x="58" y="307" class="svg-title">Local configuration</text>
           <text x="58" y="335" class="svg-copy">App name: property / env</text>
           <text x="58" y="357" class="svg-copy">Model: property / env</text>
-          <text x="58" y="379" class="svg-copy">required · no default</text>
-          <text x="58" y="401" class="svg-copy">Context: property / env / 4K</text>
-          <text x="58" y="423" class="svg-copy svg-change">UPDATED · Thinking: off / on</text>
+          <text x="58" y="379" class="svg-copy">Context: property / env / 4K</text>
+          <text x="58" y="401" class="svg-copy">Thinking: off / on</text>
+          <text x="58" y="423" class="svg-copy svg-change">UPDATED · Response: 512 / 2K</text>
           <path d="M254 334 L365 330" class="flow"></path>
           <path d="M254 375 L580 350" class="flow"></path>
           <path d="M460 259 L675 284" class="flow"></path>
@@ -130,7 +130,7 @@
           <div class="change-label">Updated in Feature 002.02</div>
           <div class="status implemented">Implemented</div>
           <h3>AI model configuration</h3>
-          <p>Feature 002.02 resolves one explicit model, a 2K-64K context window, and off/on thinking from process configuration. Every prompt sends <code>num_ctx</code> and a boolean <code>think</code>; off is the ordinary default, and enabled thinking remains separate from the printed final answer.</p>
+          <p>Feature 002.02 resolves one explicit model, a 2K-64K context window, off/on thinking, and a 64-4,096 generated-token bound. Every prompt sends <code>num_ctx</code>, <code>think</code>, and <code>num_predict</code>; ordinary requests default to 512 tokens and reasoning to 2,048.</p>
         </article>
         <article class="card">
           <div class="status implemented">Implemented</div>
@@ -139,8 +139,8 @@
         </article>
         <article class="card">
           <div class="status next">Next</div>
-          <h3>Response generation limits</h3>
-          <p>Task 002.02.06 (#1070) is the next approved step. Generated-token bounds and truncation behavior remain unimplemented; Response Streaming Feature #848 follows the completed Feature 002.02 work.</p>
+          <h3>Response streaming</h3>
+          <p>Feature 002.04 (#848) is the next approved feature after Feature 002.02 merges. Progressive token delivery, visible progress, and cancellation remain unimplemented.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -185,10 +185,10 @@
           <tr><td>Package-first growth</td><td><a href="../../docs/evolution/package-first-application-structure.md">Package-first structure</a></td><td>Active rule</td></tr>
           <tr><td>Evidence-gated extraction</td><td><a href="../../docs/evolution/capability-boundary-evolution.md">Boundary evolution decision</a></td><td>Active rule</td></tr>
           <tr><td>Local Ollama connectivity</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaConnectivity.java"><code>OllamaConnectivity.java</code></a> and <a href="../../src/test/java/io/kaos/ai/ollama/OllamaConnectivityTest.java"><code>OllamaConnectivityTest.java</code></a></td><td>Implemented</td></tr>
-          <tr class="change-current"><td><span class="change-label">Updated in Feature 002.02</span>AI model, context, and thinking configuration</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaThinkingMode.java"><code>OllamaThinkingMode.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, and <a href="../../docs/evolution/ollama-thinking-policy-and-benchmark.md">thinking benchmark</a></td><td>Implemented</td></tr>
+          <tr><td>AI model, context, and thinking configuration</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaThinkingMode.java"><code>OllamaThinkingMode.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, and <a href="../../docs/evolution/ollama-thinking-policy-and-benchmark.md">thinking benchmark</a></td><td>Implemented</td></tr>
           <tr><td>Prompt submission</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-prompt-submission.md">validation evidence</a></td><td>Implemented</td></tr>
-          <tr><td>Response generation limits</td><td><a href="https://github.com/karanbabu2110/KAOS/issues/1070">Task 002.02.06</a></td><td>Next; not implemented</td></tr>
-          <tr><td>Response streaming</td><td><a href="https://github.com/karanbabu2110/KAOS/issues/848">Feature 002.04</a></td><td>Approved afterward; not implemented</td></tr>
+          <tr class="change-current"><td><span class="change-label">Updated in Feature 002.02</span>Bounded response generation and completion handling</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, and <a href="../../docs/evolution/ollama-response-generation-limit-benchmark.md">response-limit benchmark</a></td><td>Implemented</td></tr>
+          <tr><td>Response streaming</td><td><a href="https://github.com/karanbabu2110/KAOS/issues/848">Feature 002.04</a></td><td>Next after Feature 002.02 merge; not implemented</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

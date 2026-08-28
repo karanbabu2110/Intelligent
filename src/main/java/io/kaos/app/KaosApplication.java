@@ -25,6 +25,7 @@ public final class KaosApplication {
     static final String INVALID_OLLAMA_MODEL_CODE = "KAOS-AI-CONFIG-001";
     static final String UNREADABLE_OLLAMA_MODEL_CODE = "KAOS-AI-CONFIG-002";
     static final String OLLAMA_PROMPT_CODE = "KAOS-AI-002";
+    static final String OLLAMA_RESPONSE_LIMIT_CODE = "KAOS-AI-003";
 
     private KaosApplication() {
     }
@@ -232,6 +233,10 @@ public final class KaosApplication {
         }
 
         String recovery = switch (result.status()) {
+            case TOKEN_LIMIT_REACHED ->
+                    "Ollama reached a response or context length boundary before completing the "
+                            + "answer. Review the response-token limit and context window, then "
+                            + "retry.";
             case UNAVAILABLE ->
                     "Local Ollama is unavailable. Start Ollama on 127.0.0.1:11434 and retry.";
             case REQUEST_FAILED ->
@@ -244,7 +249,10 @@ public final class KaosApplication {
                     "The Ollama prompt request was interrupted. Retry the command.";
             case SUCCESS -> throw new IllegalStateException("Successful result has no response.");
         };
-        logError(errorOutput, OLLAMA_PROMPT_CODE, recovery);
+        String errorCode = result.status() == OllamaPromptClient.Status.TOKEN_LIMIT_REACHED
+                ? OLLAMA_RESPONSE_LIMIT_CODE
+                : OLLAMA_PROMPT_CODE;
+        logError(errorOutput, errorCode, recovery);
         return APPLICATION_ERROR;
     }
 
@@ -257,7 +265,9 @@ public final class KaosApplication {
             output.println("Configured local Ollama model: " + configuration.modelName()
                     + " (context window: " + configuration.contextWindow()
                     + " tokens, thinking: "
-                    + configuration.thinkingMode().configurationValue() + ").");
+                    + configuration.thinkingMode().configurationValue()
+                    + ", response limit: " + configuration.responseTokenLimit()
+                    + " tokens).");
             return SUCCESS;
         } catch (IllegalArgumentException exception) {
             logError(
@@ -276,8 +286,8 @@ public final class KaosApplication {
     }
 
     private static String invalidOllamaConfigurationGuidance() {
-        return "Invalid Ollama configuration. Check model, context-window, and thinking process "
-                + "settings and retry.";
+        return "Invalid Ollama configuration. Check model, context-window, thinking, and "
+                + "response-token-limit process settings and retry.";
     }
 
     private static int reportOllamaStatus(

@@ -3,9 +3,12 @@ package io.kaos.ai.ollama;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
-/** Selects the local Ollama model and bounded context used by KAOS. */
+/** Selects the local Ollama model, context, thinking mode, and response limit. */
 public record OllamaModelConfiguration(
-        String modelName, int contextWindow, OllamaThinkingMode thinkingMode) {
+        String modelName,
+        int contextWindow,
+        OllamaThinkingMode thinkingMode,
+        int responseTokenLimit) {
     public static final String MODEL_SYSTEM_PROPERTY = "kaos.ollama.model";
     public static final String MODEL_ENVIRONMENT_VARIABLE = "KAOS_OLLAMA_MODEL";
     public static final String CONTEXT_WINDOW_SYSTEM_PROPERTY = "kaos.ollama.context-window";
@@ -13,10 +16,18 @@ public record OllamaModelConfiguration(
             "KAOS_OLLAMA_CONTEXT_WINDOW";
     public static final String THINKING_SYSTEM_PROPERTY = "kaos.ollama.thinking";
     public static final String THINKING_ENVIRONMENT_VARIABLE = "KAOS_OLLAMA_THINKING";
+    public static final String RESPONSE_TOKEN_LIMIT_SYSTEM_PROPERTY =
+            "kaos.ollama.response-token-limit";
+    public static final String RESPONSE_TOKEN_LIMIT_ENVIRONMENT_VARIABLE =
+            "KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT";
     public static final int MAX_MODEL_NAME_LENGTH = 128;
     public static final int DEFAULT_CONTEXT_WINDOW = 4_096;
     public static final int MIN_CONTEXT_WINDOW = 2_048;
     public static final int MAX_CONTEXT_WINDOW = 65_536;
+    public static final int DEFAULT_ORDINARY_RESPONSE_TOKEN_LIMIT = 512;
+    public static final int DEFAULT_REASONING_RESPONSE_TOKEN_LIMIT = 2_048;
+    public static final int MIN_RESPONSE_TOKEN_LIMIT = 64;
+    public static final int MAX_RESPONSE_TOKEN_LIMIT = 4_096;
 
     private static final Pattern SAFE_MODEL_NAME = Pattern.compile(
             "[A-Za-z0-9][A-Za-z0-9._-]*"
@@ -27,6 +38,18 @@ public record OllamaModelConfiguration(
         modelName = validateModelName(modelName, "model name");
         contextWindow = validateContextWindow(contextWindow, "context window");
         thinkingMode = Objects.requireNonNull(thinkingMode, "thinkingMode");
+        responseTokenLimit = validateResponseTokenLimit(
+                responseTokenLimit, "response token limit");
+    }
+
+    /** Uses the evidence-selected response limit for the explicit thinking mode. */
+    public OllamaModelConfiguration(
+            String modelName, int contextWindow, OllamaThinkingMode thinkingMode) {
+        this(
+                modelName,
+                contextWindow,
+                thinkingMode,
+                defaultResponseTokenLimit(thinkingMode));
     }
 
     /** Uses the ordinary-request thinking default. */
@@ -58,7 +81,9 @@ public record OllamaModelConfiguration(
                     System.getProperty(CONTEXT_WINDOW_SYSTEM_PROPERTY),
                     System.getenv(CONTEXT_WINDOW_ENVIRONMENT_VARIABLE),
                     System.getProperty(THINKING_SYSTEM_PROPERTY),
-                    System.getenv(THINKING_ENVIRONMENT_VARIABLE));
+                    System.getenv(THINKING_ENVIRONMENT_VARIABLE),
+                    System.getProperty(RESPONSE_TOKEN_LIMIT_SYSTEM_PROPERTY),
+                    System.getenv(RESPONSE_TOKEN_LIMIT_ENVIRONMENT_VARIABLE));
         } catch (SecurityException exception) {
             throw new IllegalStateException(
                     "Unable to read local Ollama model configuration.", exception);
@@ -76,6 +101,8 @@ public record OllamaModelConfiguration(
                 contextSystemProperty,
                 contextEnvironmentValue,
                 null,
+                null,
+                null,
                 null);
     }
 
@@ -86,6 +113,26 @@ public record OllamaModelConfiguration(
             String contextEnvironmentValue,
             String thinkingSystemProperty,
             String thinkingEnvironmentValue) {
+        return resolve(
+                modelSystemProperty,
+                modelEnvironmentValue,
+                contextSystemProperty,
+                contextEnvironmentValue,
+                thinkingSystemProperty,
+                thinkingEnvironmentValue,
+                null,
+                null);
+    }
+
+    static OllamaModelConfiguration resolve(
+            String modelSystemProperty,
+            String modelEnvironmentValue,
+            String contextSystemProperty,
+            String contextEnvironmentValue,
+            String thinkingSystemProperty,
+            String thinkingEnvironmentValue,
+            String responseTokenLimitSystemProperty,
+            String responseTokenLimitEnvironmentValue) {
         String modelName;
         if (modelSystemProperty != null) {
             modelName = validateModelName(
@@ -120,7 +167,18 @@ public record OllamaModelConfiguration(
                     thinkingEnvironmentValue,
                     "environment variable '" + THINKING_ENVIRONMENT_VARIABLE + "'");
         }
-        return new OllamaModelConfiguration(modelName, contextWindow, thinkingMode);
+        int responseTokenLimit = defaultResponseTokenLimit(thinkingMode);
+        if (responseTokenLimitSystemProperty != null) {
+            responseTokenLimit = validateResponseTokenLimit(
+                    responseTokenLimitSystemProperty,
+                    "system property '" + RESPONSE_TOKEN_LIMIT_SYSTEM_PROPERTY + "'");
+        } else if (responseTokenLimitEnvironmentValue != null) {
+            responseTokenLimit = validateResponseTokenLimit(
+                    responseTokenLimitEnvironmentValue,
+                    "environment variable '" + RESPONSE_TOKEN_LIMIT_ENVIRONMENT_VARIABLE + "'");
+        }
+        return new OllamaModelConfiguration(
+                modelName, contextWindow, thinkingMode, responseTokenLimit);
     }
 
     private static String validateModelName(String value, String source) {
@@ -165,6 +223,38 @@ public record OllamaModelConfiguration(
             throw new IllegalArgumentException(
                     source + " must be between " + MIN_CONTEXT_WINDOW + " and "
                             + MAX_CONTEXT_WINDOW + " tokens.");
+        }
+        return value;
+    }
+
+    private static int defaultResponseTokenLimit(OllamaThinkingMode thinkingMode) {
+        return Objects.requireNonNull(thinkingMode, "thinkingMode") == OllamaThinkingMode.ON
+                ? DEFAULT_REASONING_RESPONSE_TOKEN_LIMIT
+                : DEFAULT_ORDINARY_RESPONSE_TOKEN_LIMIT;
+    }
+
+    private static int validateResponseTokenLimit(String value, String source) {
+        if (value == null) {
+            throw new IllegalArgumentException(source + " must not be null.");
+        }
+
+        String normalized = value.strip();
+        if (normalized.isEmpty()
+                || !normalized.chars().allMatch(character -> character >= '0' && character <= '9')) {
+            throw new IllegalArgumentException(source + " must be a whole number of tokens.");
+        }
+        try {
+            return validateResponseTokenLimit(Integer.parseInt(normalized), source);
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException(source + " is outside the supported range.");
+        }
+    }
+
+    private static int validateResponseTokenLimit(int value, String source) {
+        if (value < MIN_RESPONSE_TOKEN_LIMIT || value > MAX_RESPONSE_TOKEN_LIMIT) {
+            throw new IllegalArgumentException(
+                    source + " must be between " + MIN_RESPONSE_TOKEN_LIMIT + " and "
+                            + MAX_RESPONSE_TOKEN_LIMIT + " tokens.");
         }
         return value;
     }

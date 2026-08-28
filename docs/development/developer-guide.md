@@ -117,13 +117,14 @@ KAOS never runs this installation command for you.
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
 $env:KAOS_OLLAMA_THINKING = "off"
+$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "512"
 ./gradlew.bat run --args=ollama-model
 ```
 
 Successful output is:
 
 ```text
-Configured local Ollama model: qwen3:4b-instruct (context window: 4096 tokens, thinking: off).
+Configured local Ollama model: qwen3:4b-instruct (context window: 4096 tokens, thinking: off, response limit: 512 tokens).
 ```
 
 `ollama-model` validates and displays local process configuration only. It does
@@ -136,6 +137,7 @@ stop-parsing token so nested quotes survive the Gradle batch wrapper:
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_OLLAMA_THINKING = "off"
+$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "512"
 ./gradlew.bat --% run --args="ollama-prompt \"Why is the sky blue?\""
 ```
 
@@ -144,15 +146,18 @@ On Linux or macOS:
 ```bash
 export KAOS_OLLAMA_MODEL=qwen3:4b-instruct
 export KAOS_OLLAMA_THINKING=off
+export KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT=512
 ./gradlew run --args='ollama-prompt "Why is the sky blue?"'
 ```
 
 The command validates a single 4,096-character prompt, loads the explicit
 model selection, sends `POST /api/generate` to the fixed loopback Ollama
 endpoint with `stream` set to `false`, and prints only the complete generated
-text. It also sends `think: false` for this ordinary configuration. The response
-body is bounded to 1 MiB, generated text to 65,536
-characters, and the request to five minutes. There is no streaming, retry,
+text. It also sends `think: false` and `options.num_predict: 512` for this
+ordinary configuration. A natural provider stop prints the answer; a length
+stop returns `KAOS-AI-003` without printing partial output. The response body is
+bounded to 1 MiB, generated text to 65,536 characters, and the request to five
+minutes. There is no streaming, retry,
 conversation, system-prompt, tool, image, remote-provider, or persistence
 behavior.
 
@@ -225,6 +230,48 @@ display raw reasoning, infer a mode from the prompt, retry with thinking off,
 or substitute a model. An unsupported model therefore fails through the safe
 prompt-rejection path.
 
+The response-token-limit precedence is:
+
+1. `-Dkaos.ollama.response-token-limit=...` for a direct JVM launch
+2. `KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT`
+3. 512 tokens when thinking is `off`, or 2,048 when thinking is `on`
+
+KAOS accepts whole values from 64 through 4,096 and sends the selection as
+Ollama `options.num_predict`. For example, request more bounded space for a
+larger ordinary answer:
+
+```powershell
+$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "1024"
+./gradlew.bat --% run --args="ollama-prompt \"<larger prompt>\""
+```
+
+KAOS does not use Ollama's unbounded default, retry automatically, or increase
+the limit after truncation. The
+[response-generation limit benchmark](../evolution/ollama-response-generation-limit-benchmark.md)
+records the comparison and explains the separate defaults.
+
+PowerShell environment values persist for the current terminal session. After
+running a low-limit boundary test, inspect the effective KAOS configuration
+before treating `KAOS-AI-003` as evidence that a default is too small:
+
+```powershell
+Get-ChildItem Env:KAOS_OLLAMA_*
+./gradlew.bat run --args=ollama-model
+```
+
+Return specifically to the mode-based response default by removing only the
+response-limit override, then inspect the configuration again:
+
+```powershell
+Remove-Item Env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT -ErrorAction SilentlyContinue
+./gradlew.bat run --args=ollama-model
+```
+
+This does not remove the selected model, context window, or thinking mode.
+When thinking is `on`, both hidden reasoning and the final answer consume the
+same generated-token allowance, so ordinary questions should normally use the
+instruct model with thinking `off`.
+
 Model names are trimmed, limited to 128 ASCII characters, and accept ordinary
 or slash-separated identifiers containing letters, numbers, periods,
 underscores, or hyphens, followed by an optional colon tag. Examples include
@@ -244,7 +291,8 @@ deliberately; a missing model is not downloaded or replaced automatically. The
 records the prompts, controls, quality observations, performance, hardware,
 licenses, and decision limits. Thinking behavior is recorded in the
 [thinking policy and benchmark](../evolution/ollama-thinking-policy-and-benchmark.md).
-Generated-response limits remain Task #1070.
+Response-generation limits are recorded in the
+[response-generation limit benchmark](../evolution/ollama-response-generation-limit-benchmark.md).
 
 Do not commit credentials or other secrets. The Ollama endpoint remains fixed
 to loopback. No secret, remote endpoint, prompt-file, or persistent
@@ -361,9 +409,10 @@ dependency problem, then rerun the focused command. Finish with the clean
 ### Local configuration changes the run output
 
 Inspect `KAOS_APP_NAME`, `KAOS_OLLAMA_MODEL`, `KAOS_OLLAMA_CONTEXT_WINDOW`,
-`KAOS_OLLAMA_THINKING`, and
+`KAOS_OLLAMA_THINKING`, `KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT`, and
 the corresponding `kaos.app.name`, `kaos.ollama.model`,
-`kaos.ollama.context-window`, or `kaos.ollama.thinking` system property. The
+`kaos.ollama.context-window`, `kaos.ollama.thinking`, or
+`kaos.ollama.response-token-limit` system property. The
 `verifyLocal` smoke
 tasks deliberately supply the safe `KAOS` application name and do not invoke
 `ollama-model`, so they remain deterministic without a model selection.
@@ -371,12 +420,20 @@ tasks deliberately supply the safe `KAOS` application name and do not invoke
 ### Ollama model configuration is rejected
 
 Set `KAOS_OLLAMA_MODEL` to one installed model name you intentionally chose,
-set `KAOS_OLLAMA_THINKING` to `off` or `on`, then rerun `ollama-model`. Remove
+set `KAOS_OLLAMA_THINKING` to `off` or `on`, and set any explicit response-token
+limit to a whole value from 64 through 4,096, then rerun `ollama-model`. Remove
 spaces, control characters, empty namespace segments, or unsupported model
 punctuation. KAOS does not echo invalid configured values in its error message.
 `ollama-prompt` is the first command that asks Ollama to use the configured
 model and thinking setting, so an unavailable model or unsupported thinking
 request is reported only when that request is submitted.
+
+### An Ollama answer reaches a length boundary
+
+`KAOS-AI-003` means Ollama returned `done_reason: length`. KAOS intentionally
+does not print the partial answer. Review both the response-token limit and
+context window, then retry with a larger bounded value only when the request
+needs it. A larger response limit does not create additional context capacity.
 
 ### Ollama is unavailable
 
@@ -416,6 +473,7 @@ KAOS does not start or own the local Ollama process.
 - [Ollama context-window benchmark](../evolution/ollama-context-window-benchmark.md)
 - [Ollama model scenario benchmark](../evolution/ollama-model-scenario-benchmark.md)
 - [Ollama thinking policy and benchmark](../evolution/ollama-thinking-policy-and-benchmark.md)
+- [Ollama response-generation limit benchmark](../evolution/ollama-response-generation-limit-benchmark.md)
 - [Ollama prompt submission](../evolution/ollama-prompt-submission.md)
 
 The detailed references retain acceptance evidence, internal contracts, and

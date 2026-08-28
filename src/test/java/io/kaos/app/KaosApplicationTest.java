@@ -131,7 +131,8 @@ class KaosApplicationTest {
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(
                 "Configured local Ollama model: llama3.2:latest "
-                        + "(context window: 4096 tokens, thinking: off)."
+                        + "(context window: 4096 tokens, thinking: off, "
+                        + "response limit: 512 tokens)."
                         + System.lineSeparator(),
                 result.standardOutput());
         assertEquals("", result.errorOutput());
@@ -149,7 +150,8 @@ class KaosApplicationTest {
         assertEquals("", result.standardOutput());
         assertEquals(
                 "ERROR [KAOS-AI-CONFIG-001] Invalid Ollama configuration. "
-                        + "Check model, context-window, and thinking process settings and retry."
+                        + "Check model, context-window, thinking, and response-token-limit "
+                        + "process settings and retry."
                         + System.lineSeparator(),
                 result.errorOutput());
         assertFalse(result.errorOutput().contains(privateDetail));
@@ -222,6 +224,25 @@ class KaosApplicationTest {
                 "Expected one quoted prompt. Run 'kaos help' for usage."
                         + System.lineSeparator(),
                 result.errorOutput());
+    }
+
+    @Test
+    void reportsTokenLimitCompletionWithoutPrintingAPartialAnswer() {
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                "private prompt",
+                () -> new OllamaModelConfiguration("qwen3:4b-instruct"),
+                (model, prompt) -> new OllamaPromptClient.Result(
+                        OllamaPromptClient.Status.TOKEN_LIMIT_REACHED, "", ""));
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-003] Ollama reached a response or context length boundary "
+                        + "before completing the answer. Review the response-token limit and "
+                        + "context window, then retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains("private prompt"));
     }
 
     @Test
@@ -304,7 +325,8 @@ class KaosApplicationTest {
         assertEquals("", result.standardOutput());
         assertEquals(
                 "ERROR [KAOS-AI-CONFIG-001] Invalid Ollama configuration. "
-                        + "Check model, context-window, and thinking process settings and retry."
+                        + "Check model, context-window, thinking, and response-token-limit "
+                        + "process settings and retry."
                         + System.lineSeparator(),
                 result.errorOutput());
         assertFalse(result.errorOutput().contains("private prompt"));

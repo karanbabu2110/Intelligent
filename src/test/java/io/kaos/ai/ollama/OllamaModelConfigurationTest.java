@@ -94,6 +94,7 @@ class OllamaModelConfigurationTest {
 
         assertEquals(4_096, configuration.contextWindow());
         assertEquals(OllamaThinkingMode.OFF, configuration.thinkingMode());
+        assertEquals(512, configuration.responseTokenLimit());
     }
 
     @Test
@@ -179,5 +180,63 @@ class OllamaModelConfigurationTest {
         assertThrows(
                 NullPointerException.class,
                 () -> new OllamaModelConfiguration("qwen3:4b", 4_096, null));
+    }
+
+    @Test
+    void usesASeparateReasoningResponseLimitDefault() {
+        OllamaModelConfiguration configuration = OllamaModelConfiguration.resolve(
+                "qwen3:4b", null, null, null, "on", null, null, null);
+
+        assertEquals(2_048, configuration.responseTokenLimit());
+    }
+
+    @Test
+    void usesTheResponseLimitEnvironmentSetting() {
+        OllamaModelConfiguration configuration = OllamaModelConfiguration.resolve(
+                "qwen3:4b-instruct", null, null, null, null, null, null, "1024");
+
+        assertEquals(1_024, configuration.responseTokenLimit());
+    }
+
+    @Test
+    void givesTheResponseLimitSystemPropertyPrecedence() {
+        OllamaModelConfiguration configuration = OllamaModelConfiguration.resolve(
+                "qwen3:4b-instruct", null, null, null, null, null, "256", "1024");
+
+        assertEquals(256, configuration.responseTokenLimit());
+    }
+
+    @Test
+    void rejectsInvalidOrExcessiveResponseLimits() {
+        for (String value : new String[] {" ", "63", "4097", "unbounded"}) {
+            IllegalArgumentException exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> OllamaModelConfiguration.resolve(
+                            "qwen3:4b-instruct",
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            value,
+                            null));
+
+            assertTrue(exception.getMessage().contains(
+                    OllamaModelConfiguration.RESPONSE_TOKEN_LIMIT_SYSTEM_PROPERTY));
+        }
+    }
+
+    @Test
+    void acceptsTheBoundedResponseLimitRange() {
+        assertEquals(
+                64,
+                new OllamaModelConfiguration(
+                                "qwen3:4b-instruct", 4_096, OllamaThinkingMode.OFF, 64)
+                        .responseTokenLimit());
+        assertEquals(
+                4_096,
+                new OllamaModelConfiguration(
+                                "qwen3:4b", 4_096, OllamaThinkingMode.ON, 4_096)
+                        .responseTokenLimit());
     }
 }
