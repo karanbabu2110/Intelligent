@@ -104,8 +104,17 @@ do not create the Ollama client or make a network request.
 
 Configure and inspect the model reserved for later AI commands:
 
+Install the ordinary development recommendation explicitly if it is not
+already present:
+
 ```powershell
-$env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+ollama pull qwen3:4b-instruct
+```
+
+KAOS never runs this installation command for you.
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
 ./gradlew.bat run --args=ollama-model
 ```
@@ -113,7 +122,7 @@ $env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
 Successful output is:
 
 ```text
-Configured local Ollama model: qwen3:8b (context window: 4096 tokens).
+Configured local Ollama model: qwen3:4b-instruct (context window: 4096 tokens).
 ```
 
 `ollama-model` validates and displays local process configuration only. It does
@@ -124,14 +133,14 @@ Submit one prompt and wait for one complete response. PowerShell needs its
 stop-parsing token so nested quotes survive the Gradle batch wrapper:
 
 ```powershell
-$env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 ./gradlew.bat --% run --args="ollama-prompt \"Why is the sky blue?\""
 ```
 
 On Linux or macOS:
 
 ```bash
-export KAOS_OLLAMA_MODEL=qwen3:8b
+export KAOS_OLLAMA_MODEL=qwen3:4b-instruct
 ./gradlew run --args='ollama-prompt "Why is the sky blue?"'
 ```
 
@@ -194,6 +203,21 @@ Model names are trimmed, limited to 128 ASCII characters, and accept ordinary
 or slash-separated identifiers containing letters, numbers, periods,
 underscores, or hyphens, followed by an optional colon tag. Examples include
 `llama3.2:latest` and `hf.co/team/model-name:Q4_K_M`.
+
+Use the measured profile that matches the current goal:
+
+| Goal | Explicit model | Guidance |
+| --- | --- | --- |
+| Connectivity smoke test | `qwen3:1.7b` | Fastest and smallest; do not treat its answer as the quality baseline |
+| Ordinary local development | `qwen3:4b-instruct` | Current recommendation for answers, summaries, and simple Java help |
+| Explicit reasoning experiment | `qwen3:4b` | Opt-in only; the measured reasoning probe needed 674 generated tokens and about 18 seconds |
+
+These names are recommendations, not KAOS defaults. Select and install models
+deliberately; a missing model is not downloaded or replaced automatically. The
+[model scenario benchmark](../evolution/ollama-model-scenario-benchmark.md)
+records the prompts, controls, quality observations, performance, hardware,
+licenses, and decision limits. Thinking behavior and generated-response limits
+remain Tasks #1069 and #1070 respectively.
 
 Do not commit credentials or other secrets. The Ollama endpoint remains fixed
 to loopback. No secret, remote endpoint, prompt-file, or persistent
@@ -360,6 +384,7 @@ KAOS does not start or own the local Ollama process.
 - [Ollama connectivity](../evolution/ollama-connectivity.md)
 - [Ollama model configuration](../evolution/ollama-model-configuration.md)
 - [Ollama context-window benchmark](../evolution/ollama-context-window-benchmark.md)
+- [Ollama model scenario benchmark](../evolution/ollama-model-scenario-benchmark.md)
 - [Ollama prompt submission](../evolution/ollama-prompt-submission.md)
 
 The detailed references retain acceptance evidence, internal contracts, and

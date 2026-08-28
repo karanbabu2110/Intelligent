@@ -42,7 +42,7 @@ Confirm that Ollama is running and choose one model already installed locally:
 
 ```powershell
 ollama list
-$env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 ./gradlew.bat run --args=ollama-model
 ```
 
@@ -56,7 +56,7 @@ batch wrapper:
 The POSIX-shell equivalent is:
 
 ```bash
-export KAOS_OLLAMA_MODEL=qwen3:8b
+export KAOS_OLLAMA_MODEL=qwen3:4b-instruct
 ./gradlew run --args='ollama-prompt "Why is the sky blue?"'
 ```
 

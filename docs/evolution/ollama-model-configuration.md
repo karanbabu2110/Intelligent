@@ -44,7 +44,7 @@ injection.
 For the Gradle workflow, set the environment variable:
 
 ```powershell
-$env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
 ./gradlew.bat run --args=ollama-model --no-daemon
 ```
@@ -52,14 +52,14 @@ $env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
 Expected output:
 
 ```text
-Configured local Ollama model: qwen3:8b (context window: 4096 tokens).
+Configured local Ollama model: qwen3:4b-instruct (context window: 4096 tokens).
 ```
 
 A direct JVM launch can give the system property precedence:
 
 ```powershell
 ./gradlew.bat classes --no-daemon
-java -Dkaos.ollama.model=qwen3:8b -cp build/classes/java/main io.kaos.app.KaosApplication ollama-model
+java -Dkaos.ollama.model=qwen3:4b-instruct -cp build/classes/java/main io.kaos.app.KaosApplication ollama-model
 ```
 
 If no model is configured, KAOS returns constant recovery guidance without
@@ -85,6 +85,9 @@ plugin, repository, worker, or service is justified.
 
 The context decision and repeatable measurements are recorded in the
 [Ollama context-window benchmark](ollama-context-window-benchmark.md).
+The separate [model scenario benchmark](ollama-model-scenario-benchmark.md)
+recommends explicit smoke-test, ordinary, and reasoning profiles without
+turning any recommendation into an application default or fallback.
 
 ## Security and privacy
 
@@ -122,6 +125,8 @@ Commands:
 - KAOS does not check whether the configured model is installed or available.
 - No default model, model discovery, download, installation, loading, or pull
   confirmation exists.
+- Scenario recommendations are developer guidance only. KAOS does not inspect
+  the prompt, route between profiles, or replace an unavailable selection.
 - The 4K context default is selected for current ordinary prompts on the
   measured development machine. It is not a promise that every future RAG,
   conversation, coding, or agent workload fits in 4K.
@@ -143,12 +148,13 @@ Commands:
 | Complete verification | Clean `verifyLocal` passes all 80 tests and application smoke checks |
 | No future architecture prerequisite | Existing package and direct call; no new runtime dependency or stronger boundary |
 | User control and privacy | Explicit model/context control, no automatic download, no persistence, safe errors |
-| #814-only evidence | Feature #846, Tasks #1063-#1064 and #1067, source, tests, benchmark, and current documentation |
+| #814-only evidence | Feature #846, Tasks #1063-#1064 and #1067-#1068, source, tests, benchmarks, and current documentation |
 
 ## Handoff
 
 Feature 002.02 has been reopened from real prompt-performance evidence. Task
 [#1067](https://github.com/karanbabu2110/KAOS/issues/1067) owns the context
-decision; Tasks #1068-#1070 remain the model, thinking, and response-limit
-follow-ups. Response streaming remains Feature
+decision and [#1068](https://github.com/karanbabu2110/KAOS/issues/1068) owns
+the measured scenario recommendations. Tasks #1069-#1070 remain the thinking
+and response-limit follow-ups. Response streaming remains Feature
 [#848](https://github.com/karanbabu2110/KAOS/issues/848).

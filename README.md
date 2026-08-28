@@ -70,7 +70,7 @@ unavailable or its version response is invalid, KAOS returns a safe
 Select and inspect the model that later AI commands will use:
 
 ```powershell
-$env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
 ./gradlew.bat run --args=ollama-model
 ```
@@ -83,7 +83,7 @@ Submit one prompt to the configured model and print one complete response. In
 PowerShell, `--%` preserves the nested quotes through the Gradle batch wrapper:
 
 ```powershell
-$env:KAOS_OLLAMA_MODEL = "qwen3:8b"
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 ./gradlew.bat --% run --args="ollama-prompt \"Why is the sky blue?\""
 ```
 
@@ -95,6 +95,14 @@ minutes. KAOS does not echo prompts or raw Ollama failures in errors. However,
 the quoted prompt can remain in shell history or be visible as a process
 argument, so this developer CLI is not an appropriate input surface for
 secrets or other private prompts.
+
+The model remains your explicit choice. Current measurements recommend
+`qwen3:1.7b` only for a fast connectivity smoke test,
+`qwen3:4b-instruct` for ordinary local development, and `qwen3:4b` only for
+opt-in reasoning where extra latency and token use are acceptable. These are
+developer profiles, not hard-coded defaults or automatic fallbacks. See the
+[model scenario benchmark](docs/evolution/ollama-model-scenario-benchmark.md)
+for the controlled process, results, and limitations.
 
 Handled startup or application failures return exit code `1` and emit one safe
 record such as `ERROR [KAOS-CONFIG-001] ...` on standard error. Expected CLI
