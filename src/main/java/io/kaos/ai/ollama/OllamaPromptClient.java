@@ -94,38 +94,42 @@ public final class OllamaPromptClient {
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofByteArray(requestBody)).build();
         long deadlineNanos = System.nanoTime() + requestTimeout.toNanos();
+        HttpResponse<Flow.Publisher<List<ByteBuffer>>> response;
         try {
-            HttpResponse<Flow.Publisher<List<ByteBuffer>>> response = httpClient.send(
+            response = httpClient.send(
                     request, HttpResponse.BodyHandlers.ofPublisher());
-            try (InputStream responseBody = new PublisherInputStream(
-                    response.body(), MAX_RESPONSE_BYTES, deadlineNanos, inactivityTimeout)) {
-                if (response.statusCode() != 200) {
-                    return Result.failed(Status.REQUEST_FAILED);
-                }
-                if (!isNdjson(response)) {
-                    return Result.failed(Status.INVALID_RESPONSE);
-                }
-                return decodeStream(responseBody, model.thinkingMode(), thinkingStarted,
-                        answerChunkConsumer);
-            }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return Result.failed(Status.INTERRUPTED);
         } catch (HttpTimeoutException exception) {
-            return Result.failed(Status.TIMED_OUT);
+            return Result.failed(Status.TOTAL_TIMEOUT);
+        } catch (IOException | SecurityException exception) {
+            return Result.failed(Status.UNAVAILABLE);
+        }
+
+        try (InputStream responseBody = new PublisherInputStream(
+                response.body(), MAX_RESPONSE_BYTES, deadlineNanos, inactivityTimeout)) {
+            if (response.statusCode() != 200) {
+                return Result.failed(Status.REQUEST_FAILED);
+            }
+            if (!isNdjson(response)) {
+                return Result.failed(Status.INVALID_RESPONSE);
+            }
+            return decodeStream(responseBody, model.thinkingMode(), thinkingStarted,
+                    answerChunkConsumer);
         } catch (StreamInterruptedException exception) {
             Thread.currentThread().interrupt();
             return Result.failed(Status.INTERRUPTED);
         } catch (StreamTimeoutException exception) {
-            return Result.failed(Status.TIMED_OUT);
+            return Result.failed(exception.status());
         } catch (StreamLimitException exception) {
             return Result.failed(Status.LOCAL_LIMIT_REACHED);
         } catch (CharacterCodingException exception) {
             return Result.failed(Status.INVALID_RESPONSE);
         } catch (UnsafeStreamContentException exception) {
             return Result.failed(Status.INVALID_RESPONSE);
-        } catch (IOException | SecurityException exception) {
-            return Result.failed(Status.UNAVAILABLE);
+        } catch (IOException exception) {
+            return Result.failed(Status.STREAM_FAILED);
         }
     }
 
@@ -394,9 +398,10 @@ public final class OllamaPromptClient {
         }
     }
 
-    /** Minimal categories that later AI failure-handling work may refine. */
+    /** Safe outcome categories for one local Ollama prompt lifecycle. */
     public enum Status { SUCCESS, TOKEN_LIMIT_REACHED, UNAVAILABLE, REQUEST_FAILED,
-        INVALID_RESPONSE, LOCAL_LIMIT_REACHED, TIMED_OUT, INTERRUPTED }
+        INVALID_RESPONSE, STREAM_FAILED, LOCAL_LIMIT_REACHED, TOTAL_TIMEOUT,
+        INACTIVITY_TIMEOUT, INTERRUPTED }
 
     private static final class PublisherInputStream extends InputStream {
         private final PublisherSubscriber subscriber;
@@ -444,8 +449,9 @@ public final class OllamaPromptClient {
             long remainingNanos = deadlineNanos - System.nanoTime();
             if (remainingNanos <= 0) {
                 subscriber.cancel();
-                throw new StreamTimeoutException();
+                throw new StreamTimeoutException(Status.TOTAL_TIMEOUT);
             }
+            boolean totalDeadlineFirst = remainingNanos <= inactivityTimeoutNanos;
             StreamEvent event;
             try {
                 event = subscriber.poll(Math.min(remainingNanos, inactivityTimeoutNanos));
@@ -456,7 +462,8 @@ public final class OllamaPromptClient {
             }
             if (event == null) {
                 subscriber.cancel();
-                throw new StreamTimeoutException();
+                throw new StreamTimeoutException(totalDeadlineFirst
+                        ? Status.TOTAL_TIMEOUT : Status.INACTIVITY_TIMEOUT);
             }
             switch (event.type()) {
                 case DATA -> {
@@ -465,7 +472,7 @@ public final class OllamaPromptClient {
                 }
                 case COMPLETE -> complete = true;
                 case LIMIT -> throw new StreamLimitException();
-                case TIMEOUT -> throw new StreamTimeoutException();
+                case TIMEOUT -> throw new StreamTimeoutException(Status.TOTAL_TIMEOUT);
                 case FAILED -> throw new IOException("Ollama response stream failed.");
             }
         }
@@ -609,6 +616,16 @@ public final class OllamaPromptClient {
 
     private static final class StreamTimeoutException extends IOException {
         private static final long serialVersionUID = 1L;
+
+        private final Status status;
+
+        private StreamTimeoutException(Status status) {
+            this.status = Objects.requireNonNull(status, "status");
+        }
+
+        private Status status() {
+            return status;
+        }
     }
 
     private static final class StreamLimitException extends IOException {

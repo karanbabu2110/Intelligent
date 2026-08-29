@@ -335,7 +335,7 @@ class KaosApplicationTest {
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
         assertEquals("safe prefix" + System.lineSeparator(), result.standardOutput());
         assertEquals(
-                "ERROR [KAOS-AI-002] Partial streaming output was displayed before clean "
+                "ERROR [KAOS-AI-006] Partial streaming output was displayed before clean "
                         + "completion. The Ollama prompt request was cancelled. Retry when ready."
                         + System.lineSeparator(),
                 result.errorOutput());
@@ -406,18 +406,78 @@ class KaosApplicationTest {
     }
 
     @Test
-    void reportsPromptTimeoutWithActionableGuidance() {
+    void reportsUnavailableOllamaBeforeThePromptResponseBegins() {
         KaosApplicationHarness.Result result = runOllamaPrompt(
                 "private prompt",
-                () -> new OllamaModelConfiguration("slow-model"),
+                () -> new OllamaModelConfiguration("qwen3:4b-instruct"),
                 (model, prompt, thinking, chunks) -> new OllamaPromptClient.Result(
-                        OllamaPromptClient.Status.TIMED_OUT, "", ""));
+                        OllamaPromptClient.Status.UNAVAILABLE, "", ""));
 
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
         assertEquals("", result.standardOutput());
         assertEquals(
-                "ERROR [KAOS-AI-002] The Ollama prompt request timed out. "
-                        + "Try again or select a faster local model."
+                "ERROR [KAOS-AI-001] Local Ollama could not be reached before the prompt "
+                        + "response began. Start Ollama on 127.0.0.1:11434 and retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains("private prompt"));
+    }
+
+    @Test
+    void reportsAcceptedStreamTransportFailureSeparatelyFromUnavailability() {
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                "private prompt",
+                () -> new OllamaModelConfiguration("qwen3:4b-instruct"),
+                (model, prompt, thinking, chunks) -> {
+                    chunks.accept("safe prefix");
+                    return new OllamaPromptClient.Result(
+                            OllamaPromptClient.Status.STREAM_FAILED, "", "");
+                });
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("safe prefix" + System.lineSeparator(), result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-004] Partial streaming output was displayed before clean "
+                        + "completion. The accepted Ollama response stream lost its local "
+                        + "connection. Verify Ollama is still running, then retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains("private prompt"));
+    }
+
+    @Test
+    void reportsTotalPromptTimeoutWithActionableGuidance() {
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                "private prompt",
+                () -> new OllamaModelConfiguration("slow-model"),
+                (model, prompt, thinking, chunks) -> new OllamaPromptClient.Result(
+                        OllamaPromptClient.Status.TOTAL_TIMEOUT, "", ""));
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-005] The Ollama prompt exceeded its five-minute total "
+                        + "deadline. Shorten the request or select a faster local model, "
+                        + "then retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains("private prompt"));
+    }
+
+    @Test
+    void reportsStreamInactivityTimeoutWithDifferentRecoveryGuidance() {
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                "private prompt",
+                () -> new OllamaModelConfiguration("stalled-model"),
+                (model, prompt, thinking, chunks) -> new OllamaPromptClient.Result(
+                        OllamaPromptClient.Status.INACTIVITY_TIMEOUT, "", ""));
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-005] The Ollama response stream produced no data for 60 "
+                        + "seconds. Verify Ollama is still progressing or select a faster "
+                        + "local model, then retry."
                         + System.lineSeparator(),
                 result.errorOutput());
         assertFalse(result.errorOutput().contains("private prompt"));

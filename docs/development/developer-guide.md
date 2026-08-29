@@ -445,9 +445,10 @@ request is reported only when that request is submitted.
 ### An Ollama answer reaches a length boundary
 
 `KAOS-AI-003` means Ollama returned `done_reason: length`. KAOS intentionally
-does not print the partial answer. Review both the response-token limit and
-context window, then retry with a larger bounded value only when the request
-needs it. A larger response limit does not create additional context capacity.
+labels any progressively displayed answer as partial. Review both the
+response-token limit and context window, then retry with a larger bounded value
+only when the request needs it. A larger response limit does not create
+additional context capacity.
 
 ### Ollama is unavailable
 
@@ -457,17 +458,32 @@ does not support changing the endpoint, retrying automatically, or connecting
 to a remote host. An invalid response should be treated as an Ollama
 installation/version problem rather than printed as raw provider data.
 
+For `ollama-prompt`, `KAOS-AI-001` specifically means the request could not
+reach Ollama before a response began. Once Ollama accepts the request and starts
+a response, a later local transport loss is reported separately as
+`KAOS-AI-004`.
+
 ### An Ollama prompt fails or times out
 
 First run `ollama-status`, then use `ollama list` to confirm that the configured
-model is installed. A rejected request returns `KAOS-AI-002` without the raw
-Ollama body. Validated answer content is displayed progressively, but model
-loading can still delay the first chunk. KAOS allows at most 60 seconds without
-provider data and five minutes overall, then cancels the subscription and
-suggests retrying or choosing a faster installed model. Malformed, incomplete,
-or locally oversized streams fail safely. If output was visible, treat it as
-partial and do not retry automatically; decide whether a new prompt is safe.
-Broader reusable error and timeout taxonomy remains Feature #849.
+model is installed. The prompt diagnostics identify the failed boundary:
+
+| Code | Meaning | Recovery |
+| --- | --- | --- |
+| `KAOS-AI-001` | Ollama was unreachable before the response began | Start Ollama on loopback and retry |
+| `KAOS-AI-002` | Ollama rejected the request or returned invalid response data | Verify the configured model and local Ollama installation |
+| `KAOS-AI-003` | Ollama or KAOS reached a provider or local generation limit | Review the context, response-token, and request size bounds |
+| `KAOS-AI-004` | An accepted response stream lost its local transport | Verify Ollama is still running before retrying |
+| `KAOS-AI-005` | The five-minute total deadline or 60-second inactivity deadline expired | Follow the message to shorten the request, check progress, or select a faster model |
+| `KAOS-AI-006` | The command was cancelled | Retry only when ready |
+
+Validated answer content is displayed progressively, but model loading can
+still delay the first chunk. KAOS cancels a timed-out stream and reports whether
+the complete request deadline or no-data deadline expired. Malformed,
+incomplete, or locally oversized streams fail safely. If output was visible,
+treat it as partial and do not retry automatically; decide whether a new prompt
+is safe. Diagnostics never include the prompt, raw provider body, reasoning,
+configured private values, or exception details.
 
 ### Stop a running Gradle command
 

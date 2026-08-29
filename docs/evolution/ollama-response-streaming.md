@@ -182,7 +182,7 @@ thinking text, or exception details in failure diagnostics.
 The Ctrl+C shutdown hook exists only for the lifetime of the foreground command
 and waits at most two seconds for cleanup. It does not stop or own Ollama. The
 CLI still accepts one prompt and has no conversation, retry, resume, persistence,
-remote-provider, or concurrent-request behavior. Broader reusable error and
-timeout taxonomy remains Feature
-[#849](https://github.com/karanbabu2110/KAOS/issues/849). Feature #848 remains in
-progress through its complete review and pull request.
+remote-provider, or concurrent-request behavior. Feature
+[#849](https://github.com/karanbabu2110/KAOS/issues/849) now owns the implemented
+phase-specific error and timeout taxonomy. Feature #848 was completed and
+merged through [PR #22](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/22).
