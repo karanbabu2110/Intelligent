@@ -16,8 +16,10 @@ accepted. `auto`, provider level names, blanks, and unknown values fail as
 invalid configuration.
 
 KAOS keeps Ollama's `thinking` field separate from its final `response` field.
-The current terminal command prints only the final response. It does not print,
-stream, log, or persist the reasoning trace.
+Task [#1072](https://github.com/karanbabu2110/KAOS/issues/1072) adds a
+content-free `Thinking...` progress line before the labeled answer when
+thinking is explicitly on. It does not print, stream, log, or persist the raw
+reasoning trace.
 
 ## Provider contract
 
@@ -202,8 +204,8 @@ Verified on 2026-08-28:
   while the complete JSON body remains bounded to 1 MiB.
 - Reasoning and answers are not logged or persisted. Result diagnostics omit
   both generated fields.
-- Raw reasoning is not terminal progress. Opt-in thinking streaming remains
-  Task 002.04.02 under Feature #848.
+- Raw reasoning is not terminal progress. Task 002.04.02 exposes only a
+  content-free thinking-start signal and keeps the trace hidden.
 - `AUTO`, provider-specific profiles, prompt classification, routing, and
   automatic limit expansion remain unimplemented.
 
@@ -217,7 +219,7 @@ Verified on 2026-08-28:
    thinking text, final response, completion reason, and `ollama ps` state.
 5. Compare content as well as timing; an accepted provider value is not useful
    when it produces identical behavior.
-6. Keep benchmark streaming separate from the current non-streamed KAOS
-   implementation.
+6. Keep the raw provider benchmark separate from KAOS application streaming so
+   benchmark collection never exposes reasoning through the terminal command.
 7. Re-run on a changed model build, Ollama version, target machine, or materially
    different reasoning workload before revising the policy.

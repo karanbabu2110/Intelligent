@@ -10,8 +10,8 @@ inside the verified single application.
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815) and [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
 - Active epic: [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
 - Completed Epic 002 features: [002.01 — Ollama Connectivity](https://github.com/karanbabu2110/KAOS/issues/845), [002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), and [002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847)
-- Next approved feature: [002.04 — Response Streaming](https://github.com/karanbabu2110/KAOS/issues/848)
-- Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded non-streamed prompt flow, and one JSON runtime library
+- Active feature: [002.04 — Response Streaming](https://github.com/karanbabu2110/KAOS/issues/848); Tasks [002.04.01](https://github.com/karanbabu2110/KAOS/issues/1071) and [002.04.02](https://github.com/karanbabu2110/KAOS/issues/1072) completed answer and thinking presentation, while active Task [002.04.03](https://github.com/karanbabu2110/KAOS/issues/1073) completes cancellation and boundary handling
+- Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming prompt flow, and one JSON runtime library
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -84,7 +84,8 @@ KAOS requires an explicit selection and does not assume or download a default
 model. This command validates and displays the selection without contacting
 Ollama, submitting a prompt, or loading the model.
 
-Submit one prompt to the configured model and print one complete response. In
+Submit one prompt to the configured model and print validated answer chunks as
+they arrive. In
 PowerShell, `--%` preserves the nested quotes through the Gradle batch wrapper:
 
 ```powershell
@@ -95,12 +96,19 @@ $env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "512"
 ```
 
 The request goes only to the fixed loopback endpoint
-`http://127.0.0.1:11434/api/generate`, uses JSON, and explicitly disables
-streaming. Ordinary requests explicitly disable thinking and use a 512-token
+`http://127.0.0.1:11434/api/generate`, requests streaming NDJSON, validates each
+answer chunk before printing it, and assembles the same chunks into one bounded
+final answer. Ordinary requests explicitly disable thinking and use a 512-token
 generation default. The prompt is limited to 4,096 characters; the response is
 limited to 1 MiB and 65,536 characters; and the complete request is bounded to
-five minutes. A provider length stop returns `KAOS-AI-003` without printing a
-partial answer. KAOS does not echo prompts
+five minutes with a 60-second no-data deadline. Ordinary thinking-off requests
+show only answer content. Explicit thinking-on requests show `Thinking...`, then
+`Answer:`, without displaying raw reasoning. Ctrl+C interrupts the command and
+cancels the response subscription. Provider truncation, local byte/text limits,
+timeouts, cancellation, malformed records, and incomplete streams remain
+distinct outcomes. If one occurs after visible content, KAOS terminates the
+stdout line and identifies the output as partial in safe stderr guidance. KAOS
+does not retry after partial output and does not echo prompts
 or raw Ollama failures in errors. However,
 the quoted prompt can remain in shell history or be visible as a process
 argument, so this developer CLI is not an appropriate input surface for
@@ -123,9 +131,10 @@ $env:KAOS_OLLAMA_THINKING = "on"
 ./gradlew.bat --% run --args="ollama-prompt \"<reasoning prompt>\""
 ```
 
-KAOS sends `think: true` but prints only the final answer; the provider's
-thinking trace remains separate and hidden. Unsupported models fail safely and
-are not replaced or retried automatically. See the
+KAOS sends `think: true`. When the provider emits separated thinking, KAOS
+prints one `Thinking...` progress line and then transitions to an `Answer:`
+section while keeping the raw reasoning trace hidden. Unsupported models fail
+safely and are not replaced or retried automatically. See the
 [thinking policy and benchmark](docs/evolution/ollama-thinking-policy-and-benchmark.md).
 Thinking-on requests default to 2,048 generated tokens. Set
 `KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT` to a deliberate value from 64 through 4,096
@@ -193,8 +202,9 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-001 and Features #845, #846, and #847 are complete. The prepared
-`0.1.0` checkpoint captures the current bounded, non-streamed local-AI
-application. After it is merged, validated, tagged, and published, continue
-Epic #3 with Response Streaming Feature #848. No later capability is included
-in `0.1.0`.
+Epics 000-001 and Features #845, #846, and #847 are complete in released
+`v0.1.0`. Epic #3 continues with active Response Streaming Feature #848. Task
+#1071 adds incremental answer content, #1072 adds opt-in thinking progress, and
+#1073 completes the bounded cancellation and partial-output policy. Feature
+#848 remains in progress through its complete review and pull request; Feature
+#849 remains the next approved error-and-timeout checkpoint.

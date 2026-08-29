@@ -4,10 +4,12 @@
  *
  * <p>This package owns local reachability, explicit model selection, bounded
  * context and response-token configuration, explicit thinking control, and one
- * non-streamed prompt request whose thinking and final answer remain separate.
- * It reports provider length completion without presenting partial output as a
- * complete answer. It does not
- * define response streaming, a provider-neutral abstraction, or a separate
- * runtime boundary.</p>
+ * streaming prompt request whose validated answer chunks are assembled into the
+ * same bounded final answer. Explicitly enabled thinking produces only a
+ * content-free progress signal; raw reasoning remains separate from terminal
+ * output. Streaming is backpressured one publisher item at a time, bounded by
+ * total and inactivity deadlines, and cancelled when the command thread is
+ * interrupted or a hard local limit is reached. The package does not define a
+ * provider-neutral abstraction or a separate runtime boundary.</p>
  */
 package io.kaos.ai.ollama;

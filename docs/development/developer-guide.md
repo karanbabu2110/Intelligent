@@ -151,15 +151,26 @@ export KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT=512
 ```
 
 The command validates a single 4,096-character prompt, loads the explicit
-model selection, sends `POST /api/generate` to the fixed loopback Ollama
-endpoint with `stream` set to `false`, and prints only the complete generated
-text. It also sends `think: false` and `options.num_predict: 512` for this
-ordinary configuration. A natural provider stop prints the answer; a length
-stop returns `KAOS-AI-003` without printing partial output. The response body is
-bounded to 1 MiB, generated text to 65,536 characters, and the request to five
-minutes. There is no streaming, retry,
-conversation, system-prompt, tool, image, remote-provider, or persistence
-behavior.
+model selection, and sends `POST /api/generate` to the fixed loopback Ollama
+endpoint with `stream` set to `true`. It parses newline-delimited JSON as it
+arrives, validates each answer chunk, prints and flushes it once, and assembles
+the same chunks into the bounded final answer. It also sends `think: false` and
+`options.num_predict: 512` for this ordinary configuration. The response body
+is bounded to 1 MiB, generated answer and hidden thinking text to 65,536 Unicode
+code points each, inactivity to 60 seconds, and the complete request to five
+minutes. The HTTP publisher supplies one bounded item at a time. Ordinary
+thinking-off requests retain the unlabeled answer stream. Explicit thinking-on
+requests show a content-free progress line and an answer heading without
+displaying raw reasoning. There is no retry after visible output, conversation,
+system-prompt, tool, image, remote-provider, or persistence behavior.
+
+Clean `done_reason: stop` completion returns exit `0`. Provider
+`done_reason: length`, local byte/text ceilings, inactivity or total timeout,
+thread interruption, malformed/incomplete streams, and transport failure return
+exit `1` through distinct internal outcomes. When content was already visible,
+KAOS finishes the stdout line before printing a coded stderr error beginning
+`Partial streaming output was displayed before clean completion.` It never
+includes the prompt, raw response record, reasoning, or exception detail.
 
 The CLI argument can remain in shell history and may be visible to local
 process inspection. Do not use this developer command for secrets or other
@@ -224,11 +235,14 @@ $env:KAOS_OLLAMA_THINKING = "on"
 ./gradlew.bat --% run --args="ollama-prompt \"<reasoning prompt>\""
 ```
 
-KAOS sends the boolean mode explicitly. When thinking is on, it keeps Ollama's
-`thinking` field separate and prints only the final `response`. It does not
-display raw reasoning, infer a mode from the prompt, retry with thinking off,
-or substitute a model. An unsupported model therefore fails through the safe
-prompt-rejection path.
+KAOS sends the boolean mode explicitly. When thinking is on and the provider
+emits thinking records, KAOS prints `Thinking...` once, then prints `Answer:`
+before streaming final-answer chunks. Raw reasoning remains separately bounded
+and is never printed, logged, or included in errors. If the provider emits no
+thinking, KAOS does not claim that thinking occurred and begins with `Answer:`.
+It does not infer a mode from the prompt, retry with thinking off, or substitute
+a model. An unsupported model therefore fails through the safe prompt-rejection
+path.
 
 The response-token-limit precedence is:
 
@@ -447,16 +461,22 @@ installation/version problem rather than printed as raw provider data.
 
 First run `ollama-status`, then use `ollama list` to confirm that the configured
 model is installed. A rejected request returns `KAOS-AI-002` without the raw
-Ollama body. A complete non-streamed generation may take several minutes while
-a model loads or generates on CPU; KAOS waits at most five minutes and then
-suggests retrying or choosing a faster installed model. Response Streaming
-Feature #848 is intentionally deferred and will provide progressive output.
+Ollama body. Validated answer content is displayed progressively, but model
+loading can still delay the first chunk. KAOS allows at most 60 seconds without
+provider data and five minutes overall, then cancels the subscription and
+suggests retrying or choosing a faster installed model. Malformed, incomplete,
+or locally oversized streams fail safely. If output was visible, treat it as
+partial and do not retry automatically; decide whether a new prompt is safe.
+Broader reusable error and timeout taxonomy remains Feature #849.
 
 ### Stop a running Gradle command
 
-Use the shell's normal interrupt, typically Ctrl+C. The current workflow has no
-background application worker, retry loop, or product state requiring rollback.
-KAOS does not start or own the local Ollama process.
+Use the shell's normal interrupt, typically Ctrl+C. While the command is active,
+KAOS translates process shutdown into command-thread interruption, cancels the
+HTTP response subscription, stops further terminal output, and waits up to two
+seconds for resource cleanup. It does not retry or resume the partial response.
+The current workflow has no background application worker or product state
+requiring rollback. KAOS does not start or own the local Ollama process.
 
 ## Detailed references
 
