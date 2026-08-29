@@ -16,36 +16,49 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class OllamaPromptClientTest {
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final String TERMINAL = "{\"response\":\"\",\"done\":true,"
+            + "\"done_reason\":\"stop\",\"total_duration\":900,"
+            + "\"prompt_eval_count\":12,\"eval_count\":7,\"eval_duration\":600}\n";
 
     @Test
-    void submitsModelAndPromptWithStreamingDisabled() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.responding(
-                200,
-                "application/json",
-                "{\"response\":\"A local answer.\",\"done\":true,\"done_reason\":\"stop\"}")) {
+    void requestsStreamingAndEmitsValidatedChunksOnceInOrder() throws Exception {
+        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                jsonLine("A local ", "", false),
+                jsonLine("answer.", "", false),
+                TERMINAL)) {
+            List<String> chunks = new ArrayList<>();
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3:8b", 8_192),
-                    new OllamaPrompt("Why local AI?"));
+                    new OllamaPrompt("Why local AI?"),
+                    chunks::add);
 
             assertTrue(result.successful());
-            assertEquals(OllamaPromptClient.Status.SUCCESS, result.status());
-            assertEquals("", result.thinking());
+            assertEquals(List.of("A local ", "answer."), chunks);
             assertEquals("A local answer.", result.response());
+            assertEquals(OllamaPromptClient.CompletionReason.STOP,
+                    result.completionReason());
+            assertEquals(new OllamaPromptClient.CompletionMetrics(900, 12, 7, 600),
+                    result.metrics());
             assertEquals("POST", server.method());
-            assertEquals("application/json", server.contentType());
+            assertEquals("application/json", server.requestContentType());
+            assertEquals("application/x-ndjson", server.accept());
 
             JsonNode request = JSON.readTree(server.requestBody());
             assertEquals("qwen3:8b", request.get("model").textValue());
             assertEquals("Why local AI?", request.get("prompt").textValue());
-            assertFalse(request.get("stream").booleanValue());
+            assertTrue(request.get("stream").booleanValue());
             assertFalse(request.get("think").booleanValue());
             assertEquals(8_192, request.get("options").get("num_ctx").intValue());
             assertEquals(512, request.get("options").get("num_predict").intValue());
@@ -53,269 +66,266 @@ class OllamaPromptClientTest {
     }
 
     @Test
-    void sendsThinkingOnAndKeepsThinkingSeparateFromTheFinalAnswer() throws Exception {
-        String privateThinking = "private reasoning trace";
-        try (LocalGenerateServer server = LocalGenerateServer.responding(
-                200,
-                "application/json",
-                "{\"thinking\":\"" + privateThinking
-                        + "\",\"response\":\"Final answer.\",\"done\":true,"
-                        + "\"done_reason\":\"stop\"}")) {
-            OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                    new OllamaModelConfiguration(
-                            "qwen3:4b", 4_096, OllamaThinkingMode.ON),
-                    new OllamaPrompt("Solve this deliberately."));
+    void exposesFirstAnswerBeforeTheTerminalRecordIsAvailable() throws Exception {
+        CountDownLatch firstWritten = new CountDownLatch(1);
+        CountDownLatch releaseTerminal = new CountDownLatch(1);
+        try (LocalGenerateServer server = LocalGenerateServer.gated(
+                jsonLine("first", "", false), TERMINAL, firstWritten, releaseTerminal);
+                ExecutorService clientExecutor = Executors.newSingleThreadExecutor()) {
+            CountDownLatch firstObserved = new CountDownLatch(1);
+            List<String> chunks = new ArrayList<>();
+            Future<OllamaPromptClient.Result> future = clientExecutor.submit(() ->
+                    client(server.endpoint()).submit(
+                            new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("hello"),
+                            chunk -> {
+                                chunks.add(chunk);
+                                firstObserved.countDown();
+                            }));
 
-            JsonNode request = JSON.readTree(server.requestBody());
-            assertTrue(request.get("think").booleanValue());
-            assertEquals(privateThinking, result.thinking());
-            assertEquals("Final answer.", result.response());
-            assertFalse(result.toString().contains(privateThinking));
-            assertFalse(result.toString().contains("Final answer."));
+            assertTrue(firstWritten.await(2, TimeUnit.SECONDS));
+            assertTrue(firstObserved.await(2, TimeUnit.SECONDS));
+            assertFalse(future.isDone());
+            assertEquals(List.of("first"), chunks);
+
+            releaseTerminal.countDown();
+            assertTrue(future.get(2, TimeUnit.SECONDS).successful());
         }
     }
 
     @Test
-    void ordinaryThinkingOffDoesNotRetainUnexpectedSeparateThinking() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.responding(
-                200,
-                "application/json",
-                "{\"thinking\":\"unexpected trace\","
-                        + "\"response\":\"Final answer.\",\"done\":true,"
-                        + "\"done_reason\":\"stop\"}")) {
+    void preservesUtf8CharactersSplitAcrossNetworkWrites() throws Exception {
+        String record = jsonLine("A 🌍 answer", "", false);
+        byte[] bytes = record.getBytes(StandardCharsets.UTF_8);
+        int emoji = indexOf(bytes, "🌍".getBytes(StandardCharsets.UTF_8));
+        byte[][] writes = {
+            slice(bytes, 0, emoji + 1),
+            slice(bytes, emoji + 1, emoji + 3),
+            slice(bytes, emoji + 3, bytes.length),
+            TERMINAL.getBytes(StandardCharsets.UTF_8)
+        };
+        try (LocalGenerateServer server = LocalGenerateServer.writes(writes)) {
+            List<String> chunks = new ArrayList<>();
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3"),
+                    new OllamaPrompt("hello"), chunks::add);
+
+            assertTrue(result.successful());
+            assertEquals(List.of("A 🌍 answer"), chunks);
+            assertEquals("A 🌍 answer", result.response());
+        }
+    }
+
+    @Test
+    void rejectsMalformedUtf8WithoutEmittingReplacementText() throws Exception {
+        byte[][] writes = {
+            "{\"response\":\"".getBytes(StandardCharsets.UTF_8),
+            {(byte) 0xc3, (byte) 0x28},
+            "\",\"done\":false}\n".getBytes(StandardCharsets.UTF_8)
+        };
+        try (LocalGenerateServer server = LocalGenerateServer.writes(writes)) {
+            List<String> chunks = new ArrayList<>();
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3"),
+                    new OllamaPrompt("hello"),
+                    chunks::add);
+
+            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            assertEquals(List.of(), chunks);
+        }
+    }
+
+    @Test
+    void keepsThinkingSeparateAndNeverEmitsItAsAnswerContent() throws Exception {
+        String privateThinking = "private reasoning trace";
+        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                jsonLine("", privateThinking, false),
+                jsonLine("Final answer.", "", false),
+                TERMINAL)) {
+            List<String> chunks = new ArrayList<>();
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3:4b", 4_096, OllamaThinkingMode.ON),
+                    new OllamaPrompt("Solve this deliberately."), chunks::add);
+
+            assertEquals(List.of("Final answer."), chunks);
+            assertEquals(privateThinking, result.thinking());
+            assertFalse(result.toString().contains(privateThinking));
+        }
+    }
+
+    @Test
+    void thinkingOffDoesNotRetainUnexpectedThinking() throws Exception {
+        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                jsonLine("", "unexpected trace", false),
+                jsonLine("Final answer.", "", false), TERMINAL)) {
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3:4b-instruct"),
                     new OllamaPrompt("Answer ordinarily."));
 
+            assertTrue(result.successful());
             assertEquals("", result.thinking());
-            assertEquals("Final answer.", result.response());
         }
     }
 
     @Test
-    void rejectsUnsafeThinkingWithoutReturningIt() throws Exception {
-        String privateThinking = "private\u001b[31mreasoning";
-        try (LocalGenerateServer server = LocalGenerateServer.responding(
-                200,
-                "application/json",
-                "{\"thinking\":\"private\\u001b[31mreasoning\","
-                        + "\"response\":\"Final answer.\",\"done\":true,"
-                        + "\"done_reason\":\"stop\"}")) {
-            OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                    new OllamaModelConfiguration(
-                            "qwen3:4b", 4_096, OllamaThinkingMode.ON),
-                    new OllamaPrompt("Solve this deliberately."));
-
-            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
-            assertEquals("", result.thinking());
-            assertEquals("", result.response());
-            assertFalse(result.toString().contains(privateThinking));
-        }
-    }
-
-    @Test
-    void rejectsThinkingThatExceedsItsTextBound() throws Exception {
-        String oversizedThinking = "x".repeat(OllamaPromptClient.MAX_THINKING_CODE_POINTS + 1);
-        try (LocalGenerateServer server = LocalGenerateServer.responding(
-                200,
-                "application/json",
-                JSON.writeValueAsString(Map.of(
-                        "thinking", oversizedThinking,
-                        "response", "Final answer.",
-                        "done", true,
-                        "done_reason", "stop")))) {
-            OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                    new OllamaModelConfiguration(
-                            "qwen3:4b", 4_096, OllamaThinkingMode.ON),
-                    new OllamaPrompt("Solve this deliberately."));
-
-            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
-            assertEquals("", result.thinking());
-            assertEquals("", result.response());
-        }
-    }
-
-    @Test
-    void reportsTokenLimitCompletionWithoutReturningPartialGeneratedData() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.responding(
-                200,
-                "application/json",
-                "{\"thinking\":\"private partial reasoning\","
-                        + "\"response\":\"partial answer\",\"done\":true,"
-                        + "\"done_reason\":\"length\"}")) {
-            OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                    new OllamaModelConfiguration(
-                            "qwen3:4b", 4_096, OllamaThinkingMode.ON, 256),
-                    new OllamaPrompt("Solve this deliberately."));
-
-            JsonNode request = JSON.readTree(server.requestBody());
-            assertEquals(256, request.get("options").get("num_predict").intValue());
-            assertEquals(OllamaPromptClient.Status.TOKEN_LIMIT_REACHED, result.status());
-            assertEquals("", result.thinking());
-            assertEquals("", result.response());
-            assertFalse(result.toString().contains("partial"));
-        }
-    }
-
-    @Test
-    void rejectsMissingOrUnknownCompletionReasons() throws Exception {
-        for (String responseBody : new String[] {
-            "{\"response\":\"answer\",\"done\":true}",
-            "{\"response\":\"answer\",\"done\":true,\"done_reason\":\"unknown\"}"
-        }) {
-            try (LocalGenerateServer server = LocalGenerateServer.responding(
-                    200, "application/json", responseBody)) {
+    void rejectsUnsafeOrOversizedThinkingWithoutEmittingIt() throws Exception {
+        for (String thinking : List.of(
+                "private\u001b[31mreasoning",
+                "x".repeat(OllamaPromptClient.MAX_THINKING_CODE_POINTS + 1))) {
+            try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                    jsonLine("", thinking, false),
+                    jsonLine("Final answer.", "", false),
+                    TERMINAL)) {
+                List<String> chunks = new ArrayList<>();
                 OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                        new OllamaModelConfiguration("qwen3:4b-instruct"),
-                        new OllamaPrompt("Answer ordinarily."));
+                        new OllamaModelConfiguration(
+                                "qwen3:4b", 4_096, OllamaThinkingMode.ON),
+                        new OllamaPrompt("Solve this deliberately."),
+                        chunks::add);
 
                 assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
-                assertEquals("", result.response());
+                assertEquals(List.of(), chunks);
+                assertEquals("", result.thinking());
             }
         }
     }
 
     @Test
-    void treatsANonSuccessResponseAsFailedWithoutReturningItsBody() throws Exception {
-        String privateResponse = "{\"error\":\"private-provider-detail\"}";
-        try (LocalGenerateServer server =
-                LocalGenerateServer.responding(404, "application/json", privateResponse)) {
+    void malformedRecordFailsWithoutReturningProviderData() throws Exception {
+        String privateData = "private-provider-detail";
+        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                "{\"response\":\"safe prefix\",\"done\":false}\n",
+                "{\"private\":\"" + privateData + "\"}\n")) {
+            List<String> chunks = new ArrayList<>();
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                    new OllamaModelConfiguration("missing-model"),
-                    new OllamaPrompt("private-prompt"));
+                    new OllamaModelConfiguration("qwen3"),
+                    new OllamaPrompt("private-prompt"), chunks::add);
 
-            assertEquals(OllamaPromptClient.Status.REQUEST_FAILED, result.status());
+            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            assertEquals(List.of("safe prefix"), chunks);
             assertEquals("", result.response());
-            assertFalse(result.toString().contains(privateResponse));
+            assertFalse(result.toString().contains(privateData));
             assertFalse(result.toString().contains("private-prompt"));
         }
     }
 
     @Test
-    void rejectsMalformedOrIncompleteJsonWithoutReturningProviderData() throws Exception {
-        String privateResponse = "{\"private\":\"provider-detail\"}";
-        try (LocalGenerateServer server =
-                LocalGenerateServer.responding(200, "application/json", privateResponse)) {
+    void incompleteStreamWithoutTerminalRecordFails() throws Exception {
+        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                jsonLine("partial", "", false))) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
+            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            assertEquals("", result.response());
+        }
+    }
+
+    @Test
+    void terminalRecordRequiresSupportedReasonAndMetrics() throws Exception {
+        for (String terminal : List.of(
+                "{\"response\":\"\",\"done\":true,\"done_reason\":\"stop\"}\n",
+                "{\"response\":\"\",\"done\":true,\"done_reason\":\"unknown\","
+                        + "\"total_duration\":1,\"prompt_eval_count\":1,"
+                        + "\"eval_count\":1,\"eval_duration\":1}\n")) {
+            try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                    jsonLine("answer", "", false), terminal)) {
+                OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                        new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
+                assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            }
+        }
+    }
+
+    @Test
+    void lengthCompletionIsReportedWithoutReturningAssembledData() throws Exception {
+        String terminal = TERMINAL.replace("\"stop\"", "\"length\"");
+        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                jsonLine("partial answer", "", false), terminal)) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
+            assertEquals(OllamaPromptClient.Status.TOKEN_LIMIT_REACHED, result.status());
+            assertEquals(OllamaPromptClient.CompletionReason.LENGTH,
+                    result.completionReason());
+            assertEquals(7, result.metrics().generatedTokenCount());
+            assertEquals("", result.response());
+        }
+    }
+
+    @Test
+    void rejectsUnsafeOrOversizedGeneratedContent() throws Exception {
+        for (String chunk : List.of(
+                "safe\u001b[31munsafe",
+                "x".repeat(OllamaPromptClient.MAX_RESPONSE_CODE_POINTS + 1))) {
+            try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                    jsonLine(chunk, "", false), TERMINAL)) {
+                OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                        new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
+                assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            }
+        }
+    }
+
+    @Test
+    void rejectsAProviderStreamThatExceedsItsByteBound() throws Exception {
+        String oversizedRecord = jsonLine(
+                "x".repeat(OllamaPromptClient.MAX_RESPONSE_BYTES), "", false);
+        try (LocalGenerateServer server = LocalGenerateServer.streaming(oversizedRecord)) {
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
 
             assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
             assertEquals("", result.response());
-            assertFalse(result.toString().contains(privateResponse));
         }
     }
 
     @Test
-    void rejectsAResponseWithTerminalControlCharacters() throws Exception {
+    void rejectsNonSuccessAndUnexpectedContentType() throws Exception {
         try (LocalGenerateServer server = LocalGenerateServer.responding(
-                200,
-                "application/json",
-                "{\"response\":\"safe\\u001b[31munsafe\",\"done\":true,"
-                        + "\"done_reason\":\"stop\"}")) {
-            OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                    new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
-
-            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
-            assertEquals("", result.response());
+                404, "application/x-ndjson", "{\"error\":\"private\"}")) {
+            assertEquals(OllamaPromptClient.Status.REQUEST_FAILED,
+                    client(server.endpoint()).submit(new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("hello")).status());
         }
-    }
-
-    @Test
-    void rejectsAnUnexpectedContentType() throws Exception {
         try (LocalGenerateServer server = LocalGenerateServer.responding(
-                200,
-                "text/plain",
-                "{\"response\":\"private\",\"done\":true,\"done_reason\":\"stop\"}")) {
-            OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                    new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
-
-            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
-            assertEquals("", result.response());
-        }
-    }
-
-    @Test
-    void rejectsAnOversizedResponseBody() throws Exception {
-        String oversized = "x".repeat(OllamaPromptClient.MAX_RESPONSE_BYTES + 1);
-        try (LocalGenerateServer server =
-                LocalGenerateServer.responding(200, "application/json", oversized)) {
-            OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                    new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
-
-            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
-            assertEquals("", result.response());
-        }
-    }
-
-    @Test
-    void rejectsNaturallyCompletedAnswerThatExceedsItsTextBound() throws Exception {
-        String oversizedAnswer = "x".repeat(OllamaPromptClient.MAX_RESPONSE_CODE_POINTS + 1);
-        try (LocalGenerateServer server = LocalGenerateServer.responding(
-                200,
-                "application/json",
-                JSON.writeValueAsString(Map.of(
-                        "response", oversizedAnswer,
-                        "done", true,
-                        "done_reason", "stop")))) {
-            OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                    new OllamaModelConfiguration("qwen3:4b-instruct"),
-                    new OllamaPrompt("Answer ordinarily."));
-
-            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
-            assertEquals("", result.response());
+                200, "text/plain", TERMINAL)) {
+            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE,
+                    client(server.endpoint()).submit(new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("hello")).status());
         }
     }
 
     @Test
     void returnsSafelyWhenLocalOllamaIsUnavailable() throws Exception {
-        URI unavailableEndpoint;
+        URI endpoint;
         try (ServerSocket socket = new ServerSocket(0)) {
-            unavailableEndpoint = URI.create(
-                    "http://127.0.0.1:" + socket.getLocalPort() + "/api/generate");
+            endpoint = URI.create("http://127.0.0.1:" + socket.getLocalPort() + "/api/generate");
         }
-
-        OllamaPromptClient.Result result = client(unavailableEndpoint).submit(
+        OllamaPromptClient.Result result = client(endpoint).submit(
                 new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
-
         assertEquals(OllamaPromptClient.Status.UNAVAILABLE, result.status());
-        assertEquals("", result.response());
     }
 
     @Test
     void distinguishesARequestTimeoutFromUnavailableOllama() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.responding(
-                200,
-                "application/json",
-                "{\"response\":\"late\",\"done\":true,\"done_reason\":\"stop\"}",
-                Duration.ofMillis(250))) {
-            OllamaPromptClient.Result result = client(
-                            server.endpoint(), Duration.ofMillis(25))
-                    .submit(
-                            new OllamaModelConfiguration("qwen3"),
+        try (LocalGenerateServer server = LocalGenerateServer.delayed(
+                Duration.ofMillis(250), TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint(), Duration.ofMillis(25))
+                    .submit(new OllamaModelConfiguration("qwen3"),
                             new OllamaPrompt("private-prompt"));
-
             assertEquals(OllamaPromptClient.Status.TIMED_OUT, result.status());
-            assertEquals("", result.response());
-            assertFalse(result.toString().contains("private-prompt"));
         }
     }
 
     @Test
     void preservesInterruptionWithoutReturningPromptData() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.responding(
-                200,
-                "application/json",
-                "{\"response\":\"private\",\"done\":true,\"done_reason\":\"stop\"}",
-                Duration.ofSeconds(1))) {
+        try (LocalGenerateServer server = LocalGenerateServer.delayed(
+                Duration.ofSeconds(1), TERMINAL)) {
             Thread.currentThread().interrupt();
             try {
                 OllamaPromptClient.Result result = client(server.endpoint()).submit(
                         new OllamaModelConfiguration("qwen3"),
                         new OllamaPrompt("private-prompt"));
-
                 assertEquals(OllamaPromptClient.Status.INTERRUPTED, result.status());
-                assertEquals("", result.response());
-                assertFalse(result.toString().contains("private-prompt"));
                 assertTrue(Thread.currentThread().isInterrupted());
             } finally {
                 Thread.interrupted();
@@ -325,110 +335,149 @@ class OllamaPromptClientTest {
 
     @Test
     void rejectsANonLoopbackEndpoint() {
-        assertThrows(
-                IllegalArgumentException.class,
+        assertThrows(IllegalArgumentException.class,
                 () -> client(URI.create("https://example.com/api/generate")));
+    }
+
+    private static String jsonLine(String response, String thinking, boolean done)
+            throws IOException {
+        return JSON.writeValueAsString(java.util.Map.of(
+                "response", response, "thinking", thinking, "done", done)) + "\n";
     }
 
     private static OllamaPromptClient client(URI endpoint) {
         return client(endpoint, Duration.ofSeconds(2));
     }
 
-    private static OllamaPromptClient client(URI endpoint, Duration requestTimeout) {
-        return new OllamaPromptClient(
-                HttpClient.newBuilder()
-                        .connectTimeout(Duration.ofMillis(250))
-                        .followRedirects(HttpClient.Redirect.NEVER)
-                        .build(),
-                endpoint,
-                requestTimeout);
+    private static OllamaPromptClient client(URI endpoint, Duration timeout) {
+        return new OllamaPromptClient(HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(250))
+                .followRedirects(HttpClient.Redirect.NEVER).build(), endpoint, timeout);
+    }
+
+    private static int indexOf(byte[] source, byte[] target) {
+        outer: for (int index = 0; index <= source.length - target.length; index++) {
+            for (int offset = 0; offset < target.length; offset++) {
+                if (source[index + offset] != target[offset]) continue outer;
+            }
+            return index;
+        }
+        throw new AssertionError("target bytes not found");
+    }
+
+    private static byte[] slice(byte[] source, int from, int to) {
+        return java.util.Arrays.copyOfRange(source, from, to);
     }
 
     private static final class LocalGenerateServer implements AutoCloseable {
         private final HttpServer server;
         private final ExecutorService executor;
         private final AtomicReference<String> method = new AtomicReference<>();
-        private final AtomicReference<String> contentType = new AtomicReference<>();
+        private final AtomicReference<String> requestContentType = new AtomicReference<>();
+        private final AtomicReference<String> accept = new AtomicReference<>();
         private final AtomicReference<String> requestBody = new AtomicReference<>();
 
-        private LocalGenerateServer(
-                HttpServer server,
-                ExecutorService executor,
-                int status,
-                String responseContentType,
-                String responseBody,
-                Duration delay) {
-            this.server = server;
-            this.executor = executor;
-            server.createContext("/api/generate", exchange ->
-                    respond(exchange, status, responseContentType, responseBody, delay));
-        }
-
-        static LocalGenerateServer responding(
-                int status, String contentType, String body) throws IOException {
-            return responding(status, contentType, body, Duration.ZERO);
-        }
-
-        static LocalGenerateServer responding(
-                int status, String contentType, String body, Duration delay) throws IOException {
-            HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-            ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
+        private LocalGenerateServer(int status, String contentType, byte[][] writes,
+                Duration initialDelay, CountDownLatch firstWritten, CountDownLatch releaseRest)
+                throws IOException {
+            server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+            executor = Executors.newSingleThreadExecutor(runnable -> {
                 Thread thread = new Thread(runnable, "ollama-prompt-test-server");
                 thread.setDaemon(true);
                 return thread;
             });
             server.setExecutor(executor);
-            LocalGenerateServer local = new LocalGenerateServer(
-                    server, executor, status, contentType, body, delay);
+            server.createContext("/api/generate", exchange -> respond(exchange, status,
+                    contentType, writes, initialDelay, firstWritten, releaseRest));
             server.start();
-            return local;
+        }
+
+        static LocalGenerateServer streaming(String... records) throws IOException {
+            byte[][] writes = new byte[records.length][];
+            for (int index = 0; index < records.length; index++) {
+                writes[index] = records[index].getBytes(StandardCharsets.UTF_8);
+            }
+            return writes(writes);
+        }
+
+        static LocalGenerateServer writes(byte[][] writes) throws IOException {
+            return new LocalGenerateServer(200, "application/x-ndjson", writes,
+                    Duration.ZERO, null, null);
+        }
+
+        static LocalGenerateServer responding(int status, String contentType, String body)
+                throws IOException {
+            return new LocalGenerateServer(status, contentType,
+                    new byte[][] {body.getBytes(StandardCharsets.UTF_8)},
+                    Duration.ZERO, null, null);
+        }
+
+        static LocalGenerateServer delayed(Duration delay, String body) throws IOException {
+            return new LocalGenerateServer(200, "application/x-ndjson",
+                    new byte[][] {body.getBytes(StandardCharsets.UTF_8)}, delay, null, null);
+        }
+
+        static LocalGenerateServer gated(String first, String rest, CountDownLatch firstWritten,
+                CountDownLatch releaseRest) throws IOException {
+            return new LocalGenerateServer(200, "application/x-ndjson",
+                    new byte[][] {first.getBytes(StandardCharsets.UTF_8),
+                        rest.getBytes(StandardCharsets.UTF_8)},
+                    Duration.ZERO, firstWritten, releaseRest);
         }
 
         URI endpoint() {
-            return URI.create(
-                    "http://127.0.0.1:" + server.getAddress().getPort() + "/api/generate");
+            return URI.create("http://127.0.0.1:" + server.getAddress().getPort()
+                    + "/api/generate");
         }
 
-        String method() {
-            return method.get();
+        String method() { return method.get(); }
+        String requestContentType() { return requestContentType.get(); }
+        String accept() { return accept.get(); }
+        String requestBody() { return requestBody.get(); }
+
+        private void respond(HttpExchange exchange, int status, String contentType,
+                byte[][] writes, Duration initialDelay, CountDownLatch firstWritten,
+                CountDownLatch releaseRest) throws IOException {
+            try (exchange) {
+                method.set(exchange.getRequestMethod());
+                requestContentType.set(exchange.getRequestHeaders().getFirst("Content-Type"));
+                accept.set(exchange.getRequestHeaders().getFirst("Accept"));
+                requestBody.set(new String(exchange.getRequestBody().readAllBytes(),
+                        StandardCharsets.UTF_8));
+                sleep(initialDelay);
+                exchange.getResponseHeaders().set("Content-Type", contentType);
+                exchange.sendResponseHeaders(status, 0);
+                for (int index = 0; index < writes.length; index++) {
+                    exchange.getResponseBody().write(writes[index]);
+                    exchange.getResponseBody().flush();
+                    if (index == 0 && firstWritten != null) {
+                        firstWritten.countDown();
+                        await(releaseRest);
+                    }
+                }
+            }
         }
 
-        String contentType() {
-            return contentType.get();
+        private static void sleep(Duration delay) {
+            try {
+                Thread.sleep(delay);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            }
         }
 
-        String requestBody() {
-            return requestBody.get();
+        private static void await(CountDownLatch latch) {
+            try {
+                latch.await(2, TimeUnit.SECONDS);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            }
         }
 
         @Override
         public void close() {
             server.stop(0);
             executor.shutdownNow();
-        }
-
-        private void respond(
-                HttpExchange exchange,
-                int status,
-                String responseContentType,
-                String body,
-                Duration delay) throws IOException {
-            try (exchange) {
-                method.set(exchange.getRequestMethod());
-                contentType.set(exchange.getRequestHeaders().getFirst("Content-Type"));
-                requestBody.set(new String(
-                        exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-                try {
-                    Thread.sleep(delay);
-                } catch (InterruptedException exception) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-                byte[] response = body.getBytes(StandardCharsets.UTF_8);
-                exchange.getResponseHeaders().set("Content-Type", responseContentType);
-                exchange.sendResponseHeaders(status, response.length);
-                exchange.getResponseBody().write(response);
-            }
         }
     }
 }

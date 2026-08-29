@@ -151,15 +151,16 @@ export KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT=512
 ```
 
 The command validates a single 4,096-character prompt, loads the explicit
-model selection, sends `POST /api/generate` to the fixed loopback Ollama
-endpoint with `stream` set to `false`, and prints only the complete generated
-text. It also sends `think: false` and `options.num_predict: 512` for this
-ordinary configuration. A natural provider stop prints the answer; a length
-stop returns `KAOS-AI-003` without printing partial output. The response body is
-bounded to 1 MiB, generated text to 65,536 characters, and the request to five
-minutes. There is no streaming, retry,
-conversation, system-prompt, tool, image, remote-provider, or persistence
-behavior.
+model selection, and sends `POST /api/generate` to the fixed loopback Ollama
+endpoint with `stream` set to `true`. It parses newline-delimited JSON as it
+arrives, validates each answer chunk, prints and flushes it once, and assembles
+the same chunks into the bounded final answer. It also sends `think: false` and
+`options.num_predict: 512` for this ordinary configuration. The response body
+is bounded to 1 MiB, generated answer text to 65,536 characters, and the request
+to five minutes. Task #1071 does not display thinking chunks. Thinking progress
+belongs to #1072; complete cancellation and partial-output policy belongs to
+#1073. There is no retry, conversation, system-prompt, tool, image,
+remote-provider, or persistence behavior.
 
 The CLI argument can remain in shell history and may be visible to local
 process inspection. Do not use this developer command for secrets or other
@@ -447,10 +448,11 @@ installation/version problem rather than printed as raw provider data.
 
 First run `ollama-status`, then use `ollama list` to confirm that the configured
 model is installed. A rejected request returns `KAOS-AI-002` without the raw
-Ollama body. A complete non-streamed generation may take several minutes while
-a model loads or generates on CPU; KAOS waits at most five minutes and then
-suggests retrying or choosing a faster installed model. Response Streaming
-Feature #848 is intentionally deferred and will provide progressive output.
+Ollama body. Validated answer content is displayed progressively, but model
+loading can still delay the first chunk. KAOS waits at most five minutes and
+then suggests retrying or choosing a faster installed model. A malformed or
+incomplete stream fails safely; Task #1073 will add the complete policy for
+identifying partial output and cancelling an active request.
 
 ### Stop a running Gradle command
 

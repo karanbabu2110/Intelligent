@@ -7,7 +7,7 @@ import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.app.config.ApplicationConfiguration;
 import java.io.PrintStream;
 import java.util.Objects;
-import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -84,7 +84,7 @@ public final class KaosApplication {
                 configuration,
                 () -> new OllamaConnectivity().check(),
                 OllamaModelConfiguration::load,
-                (model, prompt) -> new OllamaPromptClient().submit(model, prompt),
+                (model, prompt, chunks) -> new OllamaPromptClient().submit(model, prompt, chunks),
                 output,
                 errorOutput);
     }
@@ -100,7 +100,7 @@ public final class KaosApplication {
                 configuration,
                 ollamaConnectivityCheck,
                 OllamaModelConfiguration::load,
-                (model, prompt) -> new OllamaPromptClient().submit(model, prompt),
+                (model, prompt, chunks) -> new OllamaPromptClient().submit(model, prompt, chunks),
                 output,
                 errorOutput);
     }
@@ -117,7 +117,7 @@ public final class KaosApplication {
                 configuration,
                 ollamaConnectivityCheck,
                 ollamaModelConfigurationLoader,
-                (model, prompt) -> new OllamaPromptClient().submit(model, prompt),
+                (model, prompt, chunks) -> new OllamaPromptClient().submit(model, prompt, chunks),
                 output,
                 errorOutput);
     }
@@ -127,8 +127,7 @@ public final class KaosApplication {
             ApplicationConfiguration configuration,
             Supplier<OllamaConnectivity.Result> ollamaConnectivityCheck,
             Supplier<OllamaModelConfiguration> ollamaModelConfigurationLoader,
-            BiFunction<OllamaModelConfiguration, OllamaPrompt, OllamaPromptClient.Result>
-                    ollamaPromptSubmission,
+            OllamaPromptSubmission ollamaPromptSubmission,
             PrintStream output,
             PrintStream errorOutput) {
         Objects.requireNonNull(arguments, "arguments");
@@ -189,15 +188,14 @@ public final class KaosApplication {
                   help           Show this help. The --help alias is also supported.
                   ollama-status  Check connectivity to the local Ollama server.
                   ollama-model   Show the explicitly configured local Ollama model.
-                  ollama-prompt  Submit one quoted prompt and print one complete response.
+                  ollama-prompt  Submit one quoted prompt and stream the answer.
                 """;
     }
 
     private static int reportOllamaPrompt(
             String promptText,
             Supplier<OllamaModelConfiguration> modelConfigurationLoader,
-            BiFunction<OllamaModelConfiguration, OllamaPrompt, OllamaPromptClient.Result>
-                    promptSubmission,
+            OllamaPromptSubmission promptSubmission,
             PrintStream output,
             PrintStream errorOutput) {
         OllamaPrompt prompt;
@@ -226,9 +224,15 @@ public final class KaosApplication {
             return APPLICATION_ERROR;
         }
 
-        OllamaPromptClient.Result result = promptSubmission.apply(model, prompt);
+        OllamaPromptClient.Result result = promptSubmission.submit(
+                model,
+                prompt,
+                chunk -> {
+                    output.print(chunk);
+                    output.flush();
+                });
         if (result.successful()) {
-            output.println(result.response());
+            output.println();
             return SUCCESS;
         }
 
@@ -254,6 +258,14 @@ public final class KaosApplication {
                 : OLLAMA_PROMPT_CODE;
         logError(errorOutput, errorCode, recovery);
         return APPLICATION_ERROR;
+    }
+
+    @FunctionalInterface
+    interface OllamaPromptSubmission {
+        OllamaPromptClient.Result submit(
+                OllamaModelConfiguration model,
+                OllamaPrompt prompt,
+                Consumer<String> answerChunkConsumer);
     }
 
     private static int reportOllamaModel(

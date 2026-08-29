@@ -12,7 +12,6 @@ import io.kaos.app.config.ApplicationConfiguration;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
@@ -197,9 +196,11 @@ class KaosApplicationTest {
         KaosApplicationHarness.Result result = runOllamaPrompt(
                 "Why local AI?",
                 () -> new OllamaModelConfiguration("qwen3:8b"),
-                (model, prompt) -> {
+                (model, prompt, chunks) -> {
                     selectedModel.set(model.modelName());
                     submittedPrompt.set(prompt.text());
+                    chunks.accept("A local ");
+                    chunks.accept("answer.");
                     return new OllamaPromptClient.Result(
                             OllamaPromptClient.Status.SUCCESS,
                             "private reasoning trace",
@@ -231,7 +232,7 @@ class KaosApplicationTest {
         KaosApplicationHarness.Result result = runOllamaPrompt(
                 "private prompt",
                 () -> new OllamaModelConfiguration("qwen3:4b-instruct"),
-                (model, prompt) -> new OllamaPromptClient.Result(
+                (model, prompt, chunks) -> new OllamaPromptClient.Result(
                         OllamaPromptClient.Status.TOKEN_LIMIT_REACHED, "", ""));
 
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
@@ -254,7 +255,7 @@ class KaosApplicationTest {
                 () -> {
                     throw new AssertionError("model must not load for an invalid prompt");
                 },
-                (model, prompt) -> {
+                (model, prompt, chunks) -> {
                     throw new AssertionError("invalid prompt must not be submitted");
                 });
 
@@ -275,7 +276,7 @@ class KaosApplicationTest {
         KaosApplicationHarness.Result result = runOllamaPrompt(
                 privatePrompt,
                 () -> new OllamaModelConfiguration("missing-model"),
-                (model, prompt) -> {
+                (model, prompt, chunks) -> {
                     assertFalse(prompt.text().contains(privateProviderDetail));
                     return new OllamaPromptClient.Result(
                             OllamaPromptClient.Status.REQUEST_FAILED, "", "");
@@ -297,7 +298,7 @@ class KaosApplicationTest {
         KaosApplicationHarness.Result result = runOllamaPrompt(
                 "private prompt",
                 () -> new OllamaModelConfiguration("slow-model"),
-                (model, prompt) -> new OllamaPromptClient.Result(
+                (model, prompt, chunks) -> new OllamaPromptClient.Result(
                         OllamaPromptClient.Status.TIMED_OUT, "", ""));
 
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
@@ -317,7 +318,7 @@ class KaosApplicationTest {
                 () -> {
                     throw new IllegalArgumentException("private-model-detail");
                 },
-                (model, prompt) -> {
+                (model, prompt, chunks) -> {
                     throw new AssertionError("prompt must not submit without a model");
                 });
 
@@ -340,7 +341,7 @@ class KaosApplicationTest {
                 () -> {
                     throw new AssertionError("model configuration must remain lazy");
                 },
-                (model, prompt) -> {
+                (model, prompt, chunks) -> {
                     throw new AssertionError("prompt client must remain lazy");
                 });
 
@@ -550,8 +551,7 @@ class KaosApplicationTest {
     private static KaosApplicationHarness.Result runOllamaPrompt(
             String prompt,
             Supplier<OllamaModelConfiguration> modelLoader,
-            BiFunction<OllamaModelConfiguration, OllamaPrompt, OllamaPromptClient.Result>
-                    submission) {
+            KaosApplication.OllamaPromptSubmission submission) {
         return runWithPromptSubmission(
                 new String[] {"ollama-prompt", prompt}, modelLoader, submission);
     }
@@ -559,8 +559,7 @@ class KaosApplicationTest {
     private static KaosApplicationHarness.Result runWithPromptSubmission(
             String[] arguments,
             Supplier<OllamaModelConfiguration> modelLoader,
-            BiFunction<OllamaModelConfiguration, OllamaPrompt, OllamaPromptClient.Result>
-                    submission) {
+            KaosApplication.OllamaPromptSubmission submission) {
         return KaosApplicationHarness.capture(
                 (output, errorOutput) -> KaosApplication.run(
                         arguments,
