@@ -219,7 +219,7 @@ Verified on 2026-08-28:
    thinking text, final response, completion reason, and `ollama ps` state.
 5. Compare content as well as timing; an accepted provider value is not useful
    when it produces identical behavior.
-6. Keep benchmark streaming separate from the current non-streamed KAOS
-   implementation.
+6. Keep the raw provider benchmark separate from KAOS application streaming so
+   benchmark collection never exposes reasoning through the terminal command.
 7. Re-run on a changed model build, Ollama version, target machine, or materially
    different reasoning workload before revising the policy.

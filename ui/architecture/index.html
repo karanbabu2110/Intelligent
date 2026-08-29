@@ -39,16 +39,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 002.04 Task 002.04.02</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 002.04 Task 002.04.03</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the content-free thinking progress and explicit answer transition implemented by Feature 002.04 Task 002.04.02. The complete cancellation and boundary policy remains next work; the underlying implemented, next, and future statuses remain authoritative.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the bounded, cancellable stream lifecycle and partial-output boundary implemented by Feature 002.04 Task 002.04.03. Reusable AI error and timeout handling remains the next feature; the underlying implemented, next, and future statuses remain authoritative.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">Current runtime and local AI integration</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 650" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes the implemented KAOS application. The application validates local configuration and routes status, help, Ollama status, model, and prompt commands. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one streaming prompt request to the fixed local provider. The provider returns UTF-8 newline-delimited JSON records. KAOS validates and assembles thinking separately, exposes one content-free progress signal, transitions visibly to the answer, prints validated answer chunks in order, and validates terminal completion. Raw reasoning remains hidden. Complete cancellation policy remains next work. Gradle, Jackson, and tests support and verify the application.</desc>
+          <desc id="diagram-description">A terminal invokes the implemented KAOS application. The application validates local configuration and routes status, help, Ollama status, model, and prompt commands. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one streaming prompt request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces total, inactivity, byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; and labels visible output partial after non-clean completion. Gradle, Jackson, and tests support and verify the application.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -72,7 +72,7 @@
           <text x="387" y="249" class="svg-copy">Ollama command routing</text>
           <rect x="580" y="166" width="190" height="93" class="box box-support"></rect>
           <text x="602" y="202" class="svg-title">Output</text>
-          <text x="602" y="229" class="svg-copy svg-change">UPDATED · progress → answer</text>
+          <text x="602" y="229" class="svg-copy svg-change">UPDATED · partial-safe output</text>
           <rect x="365" y="284" width="190" height="93" class="box box-support"></rect>
           <text x="387" y="320" class="svg-title">App config</text>
           <text x="387" y="347" class="svg-copy">validated local name</text>
@@ -137,10 +137,10 @@
           <p>Feature 002.03 supplies the bounded prompt, model, and safe local request boundary that Feature 002.04 now streams. Prompts and raw failures are excluded from error output.</p>
         </article>
         <article class="card change-current">
-          <div class="change-label">Updated in Feature 002.04 Task 002.04.02</div>
-          <div class="status implemented">Partially implemented</div>
+          <div class="change-label">Updated in Feature 002.04 Task 002.04.03</div>
+          <div class="status implemented">Implemented</div>
           <h3>Response streaming</h3>
-          <p>Task 002.04.01 streams bounded answer chunks. Task 002.04.02 adds one content-free thinking-progress signal and an explicit answer transition when thinking is on, while ordinary mode stays unlabeled and raw reasoning remains hidden. Complete cancellation policy remains Task 002.04.03.</p>
+          <p>Task 002.04.01 streams bounded answer chunks. Task 002.04.02 adds content-free thinking progress and answer isolation. Task 002.04.03 adds backpressure, total and inactivity deadlines, interruption cancellation, distinct local limits, and partial-output guidance without exposing prompts, provider bodies, or reasoning.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -189,7 +189,8 @@
           <tr><td>Prompt submission</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-prompt-submission.md">validation evidence</a></td><td>Implemented</td></tr>
           <tr><td>Bounded response generation and completion handling</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, and <a href="../../docs/evolution/ollama-response-generation-limit-benchmark.md">response-limit benchmark</a></td><td>Implemented</td></tr>
           <tr><td>Incremental answer streaming</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.01 evidence</a></td><td>Implemented</td></tr>
-          <tr class="change-current"><td><span class="change-label">Updated in Feature 002.04 Task 002.04.02</span>Thinking progress and answer isolation</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.02 evidence</a></td><td>Implemented; Feature 002.04 remains in progress</td></tr>
+          <tr><td>Thinking progress and answer isolation</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.02 evidence</a></td><td>Implemented</td></tr>
+          <tr class="change-current"><td><span class="change-label">Updated in Feature 002.04 Task 002.04.03</span>Cancellable bounded stream lifecycle</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.03 evidence</a></td><td>Implemented; Feature 002.04 review remains in progress</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

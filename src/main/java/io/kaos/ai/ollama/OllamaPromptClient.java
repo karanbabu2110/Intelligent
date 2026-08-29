@@ -5,7 +5,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
-import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -14,12 +13,19 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
+import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Flow;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /** Submits one bounded streaming generation request to local Ollama. */
@@ -31,22 +37,30 @@ public final class OllamaPromptClient {
     public static final int MAX_THINKING_CODE_POINTS = 65_536;
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
     private static final Duration REQUEST_TIMEOUT = Duration.ofMinutes(5);
+    private static final Duration INACTIVITY_TIMEOUT = Duration.ofMinutes(1);
     private static final ObjectMapper JSON = new ObjectMapper();
     private final HttpClient httpClient;
     private final URI generateEndpoint;
     private final Duration requestTimeout;
+    private final Duration inactivityTimeout;
 
     /** Creates a client restricted to the fixed local Ollama generate endpoint. */
     public OllamaPromptClient() {
         this(HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT)
                         .followRedirects(HttpClient.Redirect.NEVER).build(),
-                LOCAL_GENERATE_ENDPOINT, REQUEST_TIMEOUT);
+                LOCAL_GENERATE_ENDPOINT, REQUEST_TIMEOUT, INACTIVITY_TIMEOUT);
     }
 
     OllamaPromptClient(HttpClient httpClient, URI generateEndpoint, Duration requestTimeout) {
+        this(httpClient, generateEndpoint, requestTimeout, requestTimeout);
+    }
+
+    OllamaPromptClient(HttpClient httpClient, URI generateEndpoint, Duration requestTimeout,
+            Duration inactivityTimeout) {
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
         this.generateEndpoint = requireLoopbackHttpEndpoint(generateEndpoint);
         this.requestTimeout = requirePositiveTimeout(requestTimeout);
+        this.inactivityTimeout = requirePositiveTimeout(inactivityTimeout);
     }
 
     /** Generates one streamed response without exposing progressive chunks to the caller. */
@@ -79,27 +93,36 @@ public final class OllamaPromptClient {
                 .header("Accept", "application/x-ndjson")
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofByteArray(requestBody)).build();
+        long deadlineNanos = System.nanoTime() + requestTimeout.toNanos();
         try {
-            HttpResponse<InputStream> response = httpClient.send(
-                    request, HttpResponse.BodyHandlers.ofInputStream());
-            try (InputStream responseBody = response.body()) {
+            HttpResponse<Flow.Publisher<List<ByteBuffer>>> response = httpClient.send(
+                    request, HttpResponse.BodyHandlers.ofPublisher());
+            try (InputStream responseBody = new PublisherInputStream(
+                    response.body(), MAX_RESPONSE_BYTES, deadlineNanos, inactivityTimeout)) {
                 if (response.statusCode() != 200) {
                     return Result.failed(Status.REQUEST_FAILED);
                 }
                 if (!isNdjson(response)) {
                     return Result.failed(Status.INVALID_RESPONSE);
                 }
-                return decodeStream(new LimitedInputStream(responseBody, MAX_RESPONSE_BYTES),
-                        model.thinkingMode(), thinkingStarted, answerChunkConsumer);
+                return decodeStream(responseBody, model.thinkingMode(), thinkingStarted,
+                        answerChunkConsumer);
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return Result.failed(Status.INTERRUPTED);
         } catch (HttpTimeoutException exception) {
             return Result.failed(Status.TIMED_OUT);
+        } catch (StreamInterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return Result.failed(Status.INTERRUPTED);
+        } catch (StreamTimeoutException exception) {
+            return Result.failed(Status.TIMED_OUT);
+        } catch (StreamLimitException exception) {
+            return Result.failed(Status.LOCAL_LIMIT_REACHED);
         } catch (CharacterCodingException exception) {
             return Result.failed(Status.INVALID_RESPONSE);
-        } catch (ResponseLimitException exception) {
+        } catch (UnsafeStreamContentException exception) {
             return Result.failed(Status.INVALID_RESPONSE);
         } catch (IOException | SecurityException exception) {
             return Result.failed(Status.UNAVAILABLE);
@@ -137,13 +160,11 @@ public final class OllamaPromptClient {
                     return Result.failed(Status.INVALID_RESPONSE);
                 }
                 StreamRecord record = decodeRecord(line);
-                if (record == null
-                        || !appendGeneratedText(thinking, record.thinking(),
-                                MAX_THINKING_CODE_POINTS)
-                        || !appendGeneratedText(answer, record.response(),
-                                MAX_RESPONSE_CODE_POINTS)) {
+                if (record == null) {
                     return Result.failed(Status.INVALID_RESPONSE);
                 }
+                appendGeneratedText(thinking, record.thinking(), MAX_THINKING_CODE_POINTS);
+                appendGeneratedText(answer, record.response(), MAX_RESPONSE_CODE_POINTS);
                 if (!record.thinking().isEmpty()) {
                     if (thinkingMode == OllamaThinkingMode.OFF || answerStarted) {
                         return Result.failed(Status.INVALID_RESPONSE);
@@ -226,14 +247,16 @@ public final class OllamaPromptClient {
                 ? value.longValue() : null;
     }
 
-    private static boolean appendGeneratedText(
-            StringBuilder accumulated, String chunk, int maximumCodePoints) {
+    private static void appendGeneratedText(
+            StringBuilder accumulated, String chunk, int maximumCodePoints) throws IOException {
         if (chunk == null
                 || chunk.codePoints().anyMatch(OllamaPromptClient::isUnsafeOutputCharacter)) {
-            return false;
+            throw new UnsafeStreamContentException();
         }
         accumulated.append(chunk);
-        return accumulated.codePointCount(0, accumulated.length()) <= maximumCodePoints;
+        if (accumulated.codePointCount(0, accumulated.length()) > maximumCodePoints) {
+            throw new StreamLimitException();
+        }
     }
 
     private static boolean isNdjson(HttpResponse<?> response) {
@@ -373,38 +396,226 @@ public final class OllamaPromptClient {
 
     /** Minimal categories that later AI failure-handling work may refine. */
     public enum Status { SUCCESS, TOKEN_LIMIT_REACHED, UNAVAILABLE, REQUEST_FAILED,
-        INVALID_RESPONSE, TIMED_OUT, INTERRUPTED }
+        INVALID_RESPONSE, LOCAL_LIMIT_REACHED, TIMED_OUT, INTERRUPTED }
 
-    private static final class LimitedInputStream extends FilterInputStream {
-        private final long maximumBytes;
-        private long bytesRead;
+    private static final class PublisherInputStream extends InputStream {
+        private final PublisherSubscriber subscriber;
+        private final long deadlineNanos;
+        private final long inactivityTimeoutNanos;
+        private byte[] current = new byte[0];
+        private int currentOffset;
+        private boolean complete;
 
-        private LimitedInputStream(InputStream input, long maximumBytes) {
-            super(input);
-            this.maximumBytes = maximumBytes;
+        private PublisherInputStream(Flow.Publisher<List<ByteBuffer>> publisher,
+                long maximumBytes, long deadlineNanos, Duration inactivityTimeout) {
+            subscriber = new PublisherSubscriber(maximumBytes);
+            this.deadlineNanos = deadlineNanos;
+            inactivityTimeoutNanos = inactivityTimeout.toNanos();
+            Objects.requireNonNull(publisher, "publisher").subscribe(subscriber);
         }
 
         @Override
         public int read() throws IOException {
-            int value = super.read();
-            if (value != -1) recordRead(1);
-            return value;
+            byte[] singleByte = new byte[1];
+            int count = read(singleByte, 0, 1);
+            return count == -1 ? -1 : Byte.toUnsignedInt(singleByte[0]);
         }
 
         @Override
         public int read(byte[] buffer, int offset, int length) throws IOException {
-            int count = super.read(buffer, offset, length);
-            if (count > 0) recordRead(count);
+            Objects.checkFromIndexSize(offset, length, buffer.length);
+            if (length == 0) return 0;
+            while (currentOffset >= current.length) {
+                if (complete) return -1;
+                receiveNext();
+            }
+            int count = Math.min(length, current.length - currentOffset);
+            System.arraycopy(current, currentOffset, buffer, offset, count);
+            currentOffset += count;
+            if (currentOffset >= current.length) subscriber.requestNext();
             return count;
         }
 
-        private void recordRead(int count) throws ResponseLimitException {
-            bytesRead += count;
-            if (bytesRead > maximumBytes) throw new ResponseLimitException();
+        private void receiveNext() throws IOException {
+            if (Thread.currentThread().isInterrupted()) {
+                subscriber.cancel();
+                throw new StreamInterruptedException();
+            }
+            long remainingNanos = deadlineNanos - System.nanoTime();
+            if (remainingNanos <= 0) {
+                subscriber.cancel();
+                throw new StreamTimeoutException();
+            }
+            StreamEvent event;
+            try {
+                event = subscriber.poll(Math.min(remainingNanos, inactivityTimeoutNanos));
+            } catch (InterruptedException exception) {
+                subscriber.cancel();
+                Thread.currentThread().interrupt();
+                throw new StreamInterruptedException();
+            }
+            if (event == null) {
+                subscriber.cancel();
+                throw new StreamTimeoutException();
+            }
+            switch (event.type()) {
+                case DATA -> {
+                    current = event.data();
+                    currentOffset = 0;
+                }
+                case COMPLETE -> complete = true;
+                case LIMIT -> throw new StreamLimitException();
+                case TIMEOUT -> throw new StreamTimeoutException();
+                case FAILED -> throw new IOException("Ollama response stream failed.");
+            }
+        }
+
+        @Override
+        public void close() {
+            subscriber.cancel();
         }
     }
 
-    private static final class ResponseLimitException extends IOException {
+    private static final class PublisherSubscriber
+            implements Flow.Subscriber<List<ByteBuffer>> {
+        private final BlockingQueue<StreamEvent> events = new ArrayBlockingQueue<>(2);
+        private final long maximumBytes;
+        private final AtomicBoolean terminal = new AtomicBoolean();
+        private Flow.Subscription subscription;
+        private long bytesReceived;
+
+        private PublisherSubscriber(long maximumBytes) {
+            this.maximumBytes = maximumBytes;
+        }
+
+        @Override
+        public synchronized void onSubscribe(Flow.Subscription candidate) {
+            Objects.requireNonNull(candidate, "subscription");
+            if (subscription != null || terminal.get()) {
+                candidate.cancel();
+                return;
+            }
+            subscription = candidate;
+            candidate.request(1);
+        }
+
+        @Override
+        public void onNext(List<ByteBuffer> buffers) {
+            if (terminal.get()) return;
+            int size = 0;
+            try {
+                for (ByteBuffer buffer : Objects.requireNonNull(buffers, "buffers")) {
+                    size = Math.addExact(size,
+                            Objects.requireNonNull(buffer, "buffer").remaining());
+                }
+            } catch (ArithmeticException exception) {
+                limit();
+                return;
+            } catch (NullPointerException exception) {
+                fail();
+                return;
+            }
+            if (size == 0) {
+                requestNext();
+                return;
+            }
+            if (bytesReceived > maximumBytes - size) {
+                limit();
+                return;
+            }
+            byte[] data = new byte[size];
+            int offset = 0;
+            for (ByteBuffer buffer : buffers) {
+                ByteBuffer readable = buffer.asReadOnlyBuffer();
+                int count = readable.remaining();
+                readable.get(data, offset, count);
+                offset += count;
+            }
+            bytesReceived += size;
+            if (!signal(new StreamEvent(StreamEventType.DATA, data))) fail();
+        }
+
+        @Override
+        public void onError(Throwable failure) {
+            if (containsTimeout(failure)) {
+                if (terminal.compareAndSet(false, true)) {
+                    signal(new StreamEvent(StreamEventType.TIMEOUT, new byte[0]));
+                }
+                cancelSubscription();
+            } else {
+                fail();
+            }
+        }
+
+        @Override
+        public void onComplete() {
+            if (terminal.compareAndSet(false, true)) {
+                signal(new StreamEvent(StreamEventType.COMPLETE, new byte[0]));
+            }
+        }
+
+        private StreamEvent poll(long timeoutNanos) throws InterruptedException {
+            return events.poll(timeoutNanos, TimeUnit.NANOSECONDS);
+        }
+
+        private synchronized void requestNext() {
+            if (subscription != null && !terminal.get()) subscription.request(1);
+        }
+
+        private void cancel() {
+            terminal.set(true);
+            cancelSubscription();
+        }
+
+        private synchronized void cancelSubscription() {
+            if (subscription != null) subscription.cancel();
+        }
+
+        private void fail() {
+            if (terminal.compareAndSet(false, true)) {
+                signal(new StreamEvent(StreamEventType.FAILED, new byte[0]));
+            }
+            cancelSubscription();
+        }
+
+        private void limit() {
+            if (terminal.compareAndSet(false, true)) {
+                signal(new StreamEvent(StreamEventType.LIMIT, new byte[0]));
+            }
+            cancelSubscription();
+        }
+
+        private boolean signal(StreamEvent event) {
+            return events.offer(event);
+        }
+
+        private static boolean containsTimeout(Throwable failure) {
+            Throwable current = failure;
+            while (current != null) {
+                if (current instanceof HttpTimeoutException) return true;
+                current = current.getCause();
+            }
+            return false;
+        }
+    }
+
+    private record StreamEvent(StreamEventType type, byte[] data) { }
+
+    private enum StreamEventType { DATA, COMPLETE, LIMIT, TIMEOUT, FAILED }
+
+    private static final class StreamInterruptedException extends IOException {
+        private static final long serialVersionUID = 1L;
+    }
+
+    private static final class StreamTimeoutException extends IOException {
+        private static final long serialVersionUID = 1L;
+    }
+
+    private static final class StreamLimitException extends IOException {
+        private static final long serialVersionUID = 1L;
+    }
+
+    private static final class UnsafeStreamContentException extends IOException {
         private static final long serialVersionUID = 1L;
     }
 }

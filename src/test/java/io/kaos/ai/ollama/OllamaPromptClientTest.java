@@ -204,24 +204,27 @@ class OllamaPromptClientTest {
 
     @Test
     void rejectsUnsafeOrOversizedThinkingWithoutEmittingIt() throws Exception {
-        for (String thinking : List.of(
-                "private\u001b[31mreasoning",
-                "x".repeat(OllamaPromptClient.MAX_THINKING_CODE_POINTS + 1))) {
-            try (LocalGenerateServer server = LocalGenerateServer.streaming(
-                    jsonLine("", thinking, false),
-                    jsonLine("Final answer.", "", false),
-                    TERMINAL)) {
-                List<String> chunks = new ArrayList<>();
-                OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                        new OllamaModelConfiguration(
-                                "qwen3:4b", 4_096, OllamaThinkingMode.ON),
-                        new OllamaPrompt("Solve this deliberately."),
-                        chunks::add);
+        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                jsonLine("", "private\u001b[31mreasoning", false), TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration(
+                            "qwen3:4b", 4_096, OllamaThinkingMode.ON),
+                    new OllamaPrompt("Solve this deliberately."));
 
-                assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
-                assertEquals(List.of(), chunks);
-                assertEquals("", result.thinking());
-            }
+            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            assertEquals("", result.thinking());
+        }
+        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                jsonLine("", "x".repeat(
+                        OllamaPromptClient.MAX_THINKING_CODE_POINTS + 1), false),
+                TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration(
+                            "qwen3:4b", 4_096, OllamaThinkingMode.ON),
+                    new OllamaPrompt("Solve this deliberately."));
+
+            assertEquals(OllamaPromptClient.Status.LOCAL_LIMIT_REACHED, result.status());
+            assertEquals("", result.thinking());
         }
     }
 
@@ -288,15 +291,19 @@ class OllamaPromptClientTest {
 
     @Test
     void rejectsUnsafeOrOversizedGeneratedContent() throws Exception {
-        for (String chunk : List.of(
-                "safe\u001b[31munsafe",
-                "x".repeat(OllamaPromptClient.MAX_RESPONSE_CODE_POINTS + 1))) {
-            try (LocalGenerateServer server = LocalGenerateServer.streaming(
-                    jsonLine(chunk, "", false), TERMINAL)) {
-                OllamaPromptClient.Result result = client(server.endpoint()).submit(
-                        new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
-                assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
-            }
+        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                jsonLine("safe\u001b[31munsafe", "", false), TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
+            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+        }
+        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                jsonLine("x".repeat(
+                        OllamaPromptClient.MAX_RESPONSE_CODE_POINTS + 1), "", false),
+                TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
+            assertEquals(OllamaPromptClient.Status.LOCAL_LIMIT_REACHED, result.status());
         }
     }
 
@@ -308,8 +315,79 @@ class OllamaPromptClientTest {
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
 
-            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            assertEquals(OllamaPromptClient.Status.LOCAL_LIMIT_REACHED, result.status());
             assertEquals("", result.response());
+        }
+    }
+
+    @Test
+    void cancelsAnActiveStreamWhenTheCallingThreadIsInterrupted() throws Exception {
+        CountDownLatch firstWritten = new CountDownLatch(1);
+        CountDownLatch releaseTerminal = new CountDownLatch(1);
+        try (LocalGenerateServer server = LocalGenerateServer.gated(
+                jsonLine("partial", "", false), TERMINAL, firstWritten, releaseTerminal);
+                ExecutorService clientExecutor = Executors.newSingleThreadExecutor()) {
+            AtomicReference<Thread> clientThread = new AtomicReference<>();
+            AtomicReference<Boolean> interruptedAtReturn = new AtomicReference<>(false);
+            CountDownLatch firstObserved = new CountDownLatch(1);
+            List<String> chunks = new ArrayList<>();
+            Future<OllamaPromptClient.Result> future = clientExecutor.submit(() -> {
+                clientThread.set(Thread.currentThread());
+                OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                        new OllamaModelConfiguration("qwen3"),
+                        new OllamaPrompt("private-prompt"), chunk -> {
+                            chunks.add(chunk);
+                            firstObserved.countDown();
+                        });
+                interruptedAtReturn.set(Thread.currentThread().isInterrupted());
+                return result;
+            });
+
+            assertTrue(firstWritten.await(2, TimeUnit.SECONDS));
+            assertTrue(firstObserved.await(2, TimeUnit.SECONDS));
+            clientThread.get().interrupt();
+
+            OllamaPromptClient.Result result = future.get(2, TimeUnit.SECONDS);
+            assertEquals(OllamaPromptClient.Status.INTERRUPTED, result.status());
+            assertTrue(interruptedAtReturn.get());
+            assertEquals(List.of("partial"), chunks);
+            releaseTerminal.countDown();
+        }
+    }
+
+    @Test
+    void stopsAStreamThatMakesNoProgressWithinTheInactivityBound() throws Exception {
+        CountDownLatch firstWritten = new CountDownLatch(1);
+        CountDownLatch releaseTerminal = new CountDownLatch(1);
+        try (LocalGenerateServer server = LocalGenerateServer.gated(
+                jsonLine("partial", "", false), TERMINAL, firstWritten, releaseTerminal)) {
+            List<String> chunks = new ArrayList<>();
+            OllamaPromptClient.Result result = client(
+                    server.endpoint(), Duration.ofSeconds(2), Duration.ofMillis(50))
+                    .submit(new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("private-prompt"), chunks::add);
+
+            assertEquals(OllamaPromptClient.Status.TIMED_OUT, result.status());
+            assertEquals(List.of("partial"), chunks);
+            releaseTerminal.countDown();
+        }
+    }
+
+    @Test
+    void stopsAtTheTotalDeadlineBeforeTheLongerInactivityBound() throws Exception {
+        CountDownLatch firstWritten = new CountDownLatch(1);
+        CountDownLatch releaseTerminal = new CountDownLatch(1);
+        try (LocalGenerateServer server = LocalGenerateServer.gated(
+                jsonLine("partial", "", false), TERMINAL, firstWritten, releaseTerminal)) {
+            List<String> chunks = new ArrayList<>();
+            OllamaPromptClient.Result result = client(
+                    server.endpoint(), Duration.ofMillis(500), Duration.ofSeconds(2))
+                    .submit(new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("private-prompt"), chunks::add);
+
+            assertEquals(OllamaPromptClient.Status.TIMED_OUT, result.status());
+            assertEquals(List.of("partial"), chunks);
+            releaseTerminal.countDown();
         }
     }
 
@@ -388,6 +466,14 @@ class OllamaPromptClientTest {
         return new OllamaPromptClient(HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(250))
                 .followRedirects(HttpClient.Redirect.NEVER).build(), endpoint, timeout);
+    }
+
+    private static OllamaPromptClient client(
+            URI endpoint, Duration timeout, Duration inactivityTimeout) {
+        return new OllamaPromptClient(HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(250))
+                .followRedirects(HttpClient.Redirect.NEVER).build(), endpoint, timeout,
+                inactivityTimeout);
     }
 
     private static int indexOf(byte[] source, byte[] target) {

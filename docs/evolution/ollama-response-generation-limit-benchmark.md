@@ -180,10 +180,11 @@ the Java integer range fail as invalid configuration. KAOS does not support
 - `num_predict` is a provider token budget. The body and text ceilings remain
   application memory and terminal-safety controls even when the token budget
   is smaller.
-- The existing five-minute timeout is unchanged. Timeout classification and
-  recovery remain Feature #849.
-- Streaming, progressive truncation visibility, and cancellation remain
-  Feature #848.
+- The five-minute total timeout remains, and Feature #848 adds a 60-second
+  no-data deadline plus safe partial-output guidance. Broader reusable timeout
+  classification and recovery remain Feature #849.
+- Feature #848 streams answer content, distinguishes provider truncation from
+  local safety ceilings, and cancels the response subscription on interruption.
 - Prompt tokens and generated tokens share the model context. A larger response
   limit cannot create context capacity.
 

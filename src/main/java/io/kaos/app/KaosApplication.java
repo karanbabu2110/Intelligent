@@ -8,6 +8,8 @@ import io.kaos.ai.ollama.OllamaThinkingMode;
 import io.kaos.app.config.ApplicationConfiguration;
 import java.io.PrintStream;
 import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -32,10 +34,43 @@ public final class KaosApplication {
     }
 
     public static void main(String[] args) {
-        int exitCode = launch(
-                args, ApplicationConfiguration::load, System.out, System.err);
-        if (exitCode != SUCCESS) {
+        Thread commandThread = Thread.currentThread();
+        CountDownLatch commandFinished = new CountDownLatch(1);
+        Thread cancellationHook = new Thread(() -> {
+            commandThread.interrupt();
+            awaitCommandCleanup(commandFinished);
+        }, "kaos-command-cancellation");
+        Runtime runtime = Runtime.getRuntime();
+        boolean hookRegistered = false;
+        int exitCode;
+        try {
+            try {
+                runtime.addShutdownHook(cancellationHook);
+                hookRegistered = true;
+            } catch (IllegalStateException | SecurityException exception) {
+                // The normal command boundary still handles direct thread interruption.
+            }
+            exitCode = launch(args, ApplicationConfiguration::load, System.out, System.err);
+        } finally {
+            commandFinished.countDown();
+            if (hookRegistered) {
+                try {
+                    runtime.removeShutdownHook(cancellationHook);
+                } catch (IllegalStateException | SecurityException exception) {
+                    // Shutdown already owns the hook, or the runtime denied hook removal.
+                }
+            }
+        }
+        if (exitCode != SUCCESS && !commandThread.isInterrupted()) {
             System.exit(exitCode);
+        }
+    }
+
+    private static void awaitCommandCleanup(CountDownLatch commandFinished) {
+        try {
+            commandFinished.await(2, TimeUnit.SECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -236,11 +271,15 @@ public final class KaosApplication {
             return SUCCESS;
         }
 
+        boolean partialOutput = promptOutput.finishFailure();
         String recovery = switch (result.status()) {
             case TOKEN_LIMIT_REACHED ->
                     "Ollama reached a response or context length boundary before completing the "
                             + "answer. Review the response-token limit and context window, then "
                             + "retry.";
+            case LOCAL_LIMIT_REACHED ->
+                    "KAOS stopped the Ollama stream at a local byte or text safety limit. "
+                            + "Shorten the request or response, then retry.";
             case UNAVAILABLE ->
                     "Local Ollama is unavailable. Start Ollama on 127.0.0.1:11434 and retry.";
             case REQUEST_FAILED ->
@@ -250,10 +289,15 @@ public final class KaosApplication {
             case TIMED_OUT ->
                     "The Ollama prompt request timed out. Try again or select a faster local model.";
             case INTERRUPTED ->
-                    "The Ollama prompt request was interrupted. Retry the command.";
+                    "The Ollama prompt request was cancelled. Retry when ready.";
             case SUCCESS -> throw new IllegalStateException("Successful result has no response.");
         };
+        if (partialOutput) {
+            recovery = "Partial streaming output was displayed before clean completion. "
+                    + recovery;
+        }
         String errorCode = result.status() == OllamaPromptClient.Status.TOKEN_LIMIT_REACHED
+                        || result.status() == OllamaPromptClient.Status.LOCAL_LIMIT_REACHED
                 ? OLLAMA_RESPONSE_LIMIT_CODE
                 : OLLAMA_PROMPT_CODE;
         logError(errorOutput, errorCode, recovery);
@@ -274,6 +318,8 @@ public final class KaosApplication {
         private final PrintStream output;
         private boolean thinkingVisible;
         private boolean answerVisible;
+        private boolean answerContentVisible;
+        private boolean answerEndsWithLineBreak;
 
         private OllamaPromptOutput(OllamaThinkingMode thinkingMode, PrintStream output) {
             this.thinkingMode = Objects.requireNonNull(thinkingMode, "thinkingMode");
@@ -295,6 +341,18 @@ public final class KaosApplication {
             }
             output.print(chunk);
             output.flush();
+            if (!chunk.isEmpty()) {
+                answerContentVisible = true;
+                answerEndsWithLineBreak = chunk.endsWith("\n") || chunk.endsWith("\r");
+            }
+        }
+
+        private boolean finishFailure() {
+            if (answerContentVisible && !answerEndsWithLineBreak) {
+                output.println();
+                output.flush();
+            }
+            return thinkingVisible || answerContentVisible;
         }
     }
 

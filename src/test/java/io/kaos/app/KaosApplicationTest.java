@@ -277,22 +277,85 @@ class KaosApplicationTest {
     }
 
     @Test
-    void reportsTokenLimitCompletionWithoutPrintingAPartialAnswer() {
+    void labelsVisibleOutputWhenTheProviderReachesItsTokenLimit() {
         KaosApplicationHarness.Result result = runOllamaPrompt(
                 "private prompt",
                 () -> new OllamaModelConfiguration("qwen3:4b-instruct"),
-                (model, prompt, thinking, chunks) -> new OllamaPromptClient.Result(
-                        OllamaPromptClient.Status.TOKEN_LIMIT_REACHED, "", ""));
+                (model, prompt, thinking, chunks) -> {
+                    chunks.accept("partial answer");
+                    return new OllamaPromptClient.Result(
+                            OllamaPromptClient.Status.TOKEN_LIMIT_REACHED, "", "");
+                });
 
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
-        assertEquals("", result.standardOutput());
+        assertEquals("partial answer" + System.lineSeparator(), result.standardOutput());
         assertEquals(
-                "ERROR [KAOS-AI-003] Ollama reached a response or context length boundary "
+                "ERROR [KAOS-AI-003] Partial streaming output was displayed before clean "
+                        + "completion. Ollama reached a response or context length boundary "
                         + "before completing the answer. Review the response-token limit and "
                         + "context window, then retry."
                         + System.lineSeparator(),
                 result.errorOutput());
         assertFalse(result.errorOutput().contains("private prompt"));
+    }
+
+    @Test
+    void labelsVisibleOutputWhenAStreamIsMalformedAfterAnAnswerChunk() {
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                "private prompt",
+                () -> new OllamaModelConfiguration("qwen3:4b-instruct"),
+                (model, prompt, thinking, chunks) -> {
+                    chunks.accept("safe prefix");
+                    return new OllamaPromptClient.Result(
+                            OllamaPromptClient.Status.INVALID_RESPONSE, "", "");
+                });
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("safe prefix" + System.lineSeparator(), result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-002] Partial streaming output was displayed before clean "
+                        + "completion. Local Ollama returned an invalid prompt response. "
+                        + "Verify Ollama and retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains("private prompt"));
+    }
+
+    @Test
+    void labelsVisibleOutputWhenTheStreamIsCancelled() {
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                "private prompt",
+                () -> new OllamaModelConfiguration("qwen3:4b-instruct"),
+                (model, prompt, thinking, chunks) -> {
+                    chunks.accept("safe prefix");
+                    return new OllamaPromptClient.Result(
+                            OllamaPromptClient.Status.INTERRUPTED, "", "");
+                });
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("safe prefix" + System.lineSeparator(), result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-002] Partial streaming output was displayed before clean "
+                        + "completion. The Ollama prompt request was cancelled. Retry when ready."
+                        + System.lineSeparator(),
+                result.errorOutput());
+    }
+
+    @Test
+    void distinguishesALocalStreamSafetyLimitFromProviderTruncation() {
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                "private prompt",
+                () -> new OllamaModelConfiguration("qwen3:4b-instruct"),
+                (model, prompt, thinking, chunks) -> new OllamaPromptClient.Result(
+                        OllamaPromptClient.Status.LOCAL_LIMIT_REACHED, "", ""));
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-AI-003] KAOS stopped the Ollama stream at a local byte or text "
+                        + "safety limit. Shorten the request or response, then retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
     }
 
     @Test
