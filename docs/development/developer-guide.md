@@ -326,11 +326,23 @@ Run the current application package tests for focused feedback:
 ./gradlew.bat test --tests 'io.kaos.app.*' --no-daemon
 ```
 
-Run the Ollama connectivity and application integration tests together:
+Run the Ollama package and application tests together:
 
 ```powershell
 ./gradlew.bat test --tests 'io.kaos.ai.ollama.*' --tests 'io.kaos.app.*' --no-daemon
 ```
+
+Run only the deterministic application-to-Ollama integration suite:
+
+```powershell
+./gradlew.bat test --tests 'io.kaos.app.KaosOllamaIntegrationTest' --no-daemon --warning-mode=all
+```
+
+This suite enters through the `ollama-prompt` application route, uses the real
+`OllamaPromptClient`, sends HTTP only to an ephemeral loopback server, consumes
+streamed NDJSON, and verifies exact request, output, failure, and privacy
+behavior. It does not contact the fixed production port, require an installed
+model, or use external network access.
 
 Run only the real child-process and timeout scenarios:
 

@@ -9,9 +9,9 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815) and [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
 - Active epic: [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
-- Completed Epic 002 features: [002.01 — Ollama Connectivity](https://github.com/karanbabu2110/KAOS/issues/845), [002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), [002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847), and [002.04 — Response Streaming](https://github.com/karanbabu2110/KAOS/issues/848)
-- Active feature: [002.05 — AI Error and Timeout Handling](https://github.com/karanbabu2110/KAOS/issues/849), with active Task [002.05.01 — Classify and Report Ollama Failures](https://github.com/karanbabu2110/KAOS/issues/1074)
-- Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming prompt flow, and one JSON runtime library
+- Completed Epic 002 features: [002.01 — Ollama Connectivity](https://github.com/karanbabu2110/KAOS/issues/845), [002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), [002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847), [002.04 — Response Streaming](https://github.com/karanbabu2110/KAOS/issues/848), and [002.05 — AI Error and Timeout Handling](https://github.com/karanbabu2110/KAOS/issues/849)
+- Active feature: [002.06 — AI Integration Testing](https://github.com/karanbabu2110/KAOS/issues/850), with active Task [002.06.01 — Prove the Local AI Path with Deterministic Integration Tests](https://github.com/karanbabu2110/KAOS/issues/1075)
+- Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming prompt flow, one JSON runtime library, and deterministic integration coverage across the application-to-provider seam
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -197,15 +197,17 @@ Run the complete from-clean-state checkpoint:
 ./gradlew.bat clean verifyLocal --no-daemon --warning-mode=all
 ```
 
-This compiles, runs all tests, packages the application, executes deterministic
-`status` and `help` smoke commands, and prints a final success checkpoint only
-when every prerequisite passes. Use `verifyLocal` without `clean` for an
+This compiles, runs all tests—including the application-to-Ollama loopback
+integration suite—packages the application, executes deterministic `status` and
+`help` smoke commands, and prints a final success checkpoint only when every
+prerequisite passes. The integration suite does not require a running Ollama
+installation or external network. Use `verifyLocal` without `clean` for an
 incremental check.
 
 ## Next checkpoint
 
-Epics 000-001 and Features #845 through #848 are complete. Epic #3 continues
-with active AI Error and Timeout Handling Feature #849. Task #1074 classifies
-the complete local Ollama request lifecycle and presents safe, phase-specific
-recovery guidance. AI Integration Testing Feature #850 remains the next
-approved checkpoint after Feature #849 is reviewed and merged.
+Epics 000-001 and Features #845 through #849 are complete. Epic #3 continues
+with active AI Integration Testing Feature #850. Task #1075 proves the complete
+application-to-Ollama request path against deterministic loopback responses.
+First End-to-End AI Demonstration Feature #851 remains the next approved
+checkpoint after Feature #850 is reviewed and merged.
