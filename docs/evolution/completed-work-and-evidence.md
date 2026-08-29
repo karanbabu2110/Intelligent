@@ -136,7 +136,8 @@ the current application state and next development checkpoint.
 ## Epic 002 — First AI Integration (in progress)
 
 [Epic 002](https://github.com/karanbabu2110/KAOS/issues/3) remains in progress.
-The following merged features form the verified `0.1.0` capability snapshot.
+Features 002.01-002.03 form the released `0.1.0` capability snapshot. Later
+merged features below are verified post-release increments.
 
 ### Feature 002.01 — Ollama Connectivity
 
@@ -163,6 +164,14 @@ The following merged features form the verified `0.1.0` capability snapshot.
 - [Task 002.03.02 — Validate and Document Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/1066)
 - Delivery: [PR #18](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/18) and [architecture/documentation follow-up PR #19](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/19)
 
+### Feature 002.04 — Response Streaming
+
+- [Feature 002.04](https://github.com/karanbabu2110/KAOS/issues/848)
+- [Task 002.04.01 — Stream Incremental Answer Content](https://github.com/karanbabu2110/KAOS/issues/1071)
+- [Task 002.04.02 — Show Thinking Progress Without Reasoning Content](https://github.com/karanbabu2110/KAOS/issues/1072)
+- [Task 002.04.03 — Bound, Cancel, Validate, and Document Streaming](https://github.com/karanbabu2110/KAOS/issues/1073)
+- Delivery: [PR #22](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/22)
+
 ### Epic 002 verified evidence so far
 
 - [Ollama connectivity](ollama-connectivity.md)
@@ -172,12 +181,13 @@ The following merged features form the verified `0.1.0` capability snapshot.
 - [Thinking policy and benchmark](ollama-thinking-policy-and-benchmark.md)
 - [Response-generation limit benchmark](ollama-response-generation-limit-benchmark.md)
 - [Prompt submission](ollama-prompt-submission.md)
+- [Response streaming](ollama-response-streaming.md)
 - [KAOS 0.1.0 release notes](../releases/v0.1.0.md)
 - [KAOS 0.1.0 validation and publication checkpoint](../releases/v0.1.0-validation.md)
 
-Response Streaming Feature
-[#848](https://github.com/karanbabu2110/KAOS/issues/848) is the next approved
-goal. Features 002.04-002.07 remain incomplete and are not part of this
+AI Error and Timeout Handling Feature
+[#849](https://github.com/karanbabu2110/KAOS/issues/849) is the active goal.
+Features 002.05-002.07 remain incomplete and are not part of the completed
 snapshot.
 
 ## Maintenance rule

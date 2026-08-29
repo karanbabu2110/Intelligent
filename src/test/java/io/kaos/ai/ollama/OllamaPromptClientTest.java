@@ -367,7 +367,7 @@ class OllamaPromptClientTest {
                     .submit(new OllamaModelConfiguration("qwen3"),
                             new OllamaPrompt("private-prompt"), chunks::add);
 
-            assertEquals(OllamaPromptClient.Status.TIMED_OUT, result.status());
+            assertEquals(OllamaPromptClient.Status.INACTIVITY_TIMEOUT, result.status());
             assertEquals(List.of("partial"), chunks);
             releaseTerminal.countDown();
         }
@@ -385,7 +385,7 @@ class OllamaPromptClientTest {
                     .submit(new OllamaModelConfiguration("qwen3"),
                             new OllamaPrompt("private-prompt"), chunks::add);
 
-            assertEquals(OllamaPromptClient.Status.TIMED_OUT, result.status());
+            assertEquals(OllamaPromptClient.Status.TOTAL_TIMEOUT, result.status());
             assertEquals(List.of("partial"), chunks);
             releaseTerminal.countDown();
         }
@@ -419,13 +419,27 @@ class OllamaPromptClientTest {
     }
 
     @Test
+    void distinguishesAnAcceptedStreamTransportFailureFromUnavailableOllama() throws Exception {
+        try (LocalGenerateServer server = LocalGenerateServer.truncatedAfter(
+                jsonLine("partial", "", false))) {
+            List<String> chunks = new ArrayList<>();
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3"),
+                    new OllamaPrompt("private-prompt"), chunks::add);
+
+            assertEquals(OllamaPromptClient.Status.STREAM_FAILED, result.status());
+            assertEquals(List.of("partial"), chunks);
+        }
+    }
+
+    @Test
     void distinguishesARequestTimeoutFromUnavailableOllama() throws Exception {
         try (LocalGenerateServer server = LocalGenerateServer.delayed(
                 Duration.ofMillis(250), TERMINAL)) {
             OllamaPromptClient.Result result = client(server.endpoint(), Duration.ofMillis(25))
                     .submit(new OllamaModelConfiguration("qwen3"),
                             new OllamaPrompt("private-prompt"));
-            assertEquals(OllamaPromptClient.Status.TIMED_OUT, result.status());
+            assertEquals(OllamaPromptClient.Status.TOTAL_TIMEOUT, result.status());
         }
     }
 
@@ -499,7 +513,8 @@ class OllamaPromptClientTest {
         private final AtomicReference<String> requestBody = new AtomicReference<>();
 
         private LocalGenerateServer(int status, String contentType, byte[][] writes,
-                Duration initialDelay, CountDownLatch firstWritten, CountDownLatch releaseRest)
+                Duration initialDelay, CountDownLatch firstWritten, CountDownLatch releaseRest,
+                long declaredLength)
                 throws IOException {
             server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             executor = Executors.newSingleThreadExecutor(runnable -> {
@@ -509,7 +524,7 @@ class OllamaPromptClientTest {
             });
             server.setExecutor(executor);
             server.createContext("/api/generate", exchange -> respond(exchange, status,
-                    contentType, writes, initialDelay, firstWritten, releaseRest));
+                    contentType, writes, initialDelay, firstWritten, releaseRest, declaredLength));
             server.start();
         }
 
@@ -523,19 +538,19 @@ class OllamaPromptClientTest {
 
         static LocalGenerateServer writes(byte[][] writes) throws IOException {
             return new LocalGenerateServer(200, "application/x-ndjson", writes,
-                    Duration.ZERO, null, null);
+                    Duration.ZERO, null, null, 0);
         }
 
         static LocalGenerateServer responding(int status, String contentType, String body)
                 throws IOException {
             return new LocalGenerateServer(status, contentType,
                     new byte[][] {body.getBytes(StandardCharsets.UTF_8)},
-                    Duration.ZERO, null, null);
+                    Duration.ZERO, null, null, 0);
         }
 
         static LocalGenerateServer delayed(Duration delay, String body) throws IOException {
             return new LocalGenerateServer(200, "application/x-ndjson",
-                    new byte[][] {body.getBytes(StandardCharsets.UTF_8)}, delay, null, null);
+                    new byte[][] {body.getBytes(StandardCharsets.UTF_8)}, delay, null, null, 0);
         }
 
         static LocalGenerateServer gated(String first, String rest, CountDownLatch firstWritten,
@@ -543,7 +558,13 @@ class OllamaPromptClientTest {
             return new LocalGenerateServer(200, "application/x-ndjson",
                     new byte[][] {first.getBytes(StandardCharsets.UTF_8),
                         rest.getBytes(StandardCharsets.UTF_8)},
-                    Duration.ZERO, firstWritten, releaseRest);
+                    Duration.ZERO, firstWritten, releaseRest, 0);
+        }
+
+        static LocalGenerateServer truncatedAfter(String first) throws IOException {
+            byte[] bytes = first.getBytes(StandardCharsets.UTF_8);
+            return new LocalGenerateServer(200, "application/x-ndjson",
+                    new byte[][] {bytes}, Duration.ZERO, null, null, bytes.length + 100L);
         }
 
         URI endpoint() {
@@ -558,7 +579,7 @@ class OllamaPromptClientTest {
 
         private void respond(HttpExchange exchange, int status, String contentType,
                 byte[][] writes, Duration initialDelay, CountDownLatch firstWritten,
-                CountDownLatch releaseRest) throws IOException {
+                CountDownLatch releaseRest, long declaredLength) throws IOException {
             try (exchange) {
                 method.set(exchange.getRequestMethod());
                 requestContentType.set(exchange.getRequestHeaders().getFirst("Content-Type"));
@@ -567,7 +588,7 @@ class OllamaPromptClientTest {
                         StandardCharsets.UTF_8));
                 sleep(initialDelay);
                 exchange.getResponseHeaders().set("Content-Type", contentType);
-                exchange.sendResponseHeaders(status, 0);
+                exchange.sendResponseHeaders(status, declaredLength);
                 for (int index = 0; index < writes.length; index++) {
                     exchange.getResponseBody().write(writes[index]);
                     exchange.getResponseBody().flush();

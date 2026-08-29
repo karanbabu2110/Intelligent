@@ -9,8 +9,8 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815) and [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
 - Active epic: [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
-- Completed Epic 002 features: [002.01 — Ollama Connectivity](https://github.com/karanbabu2110/KAOS/issues/845), [002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), and [002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847)
-- Active feature: [002.04 — Response Streaming](https://github.com/karanbabu2110/KAOS/issues/848); Tasks [002.04.01](https://github.com/karanbabu2110/KAOS/issues/1071) and [002.04.02](https://github.com/karanbabu2110/KAOS/issues/1072) completed answer and thinking presentation, while active Task [002.04.03](https://github.com/karanbabu2110/KAOS/issues/1073) completes cancellation and boundary handling
+- Completed Epic 002 features: [002.01 — Ollama Connectivity](https://github.com/karanbabu2110/KAOS/issues/845), [002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), [002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847), and [002.04 — Response Streaming](https://github.com/karanbabu2110/KAOS/issues/848)
+- Active feature: [002.05 — AI Error and Timeout Handling](https://github.com/karanbabu2110/KAOS/issues/849), with active Task [002.05.01 — Classify and Report Ollama Failures](https://github.com/karanbabu2110/KAOS/issues/1074)
 - Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming prompt flow, and one JSON runtime library
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
@@ -35,16 +35,16 @@ build outputs, troubleshooting, and the feature delivery workflow.
 
 ## Version
 
-The prepared release is **0.1.0**, with the intended tag
+The latest published release is **0.1.0**, available from tag
 [`v0.1.0`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v0.1.0).
-The tag and GitHub pre-release are created only after this exact versioned
-checkpoint is merged and revalidated on `main`.
 
-This is the first useful local-AI development release: it can validate a local
+That snapshot is the first useful local-AI development release: it can validate a local
 Ollama server, select and bound a model configuration, and submit one safe
 non-streamed prompt. It is not production-ready and has no stable public API,
 persistent-data schema, or compatibility guarantee. See the
-[0.1.0 release notes](docs/releases/v0.1.0.md).
+[0.1.0 release notes](docs/releases/v0.1.0.md). Current development after the
+release adds bounded response streaming and phase-specific failure handling;
+no later tag or release has been created.
 
 ## Run the application
 
@@ -105,8 +105,10 @@ five minutes with a 60-second no-data deadline. Ordinary thinking-off requests
 show only answer content. Explicit thinking-on requests show `Thinking...`, then
 `Answer:`, without displaying raw reasoning. Ctrl+C interrupts the command and
 cancels the response subscription. Provider truncation, local byte/text limits,
-timeouts, cancellation, malformed records, and incomplete streams remain
-distinct outcomes. If one occurs after visible content, KAOS terminates the
+pre-response unavailability, request rejection, accepted-stream transport loss,
+total timeout, inactivity timeout, cancellation, malformed records, and
+incomplete streams are distinct outcomes with safe recovery guidance. If one
+occurs after visible content, KAOS terminates the
 stdout line and identifies the output as partial in safe stderr guidance. KAOS
 does not retry after partial output and does not echo prompts
 or raw Ollama failures in errors. However,
@@ -202,9 +204,8 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-001 and Features #845, #846, and #847 are complete in released
-`v0.1.0`. Epic #3 continues with active Response Streaming Feature #848. Task
-#1071 adds incremental answer content, #1072 adds opt-in thinking progress, and
-#1073 completes the bounded cancellation and partial-output policy. Feature
-#848 remains in progress through its complete review and pull request; Feature
-#849 remains the next approved error-and-timeout checkpoint.
+Epics 000-001 and Features #845 through #848 are complete. Epic #3 continues
+with active AI Error and Timeout Handling Feature #849. Task #1074 classifies
+the complete local Ollama request lifecycle and presents safe, phase-specific
+recovery guidance. AI Integration Testing Feature #850 remains the next
+approved checkpoint after Feature #849 is reviewed and merged.

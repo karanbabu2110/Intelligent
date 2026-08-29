@@ -9,7 +9,11 @@
  * content-free progress signal; raw reasoning remains separate from terminal
  * output. Streaming is backpressured one publisher item at a time, bounded by
  * total and inactivity deadlines, and cancelled when the command thread is
- * interrupted or a hard local limit is reached. The package does not define a
- * provider-neutral abstraction or a separate runtime boundary.</p>
+ * interrupted or a hard local limit is reached. Failures distinguish
+ * pre-response unavailability, request rejection, invalid data, accepted-stream
+ * transport loss, total timeout, inactivity timeout, generation boundaries,
+ * local limits, and cancellation without retaining provider details. The
+ * package does not define a provider-neutral abstraction or a separate runtime
+ * boundary.</p>
  */
 package io.kaos.ai.ollama;

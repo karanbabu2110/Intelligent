@@ -29,6 +29,9 @@ public final class KaosApplication {
     static final String UNREADABLE_OLLAMA_MODEL_CODE = "KAOS-AI-CONFIG-002";
     static final String OLLAMA_PROMPT_CODE = "KAOS-AI-002";
     static final String OLLAMA_RESPONSE_LIMIT_CODE = "KAOS-AI-003";
+    static final String OLLAMA_STREAM_CODE = "KAOS-AI-004";
+    static final String OLLAMA_TIMEOUT_CODE = "KAOS-AI-005";
+    static final String OLLAMA_CANCELLATION_CODE = "KAOS-AI-006";
 
     private KaosApplication() {
     }
@@ -281,13 +284,21 @@ public final class KaosApplication {
                     "KAOS stopped the Ollama stream at a local byte or text safety limit. "
                             + "Shorten the request or response, then retry.";
             case UNAVAILABLE ->
-                    "Local Ollama is unavailable. Start Ollama on 127.0.0.1:11434 and retry.";
+                    "Local Ollama could not be reached before the prompt response began. "
+                            + "Start Ollama on 127.0.0.1:11434 and retry.";
             case REQUEST_FAILED ->
                     "Local Ollama rejected the prompt request. Verify the configured model and retry.";
             case INVALID_RESPONSE ->
                     "Local Ollama returned an invalid prompt response. Verify Ollama and retry.";
-            case TIMED_OUT ->
-                    "The Ollama prompt request timed out. Try again or select a faster local model.";
+            case STREAM_FAILED ->
+                    "The accepted Ollama response stream lost its local connection. "
+                            + "Verify Ollama is still running, then retry.";
+            case TOTAL_TIMEOUT ->
+                    "The Ollama prompt exceeded its five-minute total deadline. Shorten the "
+                            + "request or select a faster local model, then retry.";
+            case INACTIVITY_TIMEOUT ->
+                    "The Ollama response stream produced no data for 60 seconds. Verify Ollama "
+                            + "is still progressing or select a faster local model, then retry.";
             case INTERRUPTED ->
                     "The Ollama prompt request was cancelled. Retry when ready.";
             case SUCCESS -> throw new IllegalStateException("Successful result has no response.");
@@ -296,10 +307,15 @@ public final class KaosApplication {
             recovery = "Partial streaming output was displayed before clean completion. "
                     + recovery;
         }
-        String errorCode = result.status() == OllamaPromptClient.Status.TOKEN_LIMIT_REACHED
-                        || result.status() == OllamaPromptClient.Status.LOCAL_LIMIT_REACHED
-                ? OLLAMA_RESPONSE_LIMIT_CODE
-                : OLLAMA_PROMPT_CODE;
+        String errorCode = switch (result.status()) {
+            case UNAVAILABLE -> OLLAMA_CONNECTIVITY_CODE;
+            case REQUEST_FAILED, INVALID_RESPONSE -> OLLAMA_PROMPT_CODE;
+            case TOKEN_LIMIT_REACHED, LOCAL_LIMIT_REACHED -> OLLAMA_RESPONSE_LIMIT_CODE;
+            case STREAM_FAILED -> OLLAMA_STREAM_CODE;
+            case TOTAL_TIMEOUT, INACTIVITY_TIMEOUT -> OLLAMA_TIMEOUT_CODE;
+            case INTERRUPTED -> OLLAMA_CANCELLATION_CODE;
+            case SUCCESS -> throw new IllegalStateException("Successful result has no error code.");
+        };
         logError(errorOutput, errorCode, recovery);
         return APPLICATION_ERROR;
     }
