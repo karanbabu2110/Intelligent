@@ -8,6 +8,7 @@ import io.kaos.ai.ollama.OllamaConnectivity;
 import io.kaos.ai.ollama.OllamaModelConfiguration;
 import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
+import io.kaos.ai.ollama.OllamaThinkingMode;
 import io.kaos.app.config.ApplicationConfiguration;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -196,7 +197,7 @@ class KaosApplicationTest {
         KaosApplicationHarness.Result result = runOllamaPrompt(
                 "Why local AI?",
                 () -> new OllamaModelConfiguration("qwen3:8b"),
-                (model, prompt, chunks) -> {
+                (model, prompt, thinking, chunks) -> {
                     selectedModel.set(model.modelName());
                     submittedPrompt.set(prompt.text());
                     chunks.accept("A local ");
@@ -216,6 +217,54 @@ class KaosApplicationTest {
     }
 
     @Test
+    void showsThinkingProgressAndTransitionsToTheAnswerWithoutRawReasoning() {
+        String privateThinking = "private reasoning trace";
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                "Solve this deliberately.",
+                () -> new OllamaModelConfiguration(
+                        "qwen3:4b", 4_096, OllamaThinkingMode.ON),
+                (model, prompt, thinking, chunks) -> {
+                    thinking.run();
+                    thinking.run();
+                    chunks.accept("Final ");
+                    chunks.accept("answer.");
+                    return new OllamaPromptClient.Result(
+                            OllamaPromptClient.Status.SUCCESS,
+                            privateThinking,
+                            "Final answer.");
+                });
+
+        assertEquals(KaosApplication.SUCCESS, result.exitCode());
+        assertEquals(
+                "Thinking..." + System.lineSeparator()
+                        + "Answer:" + System.lineSeparator()
+                        + "Final answer." + System.lineSeparator(),
+                result.standardOutput());
+        assertEquals("", result.errorOutput());
+        assertFalse(result.standardOutput().contains(privateThinking));
+    }
+
+    @Test
+    void thinkingOnDoesNotClaimProgressWhenTheProviderEmitsNoThinking() {
+        KaosApplicationHarness.Result result = runOllamaPrompt(
+                "Answer directly.",
+                () -> new OllamaModelConfiguration(
+                        "qwen3:4b", 4_096, OllamaThinkingMode.ON),
+                (model, prompt, thinking, chunks) -> {
+                    chunks.accept("Direct answer.");
+                    return new OllamaPromptClient.Result(
+                            OllamaPromptClient.Status.SUCCESS, "", "Direct answer.");
+                });
+
+        assertEquals(KaosApplication.SUCCESS, result.exitCode());
+        assertEquals(
+                "Answer:" + System.lineSeparator()
+                        + "Direct answer." + System.lineSeparator(),
+                result.standardOutput());
+        assertFalse(result.standardOutput().contains("Thinking..."));
+    }
+
+    @Test
     void rejectsAMissingPromptWithUsageGuidance() {
         KaosApplicationHarness.Result result = KaosApplicationHarness.run("ollama-prompt");
 
@@ -232,7 +281,7 @@ class KaosApplicationTest {
         KaosApplicationHarness.Result result = runOllamaPrompt(
                 "private prompt",
                 () -> new OllamaModelConfiguration("qwen3:4b-instruct"),
-                (model, prompt, chunks) -> new OllamaPromptClient.Result(
+                (model, prompt, thinking, chunks) -> new OllamaPromptClient.Result(
                         OllamaPromptClient.Status.TOKEN_LIMIT_REACHED, "", ""));
 
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
@@ -255,7 +304,7 @@ class KaosApplicationTest {
                 () -> {
                     throw new AssertionError("model must not load for an invalid prompt");
                 },
-                (model, prompt, chunks) -> {
+                (model, prompt, thinking, chunks) -> {
                     throw new AssertionError("invalid prompt must not be submitted");
                 });
 
@@ -276,7 +325,7 @@ class KaosApplicationTest {
         KaosApplicationHarness.Result result = runOllamaPrompt(
                 privatePrompt,
                 () -> new OllamaModelConfiguration("missing-model"),
-                (model, prompt, chunks) -> {
+                (model, prompt, thinking, chunks) -> {
                     assertFalse(prompt.text().contains(privateProviderDetail));
                     return new OllamaPromptClient.Result(
                             OllamaPromptClient.Status.REQUEST_FAILED, "", "");
@@ -298,7 +347,7 @@ class KaosApplicationTest {
         KaosApplicationHarness.Result result = runOllamaPrompt(
                 "private prompt",
                 () -> new OllamaModelConfiguration("slow-model"),
-                (model, prompt, chunks) -> new OllamaPromptClient.Result(
+                (model, prompt, thinking, chunks) -> new OllamaPromptClient.Result(
                         OllamaPromptClient.Status.TIMED_OUT, "", ""));
 
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
@@ -318,7 +367,7 @@ class KaosApplicationTest {
                 () -> {
                     throw new IllegalArgumentException("private-model-detail");
                 },
-                (model, prompt, chunks) -> {
+                (model, prompt, thinking, chunks) -> {
                     throw new AssertionError("prompt must not submit without a model");
                 });
 
@@ -341,7 +390,7 @@ class KaosApplicationTest {
                 () -> {
                     throw new AssertionError("model configuration must remain lazy");
                 },
-                (model, prompt, chunks) -> {
+                (model, prompt, thinking, chunks) -> {
                     throw new AssertionError("prompt client must remain lazy");
                 });
 

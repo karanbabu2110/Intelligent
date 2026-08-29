@@ -10,7 +10,7 @@ inside the verified single application.
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815) and [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
 - Active epic: [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
 - Completed Epic 002 features: [002.01 — Ollama Connectivity](https://github.com/karanbabu2110/KAOS/issues/845), [002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), and [002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847)
-- Active feature: [002.04 — Response Streaming](https://github.com/karanbabu2110/KAOS/issues/848); Task [002.04.01](https://github.com/karanbabu2110/KAOS/issues/1071) implements incremental answer content
+- Active feature: [002.04 — Response Streaming](https://github.com/karanbabu2110/KAOS/issues/848); Task [002.04.01](https://github.com/karanbabu2110/KAOS/issues/1071) completed incremental answers and active Task [002.04.02](https://github.com/karanbabu2110/KAOS/issues/1072) adds opt-in thinking progress
 - Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming prompt flow, and one JSON runtime library
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
@@ -101,8 +101,10 @@ answer chunk before printing it, and assembles the same chunks into one bounded
 final answer. Ordinary requests explicitly disable thinking and use a 512-token
 generation default. The prompt is limited to 4,096 characters; the response is
 limited to 1 MiB and 65,536 characters; and the complete request is bounded to
-five minutes. Thinking chunks are not displayed. Complete partial-output and
-cancellation policy remains Task #1073. KAOS does not echo prompts
+five minutes. Ordinary thinking-off requests show only answer content. Explicit
+thinking-on requests show `Thinking...`, then `Answer:`, without displaying raw
+reasoning. Complete partial-output and cancellation policy remains Task #1073.
+KAOS does not echo prompts
 or raw Ollama failures in errors. However,
 the quoted prompt can remain in shell history or be visible as a process
 argument, so this developer CLI is not an appropriate input surface for
@@ -125,9 +127,10 @@ $env:KAOS_OLLAMA_THINKING = "on"
 ./gradlew.bat --% run --args="ollama-prompt \"<reasoning prompt>\""
 ```
 
-KAOS sends `think: true` but prints only the final answer; the provider's
-thinking trace remains separate and hidden. Unsupported models fail safely and
-are not replaced or retried automatically. See the
+KAOS sends `think: true`. When the provider emits separated thinking, KAOS
+prints one `Thinking...` progress line and then transitions to an `Answer:`
+section while keeping the raw reasoning trace hidden. Unsupported models fail
+safely and are not replaced or retried automatically. See the
 [thinking policy and benchmark](docs/evolution/ollama-thinking-policy-and-benchmark.md).
 Thinking-on requests default to 2,048 generated tokens. Set
 `KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT` to a deliberate value from 64 through 4,096
@@ -197,5 +200,6 @@ incremental check.
 
 Epics 000-001 and Features #845, #846, and #847 are complete in released
 `v0.1.0`. Epic #3 continues with active Response Streaming Feature #848. Task
-#1071 adds incremental answer content; thinking presentation (#1072) and the
-complete cancellation and boundary policy (#1073) remain separate checkpoints.
+#1071 adds incremental answer content and #1072 adds opt-in thinking progress;
+the complete cancellation and boundary policy (#1073) remains a separate
+checkpoint.

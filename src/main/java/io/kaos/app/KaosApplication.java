@@ -4,6 +4,7 @@ import io.kaos.ai.ollama.OllamaConnectivity;
 import io.kaos.ai.ollama.OllamaModelConfiguration;
 import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
+import io.kaos.ai.ollama.OllamaThinkingMode;
 import io.kaos.app.config.ApplicationConfiguration;
 import java.io.PrintStream;
 import java.util.Objects;
@@ -84,7 +85,8 @@ public final class KaosApplication {
                 configuration,
                 () -> new OllamaConnectivity().check(),
                 OllamaModelConfiguration::load,
-                (model, prompt, chunks) -> new OllamaPromptClient().submit(model, prompt, chunks),
+                (model, prompt, thinking, chunks) ->
+                        new OllamaPromptClient().submit(model, prompt, thinking, chunks),
                 output,
                 errorOutput);
     }
@@ -100,7 +102,8 @@ public final class KaosApplication {
                 configuration,
                 ollamaConnectivityCheck,
                 OllamaModelConfiguration::load,
-                (model, prompt, chunks) -> new OllamaPromptClient().submit(model, prompt, chunks),
+                (model, prompt, thinking, chunks) ->
+                        new OllamaPromptClient().submit(model, prompt, thinking, chunks),
                 output,
                 errorOutput);
     }
@@ -117,7 +120,8 @@ public final class KaosApplication {
                 configuration,
                 ollamaConnectivityCheck,
                 ollamaModelConfigurationLoader,
-                (model, prompt, chunks) -> new OllamaPromptClient().submit(model, prompt, chunks),
+                (model, prompt, thinking, chunks) ->
+                        new OllamaPromptClient().submit(model, prompt, thinking, chunks),
                 output,
                 errorOutput);
     }
@@ -224,13 +228,9 @@ public final class KaosApplication {
             return APPLICATION_ERROR;
         }
 
+        OllamaPromptOutput promptOutput = new OllamaPromptOutput(model.thinkingMode(), output);
         OllamaPromptClient.Result result = promptSubmission.submit(
-                model,
-                prompt,
-                chunk -> {
-                    output.print(chunk);
-                    output.flush();
-                });
+                model, prompt, promptOutput::thinkingStarted, promptOutput::answerChunk);
         if (result.successful()) {
             output.println();
             return SUCCESS;
@@ -265,7 +265,37 @@ public final class KaosApplication {
         OllamaPromptClient.Result submit(
                 OllamaModelConfiguration model,
                 OllamaPrompt prompt,
+                Runnable thinkingStarted,
                 Consumer<String> answerChunkConsumer);
+    }
+
+    private static final class OllamaPromptOutput {
+        private final OllamaThinkingMode thinkingMode;
+        private final PrintStream output;
+        private boolean thinkingVisible;
+        private boolean answerVisible;
+
+        private OllamaPromptOutput(OllamaThinkingMode thinkingMode, PrintStream output) {
+            this.thinkingMode = Objects.requireNonNull(thinkingMode, "thinkingMode");
+            this.output = Objects.requireNonNull(output, "output");
+        }
+
+        private void thinkingStarted() {
+            if (thinkingMode == OllamaThinkingMode.ON && !thinkingVisible) {
+                output.println("Thinking...");
+                output.flush();
+                thinkingVisible = true;
+            }
+        }
+
+        private void answerChunk(String chunk) {
+            if (thinkingMode == OllamaThinkingMode.ON && !answerVisible) {
+                output.println("Answer:");
+                answerVisible = true;
+            }
+            output.print(chunk);
+            output.flush();
+        }
     }
 
     private static int reportOllamaModel(

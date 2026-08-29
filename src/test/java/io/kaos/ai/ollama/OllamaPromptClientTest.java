@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
@@ -137,32 +138,66 @@ class OllamaPromptClientTest {
 
     @Test
     void keepsThinkingSeparateAndNeverEmitsItAsAnswerContent() throws Exception {
-        String privateThinking = "private reasoning trace";
+        String firstPrivateThinking = "private reasoning ";
+        String secondPrivateThinking = "trace";
         try (LocalGenerateServer server = LocalGenerateServer.streaming(
-                jsonLine("", privateThinking, false),
+                jsonLine("", firstPrivateThinking, false),
+                jsonLine("", secondPrivateThinking, false),
                 jsonLine("Final answer.", "", false),
                 TERMINAL)) {
             List<String> chunks = new ArrayList<>();
+            AtomicInteger thinkingSignals = new AtomicInteger();
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3:4b", 4_096, OllamaThinkingMode.ON),
-                    new OllamaPrompt("Solve this deliberately."), chunks::add);
+                    new OllamaPrompt("Solve this deliberately."),
+                    thinkingSignals::incrementAndGet,
+                    chunks::add);
 
             assertEquals(List.of("Final answer."), chunks);
-            assertEquals(privateThinking, result.thinking());
-            assertFalse(result.toString().contains(privateThinking));
+            assertEquals(1, thinkingSignals.get());
+            assertEquals(firstPrivateThinking + secondPrivateThinking, result.thinking());
+            assertFalse(result.toString().contains(firstPrivateThinking));
         }
     }
 
     @Test
-    void thinkingOffDoesNotRetainUnexpectedThinking() throws Exception {
+    void thinkingOffRejectsUnexpectedThinkingWithoutDisplayingIt() throws Exception {
         try (LocalGenerateServer server = LocalGenerateServer.streaming(
                 jsonLine("", "unexpected trace", false),
                 jsonLine("Final answer.", "", false), TERMINAL)) {
+            AtomicInteger thinkingSignals = new AtomicInteger();
+            List<String> chunks = new ArrayList<>();
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3:4b-instruct"),
-                    new OllamaPrompt("Answer ordinarily."));
+                    new OllamaPrompt("Answer ordinarily."),
+                    thinkingSignals::incrementAndGet,
+                    chunks::add);
 
-            assertTrue(result.successful());
+            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            assertEquals(0, thinkingSignals.get());
+            assertEquals(List.of(), chunks);
+            assertEquals("", result.thinking());
+        }
+    }
+
+    @Test
+    void rejectsThinkingThatArrivesAfterAnswerOutputStarts() throws Exception {
+        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+                jsonLine("First answer chunk", "", false),
+                jsonLine("", "late private reasoning", false),
+                TERMINAL)) {
+            AtomicInteger thinkingSignals = new AtomicInteger();
+            List<String> chunks = new ArrayList<>();
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration(
+                            "qwen3:4b", 4_096, OllamaThinkingMode.ON),
+                    new OllamaPrompt("Solve this deliberately."),
+                    thinkingSignals::incrementAndGet,
+                    chunks::add);
+
+            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            assertEquals(0, thinkingSignals.get());
+            assertEquals(List.of("First answer chunk"), chunks);
             assertEquals("", result.thinking());
         }
     }

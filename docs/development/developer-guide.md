@@ -157,9 +157,11 @@ arrives, validates each answer chunk, prints and flushes it once, and assembles
 the same chunks into the bounded final answer. It also sends `think: false` and
 `options.num_predict: 512` for this ordinary configuration. The response body
 is bounded to 1 MiB, generated answer text to 65,536 characters, and the request
-to five minutes. Task #1071 does not display thinking chunks. Thinking progress
-belongs to #1072; complete cancellation and partial-output policy belongs to
-#1073. There is no retry, conversation, system-prompt, tool, image,
+to five minutes. Ordinary thinking-off requests retain this unlabeled answer
+stream. Explicit thinking-on requests show a content-free progress line and an
+answer heading without displaying raw reasoning. Complete cancellation and
+partial-output policy belongs to #1073. There is no retry, conversation,
+system-prompt, tool, image,
 remote-provider, or persistence behavior.
 
 The CLI argument can remain in shell history and may be visible to local
@@ -225,11 +227,14 @@ $env:KAOS_OLLAMA_THINKING = "on"
 ./gradlew.bat --% run --args="ollama-prompt \"<reasoning prompt>\""
 ```
 
-KAOS sends the boolean mode explicitly. When thinking is on, it keeps Ollama's
-`thinking` field separate and prints only the final `response`. It does not
-display raw reasoning, infer a mode from the prompt, retry with thinking off,
-or substitute a model. An unsupported model therefore fails through the safe
-prompt-rejection path.
+KAOS sends the boolean mode explicitly. When thinking is on and the provider
+emits thinking records, KAOS prints `Thinking...` once, then prints `Answer:`
+before streaming final-answer chunks. Raw reasoning remains separately bounded
+and is never printed, logged, or included in errors. If the provider emits no
+thinking, KAOS does not claim that thinking occurred and begins with `Answer:`.
+It does not infer a mode from the prompt, retry with thinking off, or substitute
+a model. An unsupported model therefore fails through the safe prompt-rejection
+path.
 
 The response-token-limit precedence is:
 

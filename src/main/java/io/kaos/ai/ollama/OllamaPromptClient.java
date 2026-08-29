@@ -51,14 +51,25 @@ public final class OllamaPromptClient {
 
     /** Generates one streamed response without exposing progressive chunks to the caller. */
     public Result submit(OllamaModelConfiguration model, OllamaPrompt prompt) {
-        return submit(model, prompt, ignored -> { });
+        return submit(model, prompt, () -> { }, ignored -> { });
     }
 
     /** Generates one streamed response and emits every validated answer chunk exactly once. */
     public Result submit(OllamaModelConfiguration model, OllamaPrompt prompt,
             Consumer<String> answerChunkConsumer) {
+        return submit(model, prompt, () -> { }, answerChunkConsumer);
+    }
+
+    /**
+     * Generates one streamed response with separate thinking progress and answer signals.
+     *
+     * <p>The thinking callback carries no generated text and runs at most once.</p>
+     */
+    public Result submit(OllamaModelConfiguration model, OllamaPrompt prompt,
+            Runnable thinkingStarted, Consumer<String> answerChunkConsumer) {
         Objects.requireNonNull(model, "model");
         Objects.requireNonNull(prompt, "prompt");
+        Objects.requireNonNull(thinkingStarted, "thinkingStarted");
         Objects.requireNonNull(answerChunkConsumer, "answerChunkConsumer");
 
         byte[] requestBody = encodeRequest(model.modelName(), prompt.text(), model.contextWindow(),
@@ -79,7 +90,7 @@ public final class OllamaPromptClient {
                     return Result.failed(Status.INVALID_RESPONSE);
                 }
                 return decodeStream(new LimitedInputStream(responseBody, MAX_RESPONSE_BYTES),
-                        model.thinkingMode(), answerChunkConsumer);
+                        model.thinkingMode(), thinkingStarted, answerChunkConsumer);
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -111,9 +122,11 @@ public final class OllamaPromptClient {
     }
 
     private static Result decodeStream(InputStream body, OllamaThinkingMode thinkingMode,
-            Consumer<String> answerChunkConsumer) throws IOException {
+            Runnable thinkingStarted, Consumer<String> answerChunkConsumer) throws IOException {
         StringBuilder answer = new StringBuilder();
         StringBuilder thinking = new StringBuilder();
+        boolean thinkingSignaled = false;
+        boolean answerStarted = false;
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(body, StandardCharsets.UTF_8.newDecoder()
                         .onMalformedInput(CodingErrorAction.REPORT)
@@ -131,6 +144,15 @@ public final class OllamaPromptClient {
                                 MAX_RESPONSE_CODE_POINTS)) {
                     return Result.failed(Status.INVALID_RESPONSE);
                 }
+                if (!record.thinking().isEmpty()) {
+                    if (thinkingMode == OllamaThinkingMode.OFF || answerStarted) {
+                        return Result.failed(Status.INVALID_RESPONSE);
+                    }
+                    if (!thinkingSignaled) {
+                        thinkingStarted.run();
+                        thinkingSignaled = true;
+                    }
+                }
                 if (record.done()) {
                     Result completed = complete(record, thinkingMode, thinking, answer);
                     if (completed.successful() && !record.response().isEmpty()) {
@@ -142,6 +164,7 @@ public final class OllamaPromptClient {
                     return completed;
                 }
                 if (!record.response().isEmpty()) {
+                    answerStarted = true;
                     answerChunkConsumer.accept(record.response());
                 }
             }
