@@ -30,7 +30,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-08-29</strong>
-        Version 0.1.0 + Feature 002.05 in progress<br>
+        Version 0.1.0 + Feature 002.06 in progress<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -39,16 +39,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 002.05 Task 002.05.01</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 002.06 Task 002.06.01</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the phase-specific, privacy-safe failure boundary implemented by Feature 002.05 Task 002.05.01. Broader AI integration testing remains the next feature; the underlying implemented, next, and future statuses remain authoritative.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the deterministic application-to-provider integration-test boundary implemented by Feature 002.06 Task 002.06.01. A real installed-model demonstration remains the next feature; the underlying implemented, next, and future statuses remain authoritative.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">Current runtime and local AI integration</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 650" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes the implemented KAOS application. The application validates local configuration and routes status, help, Ollama status, model, and prompt commands. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one streaming prompt request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces total, inactivity, byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. Gradle, Jackson, and tests support and verify the application.</desc>
+          <desc id="diagram-description">A terminal invokes the implemented KAOS application. The application validates local configuration and routes status, help, Ollama status, model, and prompt commands. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one streaming prompt request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces total, inactivity, byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. The standard JUnit suite now verifies the complete application-to-client-to-loopback-provider path for success and safe failure without changing production topology. Gradle and Jackson support the application.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -72,7 +72,7 @@
           <text x="387" y="249" class="svg-copy">Ollama command routing</text>
           <rect x="580" y="166" width="190" height="93" class="box box-support"></rect>
           <text x="602" y="202" class="svg-title">Output</text>
-          <text x="602" y="229" class="svg-copy svg-change">UPDATED · safe failure guidance</text>
+          <text x="602" y="229" class="svg-copy">safe failure guidance</text>
           <rect x="365" y="284" width="190" height="93" class="box box-support"></rect>
           <text x="387" y="320" class="svg-title">App config</text>
           <text x="387" y="347" class="svg-copy">validated local name</text>
@@ -97,7 +97,7 @@
 
           <rect x="330" y="460" width="474" height="150" class="box box-support"></rect>
           <text x="358" y="498" class="svg-title">Build and verification boundary</text>
-          <text x="358" y="527" class="svg-copy">Gradle application plugin · Jackson JSON · JUnit tests</text>
+          <text x="358" y="527" class="svg-copy svg-change">UPDATED · JUnit + loopback AI integration</text>
           <text x="358" y="553" class="svg-copy">clean verifyLocal → compile → test → package → smoke checks</text>
           <text x="358" y="580" class="svg-copy">Jackson Databind 2.22.1 runtime JSON</text>
           <path d="M566 460 L566 405" class="support-flow"></path>
@@ -141,11 +141,16 @@
           <h3>Response streaming</h3>
           <p>Task 002.04.01 streams bounded answer chunks. Task 002.04.02 adds content-free thinking progress and answer isolation. Task 002.04.03 adds backpressure, total and inactivity deadlines, interruption cancellation, distinct local limits, and partial-output guidance without exposing prompts, provider bodies, or reasoning.</p>
         </article>
-        <article class="card change-current">
-          <div class="change-label">Updated in Feature 002.05 Task 002.05.01</div>
+        <article class="card">
           <div class="status implemented">Implemented</div>
           <h3>AI error and timeout handling</h3>
           <p>Task 002.05.01 distinguishes unavailability before response acceptance, accepted-stream transport loss, total and inactivity timeouts, rejection, invalid data, limits, and cancellation. The application maps them to safe diagnostic families and actionable recovery without retaining prompt or provider details.</p>
+        </article>
+        <article class="card change-current">
+          <div class="change-label">Updated in Feature 002.06 Task 002.06.01</div>
+          <div class="status implemented">Implemented</div>
+          <h3>AI integration testing</h3>
+          <p>Task 002.06.01 crosses application routing, the real prompt client, ephemeral loopback HTTP, streamed NDJSON, and terminal output for success, unavailability, and partial malformed-stream safety. It runs in the standard JUnit lifecycle without Ollama, external network, a new source set, or production configuration.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -196,7 +201,8 @@
           <tr><td>Incremental answer streaming</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Thinking progress and answer isolation</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.02 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Cancellable bounded stream lifecycle</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.03 evidence</a></td><td>Implemented</td></tr>
-          <tr class="change-current"><td><span class="change-label">Updated in Feature 002.05 Task 002.05.01</span>Phase-specific AI failure boundary</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/ollama-error-and-timeout-handling.md">Task 002.05.01 evidence</a></td><td>Implemented; Feature 002.05 review remains in progress</td></tr>
+          <tr><td>Phase-specific AI failure boundary</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/ollama-error-and-timeout-handling.md">Task 002.05.01 evidence</a></td><td>Implemented</td></tr>
+          <tr class="change-current"><td><span class="change-label">Updated in Feature 002.06 Task 002.06.01</span>Deterministic application-to-provider integration tests</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTestSupport.java"><code>OllamaPromptClientTestSupport.java</code></a>, and <a href="../../docs/evolution/ollama-ai-integration-testing.md">Task 002.06.01 evidence</a></td><td>Implemented; Feature 002.06 review remains in progress</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

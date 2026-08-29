@@ -69,7 +69,7 @@ smoke commands.
 
 KAOS still performs one foreground request and has no automatic retry, resume,
 conversation state, remote provider, configurable timeout policy, or background
-work. Feature
-[#850](https://github.com/karanbabu2110/KAOS/issues/850) remains the next
-approved broader AI Integration Testing checkpoint. Feature #849 remains in
-progress until its complete review and feature pull request are finished.
+work. Feature #849 was completed and merged through
+[PR #23](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/23).
+Feature [#850](https://github.com/karanbabu2110/KAOS/issues/850) now owns the
+deterministic application-to-provider integration evidence.

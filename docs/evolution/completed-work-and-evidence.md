@@ -172,6 +172,12 @@ merged features below are verified post-release increments.
 - [Task 002.04.03 — Bound, Cancel, Validate, and Document Streaming](https://github.com/karanbabu2110/KAOS/issues/1073)
 - Delivery: [PR #22](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/22)
 
+### Feature 002.05 — AI Error and Timeout Handling
+
+- [Feature 002.05](https://github.com/karanbabu2110/KAOS/issues/849)
+- [Task 002.05.01 — Classify and Report Ollama Failures](https://github.com/karanbabu2110/KAOS/issues/1074)
+- Delivery: [PR #23](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/23)
+
 ### Epic 002 verified evidence so far
 
 - [Ollama connectivity](ollama-connectivity.md)
@@ -182,12 +188,13 @@ merged features below are verified post-release increments.
 - [Response-generation limit benchmark](ollama-response-generation-limit-benchmark.md)
 - [Prompt submission](ollama-prompt-submission.md)
 - [Response streaming](ollama-response-streaming.md)
+- [Ollama error and timeout handling](ollama-error-and-timeout-handling.md)
 - [KAOS 0.1.0 release notes](../releases/v0.1.0.md)
 - [KAOS 0.1.0 validation and publication checkpoint](../releases/v0.1.0-validation.md)
 
-AI Error and Timeout Handling Feature
-[#849](https://github.com/karanbabu2110/KAOS/issues/849) is the active goal.
-Features 002.05-002.07 remain incomplete and are not part of the completed
+AI Integration Testing Feature
+[#850](https://github.com/karanbabu2110/KAOS/issues/850) is the active goal.
+Features 002.06-002.07 remain incomplete and are not part of the completed
 snapshot.
 
 ## Maintenance rule
