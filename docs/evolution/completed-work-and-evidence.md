@@ -178,6 +178,12 @@ merged features below are verified post-release increments.
 - [Task 002.05.01 — Classify and Report Ollama Failures](https://github.com/karanbabu2110/KAOS/issues/1074)
 - Delivery: [PR #23](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/23)
 
+### Feature 002.06 — AI Integration Testing
+
+- [Feature 002.06](https://github.com/karanbabu2110/KAOS/issues/850)
+- [Task 002.06.01 — Prove the Local AI Path with Deterministic Integration Tests](https://github.com/karanbabu2110/KAOS/issues/1075)
+- Delivery: [PR #24](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/24)
+
 ### Epic 002 verified evidence so far
 
 - [Ollama connectivity](ollama-connectivity.md)
@@ -189,13 +195,13 @@ merged features below are verified post-release increments.
 - [Prompt submission](ollama-prompt-submission.md)
 - [Response streaming](ollama-response-streaming.md)
 - [Ollama error and timeout handling](ollama-error-and-timeout-handling.md)
+- [Ollama AI integration testing](ollama-ai-integration-testing.md)
 - [KAOS 0.1.0 release notes](../releases/v0.1.0.md)
 - [KAOS 0.1.0 validation and publication checkpoint](../releases/v0.1.0-validation.md)
 
-AI Integration Testing Feature
-[#850](https://github.com/karanbabu2110/KAOS/issues/850) is the active goal.
-Features 002.06-002.07 remain incomplete and are not part of the completed
-snapshot.
+First End-to-End AI Demonstration Feature
+[#851](https://github.com/karanbabu2110/KAOS/issues/851) is the active goal.
+Feature 002.07 remains incomplete and is not part of the completed snapshot.
 
 ## Maintenance rule
 

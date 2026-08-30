@@ -66,7 +66,7 @@ smoke commands.
 
 The loopback server is a controlled protocol fixture, not an Ollama emulator and
 not evidence of real model quality, installed-model compatibility, latency, or
-hardware behavior. Feature
-[#851](https://github.com/karanbabu2110/KAOS/issues/851) owns the first real
-installed-model end-to-end demonstration. Feature #850 remains in progress until
-its complete review and feature pull request are finished.
+hardware behavior. Feature #850 was completed and merged through
+[PR #24](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/24).
+Feature [#851](https://github.com/karanbabu2110/KAOS/issues/851) now owns the
+[installed-model end-to-end demonstration](first-end-to-end-ai-demonstration.md).
