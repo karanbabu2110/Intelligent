@@ -14,6 +14,7 @@
       <a class="brand" href="#overview">KAOS Architecture</a>
       <ul class="nav-links">
         <li><a href="#runtime">Runtime</a></li>
+        <li><a href="#flow">Flow</a></li>
         <li><a href="#capabilities">Capabilities</a></li>
         <li><a href="#evolution">Evolution</a></li>
         <li><a href="#evidence">Evidence</a></li>
@@ -30,7 +31,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-08-30</strong>
-        Version 0.1.0 + Feature 002.07 in progress<br>
+        Version 1.0.0 · Feature 003.01 in progress<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -41,10 +42,10 @@
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
       <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 002.07 Task 002.07.01</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the packaged application-to-installed-model path verified by Feature 002.07 Task 002.07.01. Conversation Capability remains the next approved epic; the underlying implemented, next, and future statuses remain authoritative.</p>
+    <p class="change-note"><strong>Latest verified architecture update:</strong> magenta labels and accents identify the packaged application-to-installed-model path verified by Feature 002.07 Task 002.07.01. Conversation Domain Model Feature 003.01 is active next work but has no implementation evidence yet; the underlying implemented, next, and future statuses remain authoritative.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
-      <h2 id="runtime-heading">Current runtime and local AI integration</h2>
+      <h2 id="runtime-heading">System architecture diagram</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 650" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
@@ -113,6 +114,92 @@
       </div>
     </section>
 
+    <section id="flow" class="panel" aria-labelledby="flow-heading">
+      <h2 id="flow-heading">First AI request flow diagram</h2>
+      <p class="rule">This is the implemented one-shot <code>ollama-prompt</code> lifecycle. The success and safe-failure paths remain inside one foreground Java process; no conversation, retry, worker, event bus, remote provider, or persistent state participates.</p>
+      <div class="diagram-wrap" tabindex="0" aria-label="Scrollable first AI request flow diagram">
+        <svg viewBox="0 0 1140 535" role="img" aria-labelledby="flow-title flow-description">
+          <title id="flow-title">KAOS first AI request flow</title>
+          <desc id="flow-description">A terminal supplies one bounded prompt. KAOS loads explicit local model configuration, validates the prompt, and routes it through the Ollama prompt client to the fixed loopback provider. Ollama returns backpressured UTF-8 newline-delimited JSON. KAOS reconstructs and validates each record, keeps reasoning hidden, displays each answer chunk exactly once, validates the terminal reason and metrics, and exits successfully. Invalid, timed out, limited, interrupted, rejected, or incomplete requests take a privacy-safe failure path without automatic retry.</desc>
+          <defs>
+            <marker id="sequence-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
+            <marker id="sequence-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
+          </defs>
+
+          <text x="30" y="34" class="svg-label">REQUEST · USER TO FIXED LOCAL PROVIDER</text>
+
+          <rect x="30" y="60" width="180" height="118" class="box box-implemented"></rect>
+          <text x="50" y="96" class="svg-title">1 · Terminal</text>
+          <text x="50" y="124" class="svg-copy">ollama-prompt</text>
+          <text x="50" y="148" class="svg-copy">one bounded prompt</text>
+
+          <rect x="255" y="60" width="180" height="118" class="box box-support"></rect>
+          <text x="275" y="96" class="svg-title">2 · Validate</text>
+          <text x="275" y="124" class="svg-copy">prompt · model · limits</text>
+          <text x="275" y="148" class="svg-copy">thinking off / on</text>
+
+          <rect x="480" y="60" width="180" height="118" class="box box-implemented"></rect>
+          <text x="500" y="96" class="svg-title">3 · Route</text>
+          <text x="500" y="124" class="svg-copy">KaosApplication</text>
+          <text x="500" y="148" class="svg-copy">safe error boundary</text>
+
+          <rect x="705" y="60" width="180" height="118" class="box box-implemented"></rect>
+          <text x="725" y="96" class="svg-title">4 · Request</text>
+          <text x="725" y="124" class="svg-copy">OllamaPromptClient</text>
+          <text x="725" y="148" class="svg-copy">POST · stream true</text>
+
+          <rect x="930" y="60" width="180" height="118" class="box box-implemented"></rect>
+          <text x="950" y="96" class="svg-title">5 · Generate</text>
+          <text x="950" y="124" class="svg-copy">127.0.0.1:11434</text>
+          <text x="950" y="148" class="svg-copy">explicit installed model</text>
+
+          <path d="M210 119 L255 119" class="sequence-flow"></path>
+          <path d="M435 119 L480 119" class="sequence-flow"></path>
+          <path d="M660 119 L705 119" class="sequence-flow"></path>
+          <path d="M885 119 L930 119" class="sequence-flow"></path>
+
+          <text x="30" y="235" class="svg-label">RESPONSE · VALIDATED INCREMENTAL OUTPUT</text>
+
+          <rect x="930" y="260" width="180" height="118" class="box box-support"></rect>
+          <text x="950" y="296" class="svg-title">6 · NDJSON</text>
+          <text x="950" y="324" class="svg-copy">UTF-8 publisher data</text>
+          <text x="950" y="348" class="svg-copy">one item at a time</text>
+
+          <rect x="705" y="260" width="180" height="118" class="box box-support"></rect>
+          <text x="725" y="296" class="svg-title">7 · Guard</text>
+          <text x="725" y="324" class="svg-copy">parse · validate · bound</text>
+          <text x="725" y="348" class="svg-copy">reasoning stays hidden</text>
+
+          <rect x="480" y="260" width="180" height="118" class="box box-implemented"></rect>
+          <text x="500" y="296" class="svg-title">8 · Stream</text>
+          <text x="500" y="324" class="svg-copy">answer chunks once</text>
+          <text x="500" y="348" class="svg-copy">flush immediately</text>
+
+          <rect x="255" y="260" width="180" height="118" class="box box-support"></rect>
+          <text x="275" y="296" class="svg-title">9 · Complete</text>
+          <text x="275" y="324" class="svg-copy">done reason · metrics</text>
+          <text x="275" y="348" class="svg-copy">assembled bounded answer</text>
+
+          <rect x="30" y="260" width="180" height="118" class="box box-implemented"></rect>
+          <text x="50" y="296" class="svg-title">10 · Return</text>
+          <text x="50" y="324" class="svg-copy">exit 0 · empty stderr</text>
+          <text x="50" y="348" class="svg-copy">validated stdout</text>
+
+          <path d="M1020 178 L1020 260" class="sequence-return"></path>
+          <path d="M930 319 L885 319" class="sequence-return"></path>
+          <path d="M705 319 L660 319" class="sequence-return"></path>
+          <path d="M480 319 L435 319" class="sequence-return"></path>
+          <path d="M255 319 L210 319" class="sequence-return"></path>
+
+          <rect x="440" y="430" width="360" height="76" class="box box-support"></rect>
+          <text x="462" y="462" class="svg-title">Safe non-clean ending</text>
+          <text x="462" y="487" class="svg-copy">cancel · classify · coded recovery · no retry</text>
+          <path d="M795 378 L795 410 L720 430" class="sequence-failure"></path>
+          <path d="M345 378 L345 410 L520 430" class="sequence-failure"></path>
+        </svg>
+      </div>
+    </section>
+
     <section class="panel" aria-labelledby="status-heading">
       <h2 id="status-heading">Architecture status</h2>
       <div class="grid">
@@ -156,6 +243,11 @@
           <div class="status implemented">Verified</div>
           <h3>First end-to-end AI demonstration</h3>
           <p>Task 002.07.01 runs the packaged application through the existing fixed-loopback client and an explicitly selected installed model. One safe bounded prompt emitted its exact validated answer before clean completion, with exit 0 and empty error output.</p>
+        </article>
+        <article class="card">
+          <div class="status next">Next approved work</div>
+          <h3>Conversation domain model</h3>
+          <p>Feature 003.01 is the active next goal. No conversation type, message history, persistence, or multi-turn request flow exists until repository evidence is implemented and linked.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -208,7 +300,7 @@
           <tr><td>Cancellable bounded stream lifecycle</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.03 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Phase-specific AI failure boundary</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/ollama-error-and-timeout-handling.md">Task 002.05.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Deterministic application-to-provider integration tests</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTestSupport.java"><code>OllamaPromptClientTestSupport.java</code></a>, and <a href="../../docs/evolution/ollama-ai-integration-testing.md">Task 002.06.01 evidence</a></td><td>Implemented</td></tr>
-          <tr class="change-current"><td><span class="change-label">Updated in Feature 002.07 Task 002.07.01</span>Packaged installed-model demonstration</td><td><a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, and <a href="../../docs/evolution/first-end-to-end-ai-demonstration.md">Task 002.07.01 evidence</a></td><td>Verified; Feature 002.07 review remains in progress</td></tr>
+          <tr class="change-current"><td><span class="change-label">Updated in Feature 002.07 Task 002.07.01</span>Packaged installed-model demonstration</td><td><a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, and <a href="../../docs/evolution/first-end-to-end-ai-demonstration.md">Task 002.07.01 evidence</a></td><td>Implemented</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

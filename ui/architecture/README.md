@@ -16,8 +16,8 @@ ui/architecture/
         `-- site.css
 ```
 
-- `index.html` owns semantic content, diagrams, navigation, evidence links, and
-  accessibility labels.
+- `index.html` owns semantic content, the system architecture and request-flow
+  diagrams, navigation, evidence links, and accessibility labels.
 - `assets/styles/site.css` owns layout, status visuals, responsive behavior,
   and presentation tokens.
 - `README.md` owns the website structure, local run workflow, growth rules, and
@@ -46,16 +46,18 @@ must not be bound to a public network interface for ordinary development.
 
 ## Information architecture
 
-The landing page answers six questions in order:
+The landing page answers seven questions in order:
 
 1. What architecture is implemented and verified now?
-2. What is the next approved integration but not yet implemented?
-3. What context was added or updated by the current feature?
-4. Which long-term capabilities preserve the vision without prescribing
+2. How does one implemented AI request move from input to clean completion or
+   safe failure?
+3. What is the next approved integration but not yet implemented?
+4. What context was added or updated by the current feature?
+5. Which long-term capabilities preserve the vision without prescribing
    topology?
-5. What evidence would justify a stronger module, repository, or service
+6. What evidence would justify a stronger module, repository, or service
    boundary?
-6. Which repository artifacts prove each architectural claim?
+7. Which repository artifacts prove each architectural claim?
 
 Use these status meanings consistently:
 

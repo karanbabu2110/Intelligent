@@ -7,10 +7,9 @@ inside the verified single application.
 ## Current development state
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
-- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815) and [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
-- Active epic: [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
-- Completed Epic 002 features: [002.01 — Ollama Connectivity](https://github.com/karanbabu2110/KAOS/issues/845), [002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), [002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847), [002.04 — Response Streaming](https://github.com/karanbabu2110/KAOS/issues/848), [002.05 — AI Error and Timeout Handling](https://github.com/karanbabu2110/KAOS/issues/849), and [002.06 — AI Integration Testing](https://github.com/karanbabu2110/KAOS/issues/850)
-- Active feature: [002.07 — First End-to-End AI Demonstration](https://github.com/karanbabu2110/KAOS/issues/851), with active Task [002.07.01 — Demonstrate the Complete Local AI Path](https://github.com/karanbabu2110/KAOS/issues/1076)
+- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), and [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
+- Active epic: [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9)
+- Active feature: [003.01 — Conversation Domain Model](https://github.com/karanbabu2110/KAOS/issues/852); its implementation task will be created just in time after current repository evidence is inspected
 - Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming prompt flow, one JSON runtime library, deterministic application-to-provider integration coverage, and a verified packaged run against an installed local model
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
@@ -35,17 +34,16 @@ build outputs, troubleshooting, and the feature delivery workflow.
 
 ## Version
 
-The latest published release is **0.1.0**, available from tag
-[`v0.1.0`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v0.1.0).
+The current cumulative release is **1.0.0**, identified by annotated tag
+[`v1.0.0`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/tree/v1.0.0).
 
-That snapshot is the first useful local-AI development release: it can validate a local
-Ollama server, select and bound a model configuration, and submit one safe
-non-streamed prompt. It is not production-ready and has no stable public API,
-persistent-data schema, or compatibility guarantee. See the
-[0.1.0 release notes](docs/releases/v0.1.0.md). Current development after the
-release adds bounded response streaming, phase-specific failure handling,
+This release represents all verified work through Epic 002: the evolutionary
+development model, the minimal runnable application, and the complete first
+local AI integration with bounded streaming, safe failure handling,
 deterministic integration coverage, and a packaged installed-model
-demonstration; no later tag or release has been created.
+demonstration. It is a complete capability milestone, not a production-readiness
+claim or a promise that later conversation and persistence designs are fixed.
+See the [1.0.0 release notes](docs/releases/v1.0.0.md).
 
 ## Run the application
 
@@ -207,9 +205,7 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-001 and Features #845 through #850 are complete. Epic #3 continues
-with active First End-to-End AI Demonstration Feature #851. Task #1076 records
-the packaged application reaching an explicitly selected installed model and
-returning one clean streamed answer. Conversation Capability Epic #9 is the
-next approved checkpoint after Feature #851 and Epic #3 are reviewed and
-completed.
+Epics 000-002 are complete and form the cumulative `1.0.0` checkpoint.
+Conversation Capability Epic #9 is active, beginning with Conversation Domain
+Model Feature #852. No conversation types, message history, persistence, or
+multi-turn prompt behavior are implemented yet.
