@@ -40,16 +40,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 002.07 Task 002.07.01</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 003.01 Task 003.01.01</span>
     </div>
-    <p class="change-note"><strong>Latest verified architecture update:</strong> magenta labels and accents identify the packaged application-to-installed-model path verified by Feature 002.07 Task 002.07.01. Conversation Domain Model Feature 003.01 is active next work but has no implementation evidence yet; the underlying implemented, next, and future statuses remain authoritative.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the conversation-owned message vocabulary added by Feature 003.01 Task 003.01.01. The types are implemented inside the single application; conversation history and multi-turn behavior remain later work. The underlying implemented, next, and future statuses remain authoritative.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
-        <svg viewBox="0 0 1140 650" role="img" aria-labelledby="diagram-title diagram-description">
+        <svg viewBox="0 0 1140 700" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes the implemented packaged KAOS application. The application validates local configuration and routes status, help, Ollama status, model, and prompt commands. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one streaming prompt request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces total, inactivity, byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. The standard JUnit suite verifies the complete application-to-client-to-loopback-provider path for success and safe failure. The packaged application has also returned a clean streamed answer through an explicitly selected installed local model without changing production topology. Gradle and Jackson support the application.</desc>
+          <desc id="diagram-description">A terminal invokes the implemented packaged KAOS application. The application validates local configuration and routes status, help, Ollama status, model, and prompt commands. The conversation package now owns immutable user and assistant message vocabulary without history, persistence, or multi-turn request behavior. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one streaming prompt request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces total, inactivity, byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. The standard JUnit suite verifies the application and its current capability packages. Gradle and Jackson support the application.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -64,7 +64,7 @@
           <text x="58" y="170" class="svg-copy">ollama-prompt</text>
 
           <text x="340" y="40" class="svg-label">SINGLE JAVA 21 PROCESS</text>
-          <rect x="330" y="65" width="474" height="340" class="box box-implemented"></rect>
+          <rect x="330" y="65" width="474" height="455" class="box box-implemented"></rect>
           <text x="358" y="105" class="svg-title">io.kaos.app.KaosApplication</text>
           <text x="358" y="132" class="svg-copy">Entry point · composition root · safe error boundary</text>
           <rect x="365" y="166" width="190" height="93" class="box box-support"></rect>
@@ -82,6 +82,11 @@
           <text x="602" y="341" class="svg-copy">reachability · model</text>
           <text x="602" y="363" class="svg-copy">streaming · failure taxonomy</text>
 
+          <rect x="365" y="402" width="405" height="88" class="box box-implemented"></rect>
+          <text x="387" y="432" class="svg-title">Conversation vocabulary</text>
+          <text x="387" y="456" class="svg-copy">immutable USER · ASSISTANT messages</text>
+          <text x="387" y="478" class="svg-copy svg-change">NEW · Task 003.01.01 · no history</text>
+
           <path d="M254 117 L330 117" class="flow"></path>
           <path d="M555 212 L580 212" class="flow"></path>
 
@@ -96,18 +101,18 @@
           <path d="M254 375 L580 350" class="flow"></path>
           <path d="M460 259 L675 284" class="flow"></path>
 
-          <rect x="330" y="460" width="474" height="150" class="box box-support"></rect>
-          <text x="358" y="498" class="svg-title">Build and verification boundary</text>
-          <text x="358" y="527" class="svg-copy">Gradle application plugin · Jackson JSON · JUnit tests</text>
-          <text x="358" y="553" class="svg-copy">clean verifyLocal → compile → test → package → smoke checks</text>
-          <text x="358" y="580" class="svg-copy">Jackson Databind 2.22.1 runtime JSON</text>
-          <path d="M566 460 L566 405" class="support-flow"></path>
+          <rect x="330" y="550" width="474" height="125" class="box box-support"></rect>
+          <text x="358" y="582" class="svg-title">Build and verification boundary</text>
+          <text x="358" y="609" class="svg-copy">Gradle application plugin · Jackson JSON · JUnit tests</text>
+          <text x="358" y="634" class="svg-copy">clean verifyLocal → compile → test → package → smoke checks</text>
+          <text x="358" y="658" class="svg-copy">Jackson Databind 2.22.1 runtime JSON</text>
+          <path d="M566 550 L566 520" class="support-flow"></path>
 
           <text x="875" y="240" class="svg-label">LOCAL PROVIDER BOUNDARY</text>
           <rect x="866" y="270" width="240" height="128" class="box box-implemented"></rect>
           <text x="890" y="310" class="svg-title">Local Ollama</text>
           <text x="890" y="338" class="svg-copy">127.0.0.1:11434</text>
-          <text x="890" y="360" class="svg-copy svg-change">VERIFIED · installed model</text>
+          <text x="890" y="360" class="svg-copy">verified · installed model</text>
           <text x="890" y="383" class="svg-copy">GET version · POST generate</text>
           <path d="M770 330 L866 330" class="flow" marker-start="url(#arrow-green)"></path>
         </svg>
@@ -238,16 +243,21 @@
           <h3>AI integration testing</h3>
           <p>Task 002.06.01 crosses application routing, the real prompt client, ephemeral loopback HTTP, streamed NDJSON, and terminal output for success, unavailability, and partial malformed-stream safety. It runs in the standard JUnit lifecycle without Ollama, external network, a new source set, or production configuration.</p>
         </article>
-        <article class="card change-current">
-          <div class="change-label">Updated in Feature 002.07 Task 002.07.01</div>
+        <article class="card">
           <div class="status implemented">Verified</div>
           <h3>First end-to-end AI demonstration</h3>
           <p>Task 002.07.01 runs the packaged application through the existing fixed-loopback client and an explicitly selected installed model. One safe bounded prompt emitted its exact validated answer before clean completion, with exit 0 and empty error output.</p>
         </article>
+        <article class="card change-current">
+          <div class="change-label">New in Feature 003.01 Task 003.01.01</div>
+          <div class="status implemented">Implemented slice</div>
+          <h3>Conversation domain model</h3>
+          <p>Task 003.01.01 adds conversation-owned immutable user and assistant messages with essential null/blank invariants and exact valid-content preservation. Feature 003.01 remains in review; no conversation aggregate, message history, persistence, selection, or multi-turn request flow exists.</p>
+        </article>
         <article class="card">
           <div class="status next">Next approved work</div>
-          <h3>Conversation domain model</h3>
-          <p>Feature 003.01 is the active next goal. No conversation type, message history, persistence, or multi-turn request flow exists until repository evidence is implemented and linked.</p>
+          <h3>Message history</h3>
+          <p>Feature 003.02 is next after the domain-model checkpoint is reviewed and merged. Its append, ordering, retention, retrieval, and limit decisions are not implemented by Task 003.01.01.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -300,7 +310,8 @@
           <tr><td>Cancellable bounded stream lifecycle</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.03 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Phase-specific AI failure boundary</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/ollama-error-and-timeout-handling.md">Task 002.05.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Deterministic application-to-provider integration tests</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTestSupport.java"><code>OllamaPromptClientTestSupport.java</code></a>, and <a href="../../docs/evolution/ollama-ai-integration-testing.md">Task 002.06.01 evidence</a></td><td>Implemented</td></tr>
-          <tr class="change-current"><td><span class="change-label">Updated in Feature 002.07 Task 002.07.01</span>Packaged installed-model demonstration</td><td><a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, and <a href="../../docs/evolution/first-end-to-end-ai-demonstration.md">Task 002.07.01 evidence</a></td><td>Implemented</td></tr>
+          <tr><td>Packaged installed-model demonstration</td><td><a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, and <a href="../../docs/evolution/first-end-to-end-ai-demonstration.md">Task 002.07.01 evidence</a></td><td>Implemented</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 003.01 Task 003.01.01</span>Conversation message vocabulary</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationRole.java"><code>ConversationRole.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationMessageTest.java"><code>ConversationMessageTest.java</code></a>, and <a href="../../docs/evolution/conversation-domain-model.md">Task 003.01.01 evidence</a></td><td>Implemented; Feature 003.01 review in progress</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>
