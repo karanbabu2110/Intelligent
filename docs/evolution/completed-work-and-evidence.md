@@ -211,7 +211,20 @@ features below now form the cumulative `1.0.0` first-AI-integration release.
 The Epic 002 target is verified end to end: one explicitly configured local
 model accepts one bounded prompt through the single packaged application and
 returns one validated streamed answer. Conversation Capability Epic
-[#9](https://github.com/karanbabu2110/KAOS/issues/9) is the active next goal.
+[#9](https://github.com/karanbabu2110/KAOS/issues/9) is the active goal.
+
+## Epic 003 — Conversation Capability (in progress)
+
+### Feature 003.01 — Conversation Domain Model
+
+- [Feature 003.01](https://github.com/karanbabu2110/KAOS/issues/852)
+- [Task 003.01.01 — Define Conversation Messages and Roles](https://github.com/karanbabu2110/KAOS/issues/1077)
+- Delivery: [PR #27](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/27)
+- Evidence: [Conversation domain model](conversation-domain-model.md)
+
+Message History Feature
+[#853](https://github.com/karanbabu2110/KAOS/issues/853) is active. Later
+conversation features remain incomplete and are not part of this snapshot.
 
 ## Maintenance rule
 
