@@ -326,6 +326,29 @@ svg text {
   marker-end: url("#arrow-blue");
 }
 
+.sequence-flow,
+.sequence-return,
+.sequence-failure {
+  fill: none;
+  stroke-width: 2.2;
+}
+
+.sequence-flow {
+  stroke: var(--implemented);
+  marker-end: url("#sequence-arrow-green");
+}
+
+.sequence-return {
+  stroke: var(--accent);
+  marker-end: url("#sequence-arrow-blue");
+}
+
+.sequence-failure {
+  stroke: var(--accent);
+  stroke-dasharray: 8 7;
+  marker-end: url("#sequence-arrow-blue");
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

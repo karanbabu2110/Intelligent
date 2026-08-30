@@ -133,11 +133,11 @@ the current application state and next development checkpoint.
 - [Local run and verification workflow](local-run-and-verification-workflow.md)
 - [Epic 001 exit checkpoint](epic-001-exit.md)
 
-## Epic 002 — First AI Integration (in progress)
+## Epic 002 — First AI Integration
 
-[Epic 002](https://github.com/karanbabu2110/KAOS/issues/3) remains in progress.
-Features 002.01-002.03 form the released `0.1.0` capability snapshot. Later
-merged features below are verified post-release increments.
+[Epic 002](https://github.com/karanbabu2110/KAOS/issues/3) is complete.
+Features 002.01-002.03 formed the earlier `0.1.0` capability snapshot. All seven
+features below now form the cumulative `1.0.0` first-AI-integration release.
 
 ### Feature 002.01 — Ollama Connectivity
 
@@ -184,7 +184,13 @@ merged features below are verified post-release increments.
 - [Task 002.06.01 — Prove the Local AI Path with Deterministic Integration Tests](https://github.com/karanbabu2110/KAOS/issues/1075)
 - Delivery: [PR #24](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/24)
 
-### Epic 002 verified evidence so far
+### Feature 002.07 — First End-to-End AI Demonstration
+
+- [Feature 002.07](https://github.com/karanbabu2110/KAOS/issues/851)
+- [Task 002.07.01 — Demonstrate the Complete Local AI Path](https://github.com/karanbabu2110/KAOS/issues/1076)
+- Delivery: [PR #25](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/25)
+
+### Epic 002 verified evidence
 
 - [Ollama connectivity](ollama-connectivity.md)
 - [AI model configuration](ollama-model-configuration.md)
@@ -196,12 +202,16 @@ merged features below are verified post-release increments.
 - [Response streaming](ollama-response-streaming.md)
 - [Ollama error and timeout handling](ollama-error-and-timeout-handling.md)
 - [Ollama AI integration testing](ollama-ai-integration-testing.md)
+- [First end-to-end AI demonstration](first-end-to-end-ai-demonstration.md)
 - [KAOS 0.1.0 release notes](../releases/v0.1.0.md)
 - [KAOS 0.1.0 validation and publication checkpoint](../releases/v0.1.0-validation.md)
+- [KAOS 1.0.0 release notes](../releases/v1.0.0.md)
+- [KAOS 1.0.0 validation and tag checkpoint](../releases/v1.0.0-validation.md)
 
-First End-to-End AI Demonstration Feature
-[#851](https://github.com/karanbabu2110/KAOS/issues/851) is the active goal.
-Feature 002.07 remains incomplete and is not part of the completed snapshot.
+The Epic 002 target is verified end to end: one explicitly configured local
+model accepts one bounded prompt through the single packaged application and
+returns one validated streamed answer. Conversation Capability Epic
+[#9](https://github.com/karanbabu2110/KAOS/issues/9) is the active next goal.
 
 ## Maintenance rule
 
