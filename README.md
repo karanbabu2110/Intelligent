@@ -9,8 +9,8 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), and [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
 - Active epic: [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9)
-- Active feature: [003.01 — Conversation Domain Model](https://github.com/karanbabu2110/KAOS/issues/852); its implementation task will be created just in time after current repository evidence is inspected
-- Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming prompt flow, one JSON runtime library, deterministic application-to-provider integration coverage, and a verified packaged run against an installed local model
+- Active feature: [003.01 — Conversation Domain Model](https://github.com/karanbabu2110/KAOS/issues/852), beginning with active Task [003.01.01 — Define Conversation Messages and Roles](https://github.com/karanbabu2110/KAOS/issues/1077)
+- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned immutable user/assistant message vocabulary, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming prompt flow, one JSON runtime library, deterministic application-to-provider integration coverage, and a verified packaged run against an installed local model
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -207,5 +207,6 @@ incremental check.
 
 Epics 000-002 are complete and form the cumulative `1.0.0` checkpoint.
 Conversation Capability Epic #9 is active, beginning with Conversation Domain
-Model Feature #852. No conversation types, message history, persistence, or
-multi-turn prompt behavior are implemented yet.
+Model Feature #852 and Task #1077. The first message and role types now exist;
+no conversation aggregate, message history, persistence, selection, or
+multi-turn prompt behavior is implemented yet.
