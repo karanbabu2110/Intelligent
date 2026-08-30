@@ -9,9 +9,9 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815) and [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2)
 - Active epic: [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
-- Completed Epic 002 features: [002.01 — Ollama Connectivity](https://github.com/karanbabu2110/KAOS/issues/845), [002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), [002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847), [002.04 — Response Streaming](https://github.com/karanbabu2110/KAOS/issues/848), and [002.05 — AI Error and Timeout Handling](https://github.com/karanbabu2110/KAOS/issues/849)
-- Active feature: [002.06 — AI Integration Testing](https://github.com/karanbabu2110/KAOS/issues/850), with active Task [002.06.01 — Prove the Local AI Path with Deterministic Integration Tests](https://github.com/karanbabu2110/KAOS/issues/1075)
-- Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming prompt flow, one JSON runtime library, and deterministic integration coverage across the application-to-provider seam
+- Completed Epic 002 features: [002.01 — Ollama Connectivity](https://github.com/karanbabu2110/KAOS/issues/845), [002.02 — AI Model Configuration](https://github.com/karanbabu2110/KAOS/issues/846), [002.03 — Prompt Submission](https://github.com/karanbabu2110/KAOS/issues/847), [002.04 — Response Streaming](https://github.com/karanbabu2110/KAOS/issues/848), [002.05 — AI Error and Timeout Handling](https://github.com/karanbabu2110/KAOS/issues/849), and [002.06 — AI Integration Testing](https://github.com/karanbabu2110/KAOS/issues/850)
+- Active feature: [002.07 — First End-to-End AI Demonstration](https://github.com/karanbabu2110/KAOS/issues/851), with active Task [002.07.01 — Demonstrate the Complete Local AI Path](https://github.com/karanbabu2110/KAOS/issues/1076)
+- Repository state: one root Gradle/Java 21 application with one production entry point, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming prompt flow, one JSON runtime library, deterministic application-to-provider integration coverage, and a verified packaged run against an installed local model
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -43,8 +43,9 @@ Ollama server, select and bound a model configuration, and submit one safe
 non-streamed prompt. It is not production-ready and has no stable public API,
 persistent-data schema, or compatibility guarantee. See the
 [0.1.0 release notes](docs/releases/v0.1.0.md). Current development after the
-release adds bounded response streaming and phase-specific failure handling;
-no later tag or release has been created.
+release adds bounded response streaming, phase-specific failure handling,
+deterministic integration coverage, and a packaged installed-model
+demonstration; no later tag or release has been created.
 
 ## Run the application
 
@@ -206,8 +207,9 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-001 and Features #845 through #849 are complete. Epic #3 continues
-with active AI Integration Testing Feature #850. Task #1075 proves the complete
-application-to-Ollama request path against deterministic loopback responses.
-First End-to-End AI Demonstration Feature #851 remains the next approved
-checkpoint after Feature #850 is reviewed and merged.
+Epics 000-001 and Features #845 through #850 are complete. Epic #3 continues
+with active First End-to-End AI Demonstration Feature #851. Task #1076 records
+the packaged application reaching an explicitly selected installed model and
+returning one clean streamed answer. Conversation Capability Epic #9 is the
+next approved checkpoint after Feature #851 and Epic #3 are reviewed and
+completed.
