@@ -15,6 +15,10 @@ application {
     mainClass = "io.kaos.app.KaosApplication"
 }
 
+tasks.named<JavaExec>("run") {
+    standardInput = System.`in`
+}
+
 repositories {
     mavenCentral()
 }

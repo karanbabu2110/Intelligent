@@ -6,7 +6,15 @@ import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.ai.ollama.OllamaThinkingMode;
 import io.kaos.app.config.ApplicationConfiguration;
+import io.kaos.conversation.ConversationHistory;
+import io.kaos.conversation.ConversationSession;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +40,7 @@ public final class KaosApplication {
     static final String OLLAMA_STREAM_CODE = "KAOS-AI-004";
     static final String OLLAMA_TIMEOUT_CODE = "KAOS-AI-005";
     static final String OLLAMA_CANCELLATION_CODE = "KAOS-AI-006";
+    static final String CONVERSATION_INPUT_CODE = "KAOS-CONVERSATION-001";
 
     private KaosApplication() {
     }
@@ -53,7 +62,8 @@ public final class KaosApplication {
             } catch (IllegalStateException | SecurityException exception) {
                 // The normal command boundary still handles direct thread interruption.
             }
-            exitCode = launch(args, ApplicationConfiguration::load, System.out, System.err);
+            exitCode = launch(
+                    args, ApplicationConfiguration::load, System.in, System.out, System.err);
         } finally {
             commandFinished.countDown();
             if (hookRegistered) {
@@ -82,8 +92,19 @@ public final class KaosApplication {
             Supplier<ApplicationConfiguration> configurationLoader,
             PrintStream output,
             PrintStream errorOutput) {
+        return launch(arguments, configurationLoader, InputStream.nullInputStream(),
+                output, errorOutput);
+    }
+
+    static int launch(
+            String[] arguments,
+            Supplier<ApplicationConfiguration> configurationLoader,
+            InputStream input,
+            PrintStream output,
+            PrintStream errorOutput) {
         Objects.requireNonNull(arguments, "arguments");
         Objects.requireNonNull(configurationLoader, "configurationLoader");
+        Objects.requireNonNull(input, "input");
         Objects.requireNonNull(output, "output");
         Objects.requireNonNull(errorOutput, "errorOutput");
 
@@ -107,7 +128,7 @@ public final class KaosApplication {
         }
 
         try {
-            return run(arguments, configuration, output, errorOutput);
+            return run(arguments, configuration, input, output, errorOutput);
         } catch (RuntimeException exception) {
             return logUnexpectedApplicationFailure(errorOutput);
         }
@@ -118,13 +139,24 @@ public final class KaosApplication {
             ApplicationConfiguration configuration,
             PrintStream output,
             PrintStream errorOutput) {
+        return run(arguments, configuration, InputStream.nullInputStream(), output, errorOutput);
+    }
+
+    static int run(
+            String[] arguments,
+            ApplicationConfiguration configuration,
+            InputStream input,
+            PrintStream output,
+            PrintStream errorOutput) {
         return run(
                 arguments,
                 configuration,
                 () -> new OllamaConnectivity().check(),
                 OllamaModelConfiguration::load,
-                (model, prompt, thinking, chunks) ->
-                        new OllamaPromptClient().submit(model, prompt, thinking, chunks),
+                (model, history, prompt, thinking, chunks) ->
+                        new OllamaPromptClient().submit(
+                                model, history, prompt, thinking, chunks),
+                input,
                 output,
                 errorOutput);
     }
@@ -140,8 +172,10 @@ public final class KaosApplication {
                 configuration,
                 ollamaConnectivityCheck,
                 OllamaModelConfiguration::load,
-                (model, prompt, thinking, chunks) ->
-                        new OllamaPromptClient().submit(model, prompt, thinking, chunks),
+                (model, history, prompt, thinking, chunks) ->
+                        new OllamaPromptClient().submit(
+                                model, history, prompt, thinking, chunks),
+                InputStream.nullInputStream(),
                 output,
                 errorOutput);
     }
@@ -158,8 +192,10 @@ public final class KaosApplication {
                 configuration,
                 ollamaConnectivityCheck,
                 ollamaModelConfigurationLoader,
-                (model, prompt, thinking, chunks) ->
-                        new OllamaPromptClient().submit(model, prompt, thinking, chunks),
+                (model, history, prompt, thinking, chunks) ->
+                        new OllamaPromptClient().submit(
+                                model, history, prompt, thinking, chunks),
+                InputStream.nullInputStream(),
                 output,
                 errorOutput);
     }
@@ -172,11 +208,26 @@ public final class KaosApplication {
             OllamaPromptSubmission ollamaPromptSubmission,
             PrintStream output,
             PrintStream errorOutput) {
+        return run(arguments, configuration, ollamaConnectivityCheck,
+                ollamaModelConfigurationLoader, ollamaPromptSubmission,
+                InputStream.nullInputStream(), output, errorOutput);
+    }
+
+    static int run(
+            String[] arguments,
+            ApplicationConfiguration configuration,
+            Supplier<OllamaConnectivity.Result> ollamaConnectivityCheck,
+            Supplier<OllamaModelConfiguration> ollamaModelConfigurationLoader,
+            OllamaPromptSubmission ollamaPromptSubmission,
+            InputStream input,
+            PrintStream output,
+            PrintStream errorOutput) {
         Objects.requireNonNull(arguments, "arguments");
         Objects.requireNonNull(configuration, "configuration");
         Objects.requireNonNull(ollamaConnectivityCheck, "ollamaConnectivityCheck");
         Objects.requireNonNull(ollamaModelConfigurationLoader, "ollamaModelConfigurationLoader");
         Objects.requireNonNull(ollamaPromptSubmission, "ollamaPromptSubmission");
+        Objects.requireNonNull(input, "input");
         Objects.requireNonNull(output, "output");
         Objects.requireNonNull(errorOutput, "errorOutput");
 
@@ -201,10 +252,16 @@ public final class KaosApplication {
         if (arguments.length == 2 && "ollama-prompt".equals(arguments[0])) {
             return reportOllamaPrompt(
                     arguments[1],
+                    ConversationHistory.empty(),
                     ollamaModelConfigurationLoader,
                     ollamaPromptSubmission,
                     output,
                     errorOutput);
+        }
+
+        if (isCommand(arguments, "conversation")) {
+            return runConversation(input, ollamaModelConfigurationLoader,
+                    ollamaPromptSubmission, output, errorOutput);
         }
 
         if (arguments.length > 0 && "ollama-prompt".equals(arguments[0])) {
@@ -223,7 +280,7 @@ public final class KaosApplication {
 
     static String helpText() {
         return """
-                Usage: kaos [status|help|ollama-status|ollama-model|ollama-prompt <prompt>]
+                Usage: kaos [status|help|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
 
                 Commands:
                   status         Show local application status (default).
@@ -231,11 +288,159 @@ public final class KaosApplication {
                   ollama-status  Check connectivity to the local Ollama server.
                   ollama-model   Show the explicitly configured local Ollama model.
                   ollama-prompt  Submit one quoted prompt and stream the answer.
+                  conversation   Start selectable in-memory conversations.
+                """;
+    }
+
+    private static int runConversation(
+            InputStream input,
+            Supplier<OllamaModelConfiguration> modelConfigurationLoader,
+            OllamaPromptSubmission promptSubmission,
+            PrintStream output,
+            PrintStream errorOutput) {
+        ConversationSession session = new ConversationSession();
+        long firstIdentifier = session.create();
+        output.println("Conversation " + firstIdentifier + " created and selected.");
+        output.println("Type /help for conversation controls.");
+        int sessionExitCode = SUCCESS;
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(
+                input,
+                StandardCharsets.UTF_8.newDecoder()
+                        .onMalformedInput(CodingErrorAction.REPORT)
+                        .onUnmappableCharacter(CodingErrorAction.REPORT)));
+        while (true) {
+            output.print("kaos[" + session.activeIdentifier() + "]> ");
+            output.flush();
+
+            String line;
+            try {
+                line = reader.readLine();
+            } catch (IOException exception) {
+                output.println();
+                logError(errorOutput, CONVERSATION_INPUT_CODE,
+                        "Conversation input could not be read. Exit and retry.");
+                return APPLICATION_ERROR;
+            }
+
+            if (line == null) {
+                output.println();
+                output.println("Conversation session ended.");
+                return sessionExitCode;
+            }
+
+            String command = line.strip();
+            if (command.isEmpty()) {
+                errorOutput.println("Enter a prompt or conversation control. Type /help.");
+                continue;
+            }
+            if ("/exit".equals(command)) {
+                output.println("Conversation session ended.");
+                return sessionExitCode;
+            }
+            if ("/help".equals(command)) {
+                output.print(conversationHelpText());
+                continue;
+            }
+            if ("/new".equals(command)) {
+                long identifier = session.create();
+                output.println("Conversation " + identifier + " created and selected.");
+                continue;
+            }
+            if ("/list".equals(command)) {
+                output.println(conversationList(session));
+                continue;
+            }
+            if (command.startsWith("/select")) {
+                selectConversation(command, session, output, errorOutput);
+                continue;
+            }
+            if (command.startsWith("/")) {
+                errorOutput.println("Unknown conversation control. Type /help.");
+                continue;
+            }
+
+            PromptOutcome outcome = submitOllamaPrompt(
+                    line, session.activeHistory(), modelConfigurationLoader,
+                    promptSubmission, output, errorOutput);
+            if (outcome.exitCode() != SUCCESS) {
+                sessionExitCode = mergeSessionExitCode(
+                        sessionExitCode, outcome.exitCode());
+                if (Thread.currentThread().isInterrupted()) {
+                    return sessionExitCode;
+                }
+                continue;
+            }
+            session.appendTurn(outcome.prompt(), outcome.response());
+        }
+    }
+
+    private static int mergeSessionExitCode(int current, int next) {
+        if (current == APPLICATION_ERROR || next == APPLICATION_ERROR) {
+            return APPLICATION_ERROR;
+        }
+        return current == USAGE_ERROR || next == USAGE_ERROR ? USAGE_ERROR : SUCCESS;
+    }
+
+    private static void selectConversation(
+            String command,
+            ConversationSession session,
+            PrintStream output,
+            PrintStream errorOutput) {
+        String[] parts = command.split("\\s+");
+        long identifier;
+        try {
+            if (parts.length != 2) {
+                throw new NumberFormatException();
+            }
+            identifier = Long.parseLong(parts[1]);
+        } catch (NumberFormatException exception) {
+            errorOutput.println("Expected /select <existing-id>. Type /list to see conversations.");
+            return;
+        }
+
+        if (!session.select(identifier)) {
+            errorOutput.println("Conversation does not exist. Type /list to see conversations.");
+            return;
+        }
+        output.println("Conversation " + identifier + " selected.");
+    }
+
+    private static String conversationList(ConversationSession session) {
+        StringBuilder list = new StringBuilder("Conversations:");
+        long activeIdentifier = session.activeIdentifier();
+        for (long identifier : session.conversationIdentifiers()) {
+            list.append(identifier == activeIdentifier ? " *" : " ").append(identifier);
+        }
+        return list.toString();
+    }
+
+    private static String conversationHelpText() {
+        return """
+                Conversation controls:
+                  /new          Create and select a new conversation.
+                  /select <id>  Select an existing conversation.
+                  /list         List conversations; * marks the selected one.
+                  /help         Show these controls.
+                  /exit         End the session and discard all conversations.
+                Any other nonblank line is sent as a prompt.
                 """;
     }
 
     private static int reportOllamaPrompt(
             String promptText,
+            ConversationHistory history,
+            Supplier<OllamaModelConfiguration> modelConfigurationLoader,
+            OllamaPromptSubmission promptSubmission,
+            PrintStream output,
+            PrintStream errorOutput) {
+        return submitOllamaPrompt(promptText, history, modelConfigurationLoader,
+                promptSubmission, output, errorOutput).exitCode();
+    }
+
+    private static PromptOutcome submitOllamaPrompt(
+            String promptText,
+            ConversationHistory history,
             Supplier<OllamaModelConfiguration> modelConfigurationLoader,
             OllamaPromptSubmission promptSubmission,
             PrintStream output,
@@ -245,7 +450,7 @@ public final class KaosApplication {
             prompt = new OllamaPrompt(promptText);
         } catch (IllegalArgumentException exception) {
             errorOutput.println("Expected one valid quoted prompt. Run 'kaos help' for usage.");
-            return USAGE_ERROR;
+            return PromptOutcome.failed(USAGE_ERROR);
         }
 
         OllamaModelConfiguration model;
@@ -256,22 +461,22 @@ public final class KaosApplication {
                     errorOutput,
                     INVALID_OLLAMA_MODEL_CODE,
                     invalidOllamaConfigurationGuidance());
-            return APPLICATION_ERROR;
+            return PromptOutcome.failed(APPLICATION_ERROR);
         } catch (IllegalStateException exception) {
             logError(
                     errorOutput,
                     UNREADABLE_OLLAMA_MODEL_CODE,
                     "Ollama model configuration could not be read. Check process permissions "
                             + "and retry.");
-            return APPLICATION_ERROR;
+            return PromptOutcome.failed(APPLICATION_ERROR);
         }
 
         OllamaPromptOutput promptOutput = new OllamaPromptOutput(model.thinkingMode(), output);
         OllamaPromptClient.Result result = promptSubmission.submit(
-                model, prompt, promptOutput::thinkingStarted, promptOutput::answerChunk);
+                model, history, prompt, promptOutput::thinkingStarted, promptOutput::answerChunk);
         if (result.successful()) {
             output.println();
-            return SUCCESS;
+            return PromptOutcome.success(prompt.text(), result.response());
         }
 
         boolean partialOutput = promptOutput.finishFailure();
@@ -317,16 +522,32 @@ public final class KaosApplication {
             case SUCCESS -> throw new IllegalStateException("Successful result has no error code.");
         };
         logError(errorOutput, errorCode, recovery);
-        return APPLICATION_ERROR;
+        return PromptOutcome.failed(APPLICATION_ERROR);
     }
 
     @FunctionalInterface
     interface OllamaPromptSubmission {
         OllamaPromptClient.Result submit(
                 OllamaModelConfiguration model,
+                ConversationHistory history,
                 OllamaPrompt prompt,
                 Runnable thinkingStarted,
                 Consumer<String> answerChunkConsumer);
+    }
+
+    private record PromptOutcome(int exitCode, String prompt, String response) {
+        private PromptOutcome {
+            Objects.requireNonNull(prompt, "prompt");
+            Objects.requireNonNull(response, "response");
+        }
+
+        private static PromptOutcome success(String prompt, String response) {
+            return new PromptOutcome(SUCCESS, prompt, response);
+        }
+
+        private static PromptOutcome failed(int exitCode) {
+            return new PromptOutcome(exitCode, "", "");
+        }
     }
 
     private static final class OllamaPromptOutput {

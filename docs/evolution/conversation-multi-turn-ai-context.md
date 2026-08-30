@@ -81,6 +81,8 @@ Task 003.03.01 does not introduce:
 - automatic retry, a remote provider, provider abstraction, framework, module,
   repository, service, worker, or event bus.
 
+Feature 003.03 was delivered by
+[PR #29](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/29).
 Conversation Creation and Selection Feature
-[#855](https://github.com/karanbabu2110/KAOS/issues/855) remains the next
-approved boundary after Feature 003.03 is reviewed and merged.
+[#855](https://github.com/karanbabu2110/KAOS/issues/855) is now the active
+boundary.

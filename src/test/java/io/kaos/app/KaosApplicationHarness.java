@@ -1,6 +1,7 @@
 package io.kaos.app;
 
 import io.kaos.app.config.ApplicationConfiguration;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -61,6 +62,15 @@ final class KaosApplicationHarness {
                     capturedOutput.toString(StandardCharsets.UTF_8),
                     capturedError.toString(StandardCharsets.UTF_8));
         }
+    }
+
+    static Result captureInput(String input, InputInvocation invocation) {
+        Objects.requireNonNull(input, "input");
+        Objects.requireNonNull(invocation, "invocation");
+        ByteArrayInputStream testInput =
+                new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));
+        return capture((output, errorOutput) ->
+                invocation.invoke(testInput, output, errorOutput));
     }
 
     static Result process(String... arguments) {
@@ -196,5 +206,10 @@ final class KaosApplicationHarness {
     @FunctionalInterface
     interface Invocation {
         int invoke(PrintStream output, PrintStream errorOutput);
+    }
+
+    @FunctionalInterface
+    interface InputInvocation {
+        int invoke(InputStream input, PrintStream output, PrintStream errorOutput);
     }
 }
