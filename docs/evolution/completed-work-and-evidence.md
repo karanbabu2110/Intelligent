@@ -229,8 +229,15 @@ returns one validated streamed answer. Conversation Capability Epic
 - Delivery: [PR #28](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/28)
 - Evidence: [Conversation message history](conversation-message-history.md)
 
-Multi-Turn AI Context Feature
-[#854](https://github.com/karanbabu2110/KAOS/issues/854) is active. Later
+### Feature 003.03 — Multi-Turn AI Context
+
+- [Feature 003.03](https://github.com/karanbabu2110/KAOS/issues/854)
+- [Task 003.03.01 — Send Ordered History as Ollama Chat Context](https://github.com/karanbabu2110/KAOS/issues/1079)
+- Delivery: [PR #29](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/29)
+- Evidence: [Multi-turn AI context](conversation-multi-turn-ai-context.md)
+
+Conversation Creation and Selection Feature
+[#855](https://github.com/karanbabu2110/KAOS/issues/855) is active. Later
 conversation features remain incomplete and are not part of this snapshot.
 
 ## Maintenance rule

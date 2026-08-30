@@ -13,8 +13,8 @@ setup or operational requirements until they are implemented.
 - Network access the first time Gradle needs to download declared build or test
   dependencies
 - Optional: a local Ollama server on `127.0.0.1:11434` to demonstrate
-  `ollama-status`, plus one installed model to demonstrate `ollama-prompt`;
-  neither is required to build or run automated tests
+  `ollama-status`, plus one installed model to demonstrate `ollama-prompt` and
+  `conversation`; neither is required to build or run automated tests
 
 No system Gradle installation is required. Use the Gradle wrapper committed to
 the repository.
@@ -164,8 +164,8 @@ code points each, inactivity to 60 seconds, and the complete request to five
 minutes. The HTTP publisher supplies one bounded item at a time. Ordinary
 thinking-off requests retain the unlabeled answer stream. Explicit thinking-on
 requests show a content-free progress line and an answer heading without
-displaying raw reasoning. There is no retry after visible output, conversation
-selection, system-prompt, tool, image, remote-provider, or persistence behavior.
+displaying raw reasoning. There is no retry after visible output, system-prompt,
+tool, image, remote-provider, or persistence behavior.
 
 Clean `done_reason: stop` completion returns exit `0`. Provider
 `done_reason: length`, local byte/text ceilings, inactivity or total timeout,
@@ -184,6 +184,27 @@ An unknown command or extra argument returns usage exit code `2`. A handled
 configuration or application failure returns exit code `1` and a safe coded
 error on standard error. Supplied values, exception messages, and stack traces
 are not logged.
+
+Start selectable process-local conversations:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
+./gradlew.bat run --args=conversation
+```
+
+The Gradle `run` task forwards standard input. KAOS creates and selects
+conversation `1`; type any nonblank prompt to send it with that conversation's
+earlier clean turns. The available controls are `/new`, `/select <id>`, `/list`,
+`/help`, and `/exit`.
+
+Each successful request appends one validated user message and one assistant
+message. Failed or partial requests are not retained, although the session can
+continue; its final exit remains nonzero if an AI request failed. Separate
+conversation identifiers keep their histories isolated. All identifiers,
+selection state, and messages disappear when the process ends. There is no
+persistence, restart recovery, naming, deletion, general history limit,
+trimming, or summarization behavior. See
+[conversation creation and selection](../evolution/conversation-creation-selection.md).
 
 ## Local configuration
 
