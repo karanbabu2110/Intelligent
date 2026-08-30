@@ -57,6 +57,8 @@ Task 003.01.01 does not introduce:
 - message-size or history limits beyond the essential non-null/nonblank
   invariant.
 
+Feature 003.01 was completed by merged
+[PR #27](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/27).
 Message History Feature
-[#853](https://github.com/karanbabu2110/KAOS/issues/853) remains the next
-approved boundary after Feature 003.01 is reviewed and merged.
+[#853](https://github.com/karanbabu2110/KAOS/issues/853) is the active next
+boundary and depends only on these verified message types.

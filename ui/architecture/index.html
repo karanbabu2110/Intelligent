@@ -31,7 +31,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-08-30</strong>
-        Version 1.0.0 · Feature 003.01 in progress<br>
+        Version 1.0.0 · Feature 003.02 in progress<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -40,16 +40,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 003.01 Task 003.01.01</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 003.02 Task 003.02.01</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the conversation-owned message vocabulary added by Feature 003.01 Task 003.01.01. The types are implemented inside the single application; conversation history and multi-turn behavior remain later work. The underlying implemented, next, and future statuses remain authoritative.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the immutable ordered in-memory history added by Feature 003.02 Task 003.02.01. History remains caller-owned inside the single application and does not yet participate in the Ollama request flow. The underlying implemented, next, and future statuses remain authoritative.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 700" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes the implemented packaged KAOS application. The application validates local configuration and routes status, help, Ollama status, model, and prompt commands. The conversation package now owns immutable user and assistant message vocabulary without history, persistence, or multi-turn request behavior. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one streaming prompt request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces total, inactivity, byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. The standard JUnit suite verifies the application and its current capability packages. Gradle and Jackson support the application.</desc>
+          <desc id="diagram-description">A terminal invokes the implemented packaged KAOS application. The application validates local configuration and routes status, help, Ollama status, model, and prompt commands. The conversation package owns immutable user and assistant messages plus ordered immutable in-memory history snapshots. The history remains caller-owned and has no selection, persistence, limits, or connection to the current one-shot AI request. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one streaming prompt request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces total, inactivity, byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. The standard JUnit suite verifies the application and its current capability packages. Gradle and Jackson support the application.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -83,9 +83,9 @@
           <text x="602" y="363" class="svg-copy">streaming · failure taxonomy</text>
 
           <rect x="365" y="402" width="405" height="88" class="box box-implemented"></rect>
-          <text x="387" y="432" class="svg-title">Conversation vocabulary</text>
-          <text x="387" y="456" class="svg-copy">immutable USER · ASSISTANT messages</text>
-          <text x="387" y="478" class="svg-copy svg-change">NEW · Task 003.01.01 · no history</text>
+          <text x="387" y="432" class="svg-title">Conversation capability</text>
+          <text x="387" y="456" class="svg-copy">USER · ASSISTANT · ordered history</text>
+          <text x="387" y="478" class="svg-copy svg-change">NEW · Task 003.02.01 · in memory only</text>
 
           <path d="M254 117 L330 117" class="flow"></path>
           <path d="M555 212 L580 212" class="flow"></path>
@@ -121,7 +121,7 @@
 
     <section id="flow" class="panel" aria-labelledby="flow-heading">
       <h2 id="flow-heading">First AI request flow diagram</h2>
-      <p class="rule">This is the implemented one-shot <code>ollama-prompt</code> lifecycle. The success and safe-failure paths remain inside one foreground Java process; no conversation, retry, worker, event bus, remote provider, or persistent state participates.</p>
+      <p class="rule">This is the implemented one-shot <code>ollama-prompt</code> lifecycle. The success and safe-failure paths remain inside one foreground Java process; no conversation history, retry, worker, event bus, remote provider, or persistent state participates in this request path.</p>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable first AI request flow diagram">
         <svg viewBox="0 0 1140 535" role="img" aria-labelledby="flow-title flow-description">
           <title id="flow-title">KAOS first AI request flow</title>
@@ -248,16 +248,21 @@
           <h3>First end-to-end AI demonstration</h3>
           <p>Task 002.07.01 runs the packaged application through the existing fixed-loopback client and an explicitly selected installed model. One safe bounded prompt emitted its exact validated answer before clean completion, with exit 0 and empty error output.</p>
         </article>
-        <article class="card change-current">
-          <div class="change-label">New in Feature 003.01 Task 003.01.01</div>
-          <div class="status implemented">Implemented slice</div>
+        <article class="card">
+          <div class="status implemented">Implemented</div>
           <h3>Conversation domain model</h3>
-          <p>Task 003.01.01 adds conversation-owned immutable user and assistant messages with essential null/blank invariants and exact valid-content preservation. Feature 003.01 remains in review; no conversation aggregate, message history, persistence, selection, or multi-turn request flow exists.</p>
+          <p>Feature 003.01 adds conversation-owned immutable user and assistant messages with essential null/blank invariants and exact valid-content preservation.</p>
+        </article>
+        <article class="card change-current">
+          <div class="change-label">New in Feature 003.02 Task 003.02.01</div>
+          <div class="status implemented">Implemented slice</div>
+          <h3>Message history</h3>
+          <p>Task 003.02.01 adds caller-owned immutable history snapshots with defensive copying, ordered append, and unmodifiable exposure. Feature 003.02 remains in review; no selection, persistence, limits, or AI request integration exists.</p>
         </article>
         <article class="card">
           <div class="status next">Next approved work</div>
-          <h3>Message history</h3>
-          <p>Feature 003.02 is next after the domain-model checkpoint is reviewed and merged. Its append, ordering, retention, retrieval, and limit decisions are not implemented by Task 003.01.01.</p>
+          <h3>Multi-turn AI context</h3>
+          <p>Feature 003.03 is next after the history checkpoint is reviewed and merged. The current one-shot Ollama request does not consume conversation history.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -311,7 +316,8 @@
           <tr><td>Phase-specific AI failure boundary</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/ollama-error-and-timeout-handling.md">Task 002.05.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Deterministic application-to-provider integration tests</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTestSupport.java"><code>OllamaPromptClientTestSupport.java</code></a>, and <a href="../../docs/evolution/ollama-ai-integration-testing.md">Task 002.06.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Packaged installed-model demonstration</td><td><a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, and <a href="../../docs/evolution/first-end-to-end-ai-demonstration.md">Task 002.07.01 evidence</a></td><td>Implemented</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 003.01 Task 003.01.01</span>Conversation message vocabulary</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationRole.java"><code>ConversationRole.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationMessageTest.java"><code>ConversationMessageTest.java</code></a>, and <a href="../../docs/evolution/conversation-domain-model.md">Task 003.01.01 evidence</a></td><td>Implemented; Feature 003.01 review in progress</td></tr>
+          <tr><td>Conversation message vocabulary</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationRole.java"><code>ConversationRole.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationMessageTest.java"><code>ConversationMessageTest.java</code></a>, and <a href="../../docs/evolution/conversation-domain-model.md">Task 003.01.01 evidence</a></td><td>Implemented</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 003.02 Task 003.02.01</span>Ordered in-memory message history</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationHistoryTest.java"><code>ConversationHistoryTest.java</code></a>, and <a href="../../docs/evolution/conversation-message-history.md">Task 003.02.01 evidence</a></td><td>Implemented; Feature 003.02 review in progress</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>
