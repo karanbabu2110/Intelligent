@@ -4,10 +4,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.kaos.conversation.ConversationHistory;
+import io.kaos.conversation.ConversationMessage;
+import io.kaos.conversation.ConversationRole;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -18,6 +23,7 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -28,10 +34,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-/** Submits one bounded streaming generation request to local Ollama. */
+/** Submits one bounded streaming chat request to local Ollama. */
 public final class OllamaPromptClient {
-    public static final URI LOCAL_GENERATE_ENDPOINT =
-            URI.create("http://127.0.0.1:11434/api/generate");
+    public static final URI LOCAL_CHAT_ENDPOINT =
+            URI.create("http://127.0.0.1:11434/api/chat");
+    public static final int MAX_REQUEST_BYTES = 1_048_576;
     public static final int MAX_RESPONSE_BYTES = 1_048_576;
     public static final int MAX_RESPONSE_CODE_POINTS = 65_536;
     public static final int MAX_THINKING_CODE_POINTS = 65_536;
@@ -40,38 +47,38 @@ public final class OllamaPromptClient {
     private static final Duration INACTIVITY_TIMEOUT = Duration.ofMinutes(1);
     private static final ObjectMapper JSON = new ObjectMapper();
     private final HttpClient httpClient;
-    private final URI generateEndpoint;
+    private final URI chatEndpoint;
     private final Duration requestTimeout;
     private final Duration inactivityTimeout;
 
-    /** Creates a client restricted to the fixed local Ollama generate endpoint. */
+    /** Creates a client restricted to the fixed local Ollama chat endpoint. */
     public OllamaPromptClient() {
         this(HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT)
                         .followRedirects(HttpClient.Redirect.NEVER).build(),
-                LOCAL_GENERATE_ENDPOINT, REQUEST_TIMEOUT, INACTIVITY_TIMEOUT);
+                LOCAL_CHAT_ENDPOINT, REQUEST_TIMEOUT, INACTIVITY_TIMEOUT);
     }
 
-    OllamaPromptClient(HttpClient httpClient, URI generateEndpoint, Duration requestTimeout) {
-        this(httpClient, generateEndpoint, requestTimeout, requestTimeout);
+    OllamaPromptClient(HttpClient httpClient, URI chatEndpoint, Duration requestTimeout) {
+        this(httpClient, chatEndpoint, requestTimeout, requestTimeout);
     }
 
-    OllamaPromptClient(HttpClient httpClient, URI generateEndpoint, Duration requestTimeout,
+    OllamaPromptClient(HttpClient httpClient, URI chatEndpoint, Duration requestTimeout,
             Duration inactivityTimeout) {
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
-        this.generateEndpoint = requireLoopbackHttpEndpoint(generateEndpoint);
+        this.chatEndpoint = requireLoopbackHttpEndpoint(chatEndpoint);
         this.requestTimeout = requirePositiveTimeout(requestTimeout);
         this.inactivityTimeout = requirePositiveTimeout(inactivityTimeout);
     }
 
     /** Generates one streamed response without exposing progressive chunks to the caller. */
     public Result submit(OllamaModelConfiguration model, OllamaPrompt prompt) {
-        return submit(model, prompt, () -> { }, ignored -> { });
+        return submit(model, ConversationHistory.empty(), prompt, () -> { }, ignored -> { });
     }
 
     /** Generates one streamed response and emits every validated answer chunk exactly once. */
     public Result submit(OllamaModelConfiguration model, OllamaPrompt prompt,
             Consumer<String> answerChunkConsumer) {
-        return submit(model, prompt, () -> { }, answerChunkConsumer);
+        return submit(model, ConversationHistory.empty(), prompt, () -> { }, answerChunkConsumer);
     }
 
     /**
@@ -81,14 +88,36 @@ public final class OllamaPromptClient {
      */
     public Result submit(OllamaModelConfiguration model, OllamaPrompt prompt,
             Runnable thinkingStarted, Consumer<String> answerChunkConsumer) {
+        return submit(model, ConversationHistory.empty(), prompt,
+                thinkingStarted, answerChunkConsumer);
+    }
+
+    /** Generates one streamed response using the supplied ordered conversation history. */
+    public Result submit(OllamaModelConfiguration model, ConversationHistory history,
+            OllamaPrompt prompt) {
+        return submit(model, history, prompt, () -> { }, ignored -> { });
+    }
+
+    /**
+     * Generates one streamed response from ordered history with separate progress signals.
+     *
+     * <p>The current prompt is always sent once as the final user message.</p>
+     */
+    public Result submit(OllamaModelConfiguration model, ConversationHistory history,
+            OllamaPrompt prompt, Runnable thinkingStarted,
+            Consumer<String> answerChunkConsumer) {
         Objects.requireNonNull(model, "model");
+        Objects.requireNonNull(history, "history");
         Objects.requireNonNull(prompt, "prompt");
         Objects.requireNonNull(thinkingStarted, "thinkingStarted");
         Objects.requireNonNull(answerChunkConsumer, "answerChunkConsumer");
 
-        byte[] requestBody = encodeRequest(model.modelName(), prompt.text(), model.contextWindow(),
-                model.thinkingMode(), model.responseTokenLimit());
-        HttpRequest request = HttpRequest.newBuilder(generateEndpoint)
+        byte[] requestBody = encodeRequest(model.modelName(), history, prompt.text(),
+                model.contextWindow(), model.thinkingMode(), model.responseTokenLimit());
+        if (requestBody == null) {
+            return Result.failed(Status.LOCAL_LIMIT_REACHED);
+        }
+        HttpRequest request = HttpRequest.newBuilder(chatEndpoint)
                 .timeout(requestTimeout)
                 .header("Accept", "application/x-ndjson")
                 .header("Content-Type", "application/json")
@@ -133,19 +162,36 @@ public final class OllamaPromptClient {
         }
     }
 
-    private static byte[] encodeRequest(String model, String prompt, int contextWindow,
-            OllamaThinkingMode thinkingMode, int responseTokenLimit) {
+    private static byte[] encodeRequest(String model, ConversationHistory history, String prompt,
+            int contextWindow, OllamaThinkingMode thinkingMode, int responseTokenLimit) {
         try {
-            return JSON.writeValueAsBytes(new GenerateRequest(
+            List<ChatMessage> messages = new ArrayList<>(history.messages().size() + 1);
+            for (ConversationMessage message : history.messages()) {
+                messages.add(new ChatMessage(chatRole(message.role()), message.content()));
+            }
+            messages.add(new ChatMessage("user", prompt));
+            BoundedRequestOutputStream output =
+                    new BoundedRequestOutputStream(MAX_REQUEST_BYTES);
+            JSON.writeValue(output, new ChatRequest(
                     model,
-                    prompt,
+                    List.copyOf(messages),
                     true,
                     thinkingMode.enabled(),
                     new GenerateOptions(contextWindow, responseTokenLimit)));
-        } catch (JsonProcessingException exception) {
+            return output.toByteArray();
+        } catch (RequestLimitException exception) {
+            return null;
+        } catch (IOException exception) {
             throw new IllegalStateException(
                     "Unable to encode validated Ollama request.", exception);
         }
+    }
+
+    private static String chatRole(ConversationRole role) {
+        return switch (role) {
+            case USER -> "user";
+            case ASSISTANT -> "assistant";
+        };
     }
 
     private static Result decodeStream(InputStream body, OllamaThinkingMode thinkingMode,
@@ -200,10 +246,14 @@ public final class OllamaPromptClient {
     private static StreamRecord decodeRecord(String line) {
         try {
             JsonNode root = JSON.readTree(line);
-            JsonNode response = root == null ? null : root.get("response");
-            JsonNode thinking = root == null ? null : root.get("thinking");
+            JsonNode message = root == null ? null : root.get("message");
+            JsonNode role = message == null ? null : message.get("role");
+            JsonNode response = message == null ? null : message.get("content");
+            JsonNode thinking = message == null ? null : message.get("thinking");
             JsonNode done = root == null ? null : root.get("done");
-            if (root == null || !root.isObject() || response == null || !response.isTextual()
+            if (root == null || !root.isObject() || message == null || !message.isObject()
+                    || role == null || !role.isTextual() || !"assistant".equals(role.textValue())
+                    || response == null || !response.isTextual()
                     || (thinking != null && !thinking.isTextual())
                     || done == null || !done.isBoolean()) {
                 return null;
@@ -277,13 +327,13 @@ public final class OllamaPromptClient {
     }
 
     private static URI requireLoopbackHttpEndpoint(URI endpoint) {
-        Objects.requireNonNull(endpoint, "generateEndpoint");
+        Objects.requireNonNull(endpoint, "chatEndpoint");
         String host = endpoint.getHost();
         boolean loopbackHost = "127.0.0.1".equals(host)
                 || "localhost".equalsIgnoreCase(host) || "::1".equals(host);
         if (!"http".equalsIgnoreCase(endpoint.getScheme()) || !loopbackHost) {
             throw new IllegalArgumentException(
-                    "Ollama generate endpoint must use local loopback HTTP.");
+                    "Ollama chat endpoint must use local loopback HTTP.");
         }
         return endpoint;
     }
@@ -296,8 +346,11 @@ public final class OllamaPromptClient {
         return timeout;
     }
 
-    private record GenerateRequest(String model, String prompt, boolean stream, boolean think,
+    private record ChatRequest(String model, List<ChatMessage> messages,
+            boolean stream, boolean think,
             GenerateOptions options) { }
+
+    private record ChatMessage(String role, String content) { }
 
     private record GenerateOptions(@JsonProperty("num_ctx") int contextWindow,
             @JsonProperty("num_predict") int responseTokenLimit) { }
@@ -604,6 +657,41 @@ public final class OllamaPromptClient {
             }
             return false;
         }
+    }
+
+    private static final class BoundedRequestOutputStream extends OutputStream {
+        private final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        private final int maximumBytes;
+
+        private BoundedRequestOutputStream(int maximumBytes) {
+            this.maximumBytes = maximumBytes;
+        }
+
+        @Override
+        public void write(int value) {
+            requireCapacity(1);
+            output.write(value);
+        }
+
+        @Override
+        public void write(byte[] bytes, int offset, int length) {
+            requireCapacity(length);
+            output.write(bytes, offset, length);
+        }
+
+        private byte[] toByteArray() {
+            return output.toByteArray();
+        }
+
+        private void requireCapacity(int additionalBytes) {
+            if (additionalBytes > maximumBytes - output.size()) {
+                throw new RequestLimitException();
+            }
+        }
+    }
+
+    private static final class RequestLimitException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
     }
 
     private record StreamEvent(StreamEventType type, byte[] data) { }

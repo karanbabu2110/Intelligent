@@ -222,8 +222,15 @@ returns one validated streamed answer. Conversation Capability Epic
 - Delivery: [PR #27](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/27)
 - Evidence: [Conversation domain model](conversation-domain-model.md)
 
-Message History Feature
-[#853](https://github.com/karanbabu2110/KAOS/issues/853) is active. Later
+### Feature 003.02 — Message History
+
+- [Feature 003.02](https://github.com/karanbabu2110/KAOS/issues/853)
+- [Task 003.02.01 — Maintain Ordered In-Memory Message History](https://github.com/karanbabu2110/KAOS/issues/1078)
+- Delivery: [PR #28](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/28)
+- Evidence: [Conversation message history](conversation-message-history.md)
+
+Multi-Turn AI Context Feature
+[#854](https://github.com/karanbabu2110/KAOS/issues/854) is active. Later
 conversation features remain incomplete and are not part of this snapshot.
 
 ## Maintenance rule

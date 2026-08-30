@@ -2,6 +2,7 @@ package io.kaos.ai.ollama;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,6 +10,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import io.kaos.conversation.ConversationHistory;
+import io.kaos.conversation.ConversationMessage;
+import io.kaos.conversation.ConversationRole;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -29,13 +33,14 @@ import org.junit.jupiter.api.Test;
 
 class OllamaPromptClientTest {
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final String TERMINAL = "{\"response\":\"\",\"done\":true,"
+    private static final String TERMINAL = "{\"message\":{\"role\":\"assistant\","
+            + "\"content\":\"\"},\"done\":true,"
             + "\"done_reason\":\"stop\",\"total_duration\":900,"
             + "\"prompt_eval_count\":12,\"eval_count\":7,\"eval_duration\":600}\n";
 
     @Test
     void requestsStreamingAndEmitsValidatedChunksOnceInOrder() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+        try (LocalChatServer server = LocalChatServer.streaming(
                 jsonLine("A local ", "", false),
                 jsonLine("answer.", "", false),
                 TERMINAL)) {
@@ -58,7 +63,10 @@ class OllamaPromptClientTest {
 
             JsonNode request = JSON.readTree(server.requestBody());
             assertEquals("qwen3:8b", request.get("model").textValue());
-            assertEquals("Why local AI?", request.get("prompt").textValue());
+            assertEquals(1, request.get("messages").size());
+            assertEquals("user", request.get("messages").get(0).get("role").textValue());
+            assertEquals("Why local AI?",
+                    request.get("messages").get(0).get("content").textValue());
             assertTrue(request.get("stream").booleanValue());
             assertFalse(request.get("think").booleanValue());
             assertEquals(8_192, request.get("options").get("num_ctx").intValue());
@@ -67,10 +75,48 @@ class OllamaPromptClientTest {
     }
 
     @Test
+    void sendsOrderedHistoryBeforeTheCurrentUserPrompt() throws Exception {
+        ConversationHistory history = new ConversationHistory(List.of(
+                new ConversationMessage(ConversationRole.USER, "First question"),
+                new ConversationMessage(ConversationRole.ASSISTANT, "First answer")));
+        try (LocalChatServer server = LocalChatServer.streaming(
+                jsonLine("Context-aware answer", "", false), TERMINAL)) {
+            List<String> chunks = new ArrayList<>();
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3"), history,
+                    new OllamaPrompt("Follow-up question"), () -> { }, chunks::add);
+
+            assertTrue(result.successful());
+            assertEquals(List.of("Context-aware answer"), chunks);
+            assertEquals("Context-aware answer", result.response());
+            JsonNode messages = JSON.readTree(server.requestBody()).get("messages");
+            assertEquals(3, messages.size());
+            assertMessage(messages.get(0), "user", "First question");
+            assertMessage(messages.get(1), "assistant", "First answer");
+            assertMessage(messages.get(2), "user", "Follow-up question");
+        }
+    }
+
+    @Test
+    void rejectsAnOversizedSerializedHistoryBeforeConnecting() throws Exception {
+        ConversationHistory history = new ConversationHistory(List.of(
+                new ConversationMessage(ConversationRole.USER,
+                        "x".repeat(OllamaPromptClient.MAX_REQUEST_BYTES))));
+        try (LocalChatServer server = LocalChatServer.streaming(TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3"), history,
+                    new OllamaPrompt("follow-up"));
+
+            assertEquals(OllamaPromptClient.Status.LOCAL_LIMIT_REACHED, result.status());
+            assertNull(server.method());
+        }
+    }
+
+    @Test
     void exposesFirstAnswerBeforeTheTerminalRecordIsAvailable() throws Exception {
         CountDownLatch firstWritten = new CountDownLatch(1);
         CountDownLatch releaseTerminal = new CountDownLatch(1);
-        try (LocalGenerateServer server = LocalGenerateServer.gated(
+        try (LocalChatServer server = LocalChatServer.gated(
                 jsonLine("first", "", false), TERMINAL, firstWritten, releaseTerminal);
                 ExecutorService clientExecutor = Executors.newSingleThreadExecutor()) {
             CountDownLatch firstObserved = new CountDownLatch(1);
@@ -105,7 +151,7 @@ class OllamaPromptClientTest {
             slice(bytes, emoji + 3, bytes.length),
             TERMINAL.getBytes(StandardCharsets.UTF_8)
         };
-        try (LocalGenerateServer server = LocalGenerateServer.writes(writes)) {
+        try (LocalChatServer server = LocalChatServer.writes(writes)) {
             List<String> chunks = new ArrayList<>();
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3"),
@@ -120,11 +166,12 @@ class OllamaPromptClientTest {
     @Test
     void rejectsMalformedUtf8WithoutEmittingReplacementText() throws Exception {
         byte[][] writes = {
-            "{\"response\":\"".getBytes(StandardCharsets.UTF_8),
+            "{\"message\":{\"role\":\"assistant\",\"content\":\""
+                    .getBytes(StandardCharsets.UTF_8),
             {(byte) 0xc3, (byte) 0x28},
-            "\",\"done\":false}\n".getBytes(StandardCharsets.UTF_8)
+            "\"},\"done\":false}\n".getBytes(StandardCharsets.UTF_8)
         };
-        try (LocalGenerateServer server = LocalGenerateServer.writes(writes)) {
+        try (LocalChatServer server = LocalChatServer.writes(writes)) {
             List<String> chunks = new ArrayList<>();
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3"),
@@ -140,7 +187,7 @@ class OllamaPromptClientTest {
     void keepsThinkingSeparateAndNeverEmitsItAsAnswerContent() throws Exception {
         String firstPrivateThinking = "private reasoning ";
         String secondPrivateThinking = "trace";
-        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+        try (LocalChatServer server = LocalChatServer.streaming(
                 jsonLine("", firstPrivateThinking, false),
                 jsonLine("", secondPrivateThinking, false),
                 jsonLine("Final answer.", "", false),
@@ -162,7 +209,7 @@ class OllamaPromptClientTest {
 
     @Test
     void thinkingOffRejectsUnexpectedThinkingWithoutDisplayingIt() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+        try (LocalChatServer server = LocalChatServer.streaming(
                 jsonLine("", "unexpected trace", false),
                 jsonLine("Final answer.", "", false), TERMINAL)) {
             AtomicInteger thinkingSignals = new AtomicInteger();
@@ -182,7 +229,7 @@ class OllamaPromptClientTest {
 
     @Test
     void rejectsThinkingThatArrivesAfterAnswerOutputStarts() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+        try (LocalChatServer server = LocalChatServer.streaming(
                 jsonLine("First answer chunk", "", false),
                 jsonLine("", "late private reasoning", false),
                 TERMINAL)) {
@@ -204,7 +251,7 @@ class OllamaPromptClientTest {
 
     @Test
     void rejectsUnsafeOrOversizedThinkingWithoutEmittingIt() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+        try (LocalChatServer server = LocalChatServer.streaming(
                 jsonLine("", "private\u001b[31mreasoning", false), TERMINAL)) {
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration(
@@ -214,7 +261,7 @@ class OllamaPromptClientTest {
             assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
             assertEquals("", result.thinking());
         }
-        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+        try (LocalChatServer server = LocalChatServer.streaming(
                 jsonLine("", "x".repeat(
                         OllamaPromptClient.MAX_THINKING_CODE_POINTS + 1), false),
                 TERMINAL)) {
@@ -231,8 +278,9 @@ class OllamaPromptClientTest {
     @Test
     void malformedRecordFailsWithoutReturningProviderData() throws Exception {
         String privateData = "private-provider-detail";
-        try (LocalGenerateServer server = LocalGenerateServer.streaming(
-                "{\"response\":\"safe prefix\",\"done\":false}\n",
+        try (LocalChatServer server = LocalChatServer.streaming(
+                "{\"message\":{\"role\":\"assistant\","
+                        + "\"content\":\"safe prefix\"},\"done\":false}\n",
                 "{\"private\":\"" + privateData + "\"}\n")) {
             List<String> chunks = new ArrayList<>();
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
@@ -249,7 +297,7 @@ class OllamaPromptClientTest {
 
     @Test
     void incompleteStreamWithoutTerminalRecordFails() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+        try (LocalChatServer server = LocalChatServer.streaming(
                 jsonLine("partial", "", false))) {
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
@@ -261,11 +309,13 @@ class OllamaPromptClientTest {
     @Test
     void terminalRecordRequiresSupportedReasonAndMetrics() throws Exception {
         for (String terminal : List.of(
-                "{\"response\":\"\",\"done\":true,\"done_reason\":\"stop\"}\n",
-                "{\"response\":\"\",\"done\":true,\"done_reason\":\"unknown\","
+                "{\"message\":{\"role\":\"assistant\",\"content\":\"\"},"
+                        + "\"done\":true,\"done_reason\":\"stop\"}\n",
+                "{\"message\":{\"role\":\"assistant\",\"content\":\"\"},"
+                        + "\"done\":true,\"done_reason\":\"unknown\","
                         + "\"total_duration\":1,\"prompt_eval_count\":1,"
                         + "\"eval_count\":1,\"eval_duration\":1}\n")) {
-            try (LocalGenerateServer server = LocalGenerateServer.streaming(
+            try (LocalChatServer server = LocalChatServer.streaming(
                     jsonLine("answer", "", false), terminal)) {
                 OllamaPromptClient.Result result = client(server.endpoint()).submit(
                         new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
@@ -277,7 +327,7 @@ class OllamaPromptClientTest {
     @Test
     void lengthCompletionIsReportedWithoutReturningAssembledData() throws Exception {
         String terminal = TERMINAL.replace("\"stop\"", "\"length\"");
-        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+        try (LocalChatServer server = LocalChatServer.streaming(
                 jsonLine("partial answer", "", false), terminal)) {
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
@@ -291,13 +341,13 @@ class OllamaPromptClientTest {
 
     @Test
     void rejectsUnsafeOrOversizedGeneratedContent() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+        try (LocalChatServer server = LocalChatServer.streaming(
                 jsonLine("safe\u001b[31munsafe", "", false), TERMINAL)) {
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
             assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
         }
-        try (LocalGenerateServer server = LocalGenerateServer.streaming(
+        try (LocalChatServer server = LocalChatServer.streaming(
                 jsonLine("x".repeat(
                         OllamaPromptClient.MAX_RESPONSE_CODE_POINTS + 1), "", false),
                 TERMINAL)) {
@@ -311,7 +361,7 @@ class OllamaPromptClientTest {
     void rejectsAProviderStreamThatExceedsItsByteBound() throws Exception {
         String oversizedRecord = jsonLine(
                 "x".repeat(OllamaPromptClient.MAX_RESPONSE_BYTES), "", false);
-        try (LocalGenerateServer server = LocalGenerateServer.streaming(oversizedRecord)) {
+        try (LocalChatServer server = LocalChatServer.streaming(oversizedRecord)) {
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
 
@@ -324,7 +374,7 @@ class OllamaPromptClientTest {
     void cancelsAnActiveStreamWhenTheCallingThreadIsInterrupted() throws Exception {
         CountDownLatch firstWritten = new CountDownLatch(1);
         CountDownLatch releaseTerminal = new CountDownLatch(1);
-        try (LocalGenerateServer server = LocalGenerateServer.gated(
+        try (LocalChatServer server = LocalChatServer.gated(
                 jsonLine("partial", "", false), TERMINAL, firstWritten, releaseTerminal);
                 ExecutorService clientExecutor = Executors.newSingleThreadExecutor()) {
             AtomicReference<Thread> clientThread = new AtomicReference<>();
@@ -359,7 +409,7 @@ class OllamaPromptClientTest {
     void stopsAStreamThatMakesNoProgressWithinTheInactivityBound() throws Exception {
         CountDownLatch firstWritten = new CountDownLatch(1);
         CountDownLatch releaseTerminal = new CountDownLatch(1);
-        try (LocalGenerateServer server = LocalGenerateServer.gated(
+        try (LocalChatServer server = LocalChatServer.gated(
                 jsonLine("partial", "", false), TERMINAL, firstWritten, releaseTerminal)) {
             List<String> chunks = new ArrayList<>();
             OllamaPromptClient.Result result = client(
@@ -377,7 +427,7 @@ class OllamaPromptClientTest {
     void stopsAtTheTotalDeadlineBeforeTheLongerInactivityBound() throws Exception {
         CountDownLatch firstWritten = new CountDownLatch(1);
         CountDownLatch releaseTerminal = new CountDownLatch(1);
-        try (LocalGenerateServer server = LocalGenerateServer.gated(
+        try (LocalChatServer server = LocalChatServer.gated(
                 jsonLine("partial", "", false), TERMINAL, firstWritten, releaseTerminal)) {
             List<String> chunks = new ArrayList<>();
             OllamaPromptClient.Result result = client(
@@ -393,13 +443,13 @@ class OllamaPromptClientTest {
 
     @Test
     void rejectsNonSuccessAndUnexpectedContentType() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.responding(
+        try (LocalChatServer server = LocalChatServer.responding(
                 404, "application/x-ndjson", "{\"error\":\"private\"}")) {
             assertEquals(OllamaPromptClient.Status.REQUEST_FAILED,
                     client(server.endpoint()).submit(new OllamaModelConfiguration("qwen3"),
                             new OllamaPrompt("hello")).status());
         }
-        try (LocalGenerateServer server = LocalGenerateServer.responding(
+        try (LocalChatServer server = LocalChatServer.responding(
                 200, "text/plain", TERMINAL)) {
             assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE,
                     client(server.endpoint()).submit(new OllamaModelConfiguration("qwen3"),
@@ -411,7 +461,7 @@ class OllamaPromptClientTest {
     void returnsSafelyWhenLocalOllamaIsUnavailable() throws Exception {
         URI endpoint;
         try (ServerSocket socket = new ServerSocket(0)) {
-            endpoint = URI.create("http://127.0.0.1:" + socket.getLocalPort() + "/api/generate");
+            endpoint = URI.create("http://127.0.0.1:" + socket.getLocalPort() + "/api/chat");
         }
         OllamaPromptClient.Result result = client(endpoint).submit(
                 new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
@@ -420,7 +470,7 @@ class OllamaPromptClientTest {
 
     @Test
     void distinguishesAnAcceptedStreamTransportFailureFromUnavailableOllama() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.truncatedAfter(
+        try (LocalChatServer server = LocalChatServer.truncatedAfter(
                 jsonLine("partial", "", false))) {
             List<String> chunks = new ArrayList<>();
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
@@ -434,7 +484,7 @@ class OllamaPromptClientTest {
 
     @Test
     void distinguishesARequestTimeoutFromUnavailableOllama() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.delayed(
+        try (LocalChatServer server = LocalChatServer.delayed(
                 Duration.ofMillis(250), TERMINAL)) {
             OllamaPromptClient.Result result = client(server.endpoint(), Duration.ofMillis(25))
                     .submit(new OllamaModelConfiguration("qwen3"),
@@ -445,7 +495,7 @@ class OllamaPromptClientTest {
 
     @Test
     void preservesInterruptionWithoutReturningPromptData() throws Exception {
-        try (LocalGenerateServer server = LocalGenerateServer.delayed(
+        try (LocalChatServer server = LocalChatServer.delayed(
                 Duration.ofSeconds(1), TERMINAL)) {
             Thread.currentThread().interrupt();
             try {
@@ -463,13 +513,20 @@ class OllamaPromptClientTest {
     @Test
     void rejectsANonLoopbackEndpoint() {
         assertThrows(IllegalArgumentException.class,
-                () -> client(URI.create("https://example.com/api/generate")));
+                () -> client(URI.create("https://example.com/api/chat")));
     }
 
     private static String jsonLine(String response, String thinking, boolean done)
             throws IOException {
         return JSON.writeValueAsString(java.util.Map.of(
-                "response", response, "thinking", thinking, "done", done)) + "\n";
+                "message", java.util.Map.of(
+                        "role", "assistant", "content", response, "thinking", thinking),
+                "done", done)) + "\n";
+    }
+
+    private static void assertMessage(JsonNode message, String role, String content) {
+        assertEquals(role, message.get("role").textValue());
+        assertEquals(content, message.get("content").textValue());
     }
 
     private static OllamaPromptClient client(URI endpoint) {
@@ -504,7 +561,7 @@ class OllamaPromptClientTest {
         return java.util.Arrays.copyOfRange(source, from, to);
     }
 
-    private static final class LocalGenerateServer implements AutoCloseable {
+    private static final class LocalChatServer implements AutoCloseable {
         private final HttpServer server;
         private final ExecutorService executor;
         private final AtomicReference<String> method = new AtomicReference<>();
@@ -512,7 +569,7 @@ class OllamaPromptClientTest {
         private final AtomicReference<String> accept = new AtomicReference<>();
         private final AtomicReference<String> requestBody = new AtomicReference<>();
 
-        private LocalGenerateServer(int status, String contentType, byte[][] writes,
+        private LocalChatServer(int status, String contentType, byte[][] writes,
                 Duration initialDelay, CountDownLatch firstWritten, CountDownLatch releaseRest,
                 long declaredLength)
                 throws IOException {
@@ -523,12 +580,12 @@ class OllamaPromptClientTest {
                 return thread;
             });
             server.setExecutor(executor);
-            server.createContext("/api/generate", exchange -> respond(exchange, status,
+            server.createContext("/api/chat", exchange -> respond(exchange, status,
                     contentType, writes, initialDelay, firstWritten, releaseRest, declaredLength));
             server.start();
         }
 
-        static LocalGenerateServer streaming(String... records) throws IOException {
+        static LocalChatServer streaming(String... records) throws IOException {
             byte[][] writes = new byte[records.length][];
             for (int index = 0; index < records.length; index++) {
                 writes[index] = records[index].getBytes(StandardCharsets.UTF_8);
@@ -536,40 +593,40 @@ class OllamaPromptClientTest {
             return writes(writes);
         }
 
-        static LocalGenerateServer writes(byte[][] writes) throws IOException {
-            return new LocalGenerateServer(200, "application/x-ndjson", writes,
+        static LocalChatServer writes(byte[][] writes) throws IOException {
+            return new LocalChatServer(200, "application/x-ndjson", writes,
                     Duration.ZERO, null, null, 0);
         }
 
-        static LocalGenerateServer responding(int status, String contentType, String body)
+        static LocalChatServer responding(int status, String contentType, String body)
                 throws IOException {
-            return new LocalGenerateServer(status, contentType,
+            return new LocalChatServer(status, contentType,
                     new byte[][] {body.getBytes(StandardCharsets.UTF_8)},
                     Duration.ZERO, null, null, 0);
         }
 
-        static LocalGenerateServer delayed(Duration delay, String body) throws IOException {
-            return new LocalGenerateServer(200, "application/x-ndjson",
+        static LocalChatServer delayed(Duration delay, String body) throws IOException {
+            return new LocalChatServer(200, "application/x-ndjson",
                     new byte[][] {body.getBytes(StandardCharsets.UTF_8)}, delay, null, null, 0);
         }
 
-        static LocalGenerateServer gated(String first, String rest, CountDownLatch firstWritten,
+        static LocalChatServer gated(String first, String rest, CountDownLatch firstWritten,
                 CountDownLatch releaseRest) throws IOException {
-            return new LocalGenerateServer(200, "application/x-ndjson",
+            return new LocalChatServer(200, "application/x-ndjson",
                     new byte[][] {first.getBytes(StandardCharsets.UTF_8),
                         rest.getBytes(StandardCharsets.UTF_8)},
                     Duration.ZERO, firstWritten, releaseRest, 0);
         }
 
-        static LocalGenerateServer truncatedAfter(String first) throws IOException {
+        static LocalChatServer truncatedAfter(String first) throws IOException {
             byte[] bytes = first.getBytes(StandardCharsets.UTF_8);
-            return new LocalGenerateServer(200, "application/x-ndjson",
+            return new LocalChatServer(200, "application/x-ndjson",
                     new byte[][] {bytes}, Duration.ZERO, null, null, bytes.length + 100L);
         }
 
         URI endpoint() {
             return URI.create("http://127.0.0.1:" + server.getAddress().getPort()
-                    + "/api/generate");
+                    + "/api/chat");
         }
 
         String method() { return method.get(); }

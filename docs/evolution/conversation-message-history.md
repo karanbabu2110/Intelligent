@@ -56,6 +56,8 @@ Task 003.02.01 does not introduce:
 - Ollama request changes or multi-turn model context;
 - a CLI command, mutable session manager, concurrency, background work, or retry.
 
+Feature 003.02 was delivered by
+[PR #28](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/28).
 Multi-Turn AI Context Feature
-[#854](https://github.com/karanbabu2110/KAOS/issues/854) remains the next
-approved boundary after Feature 003.02 is reviewed and merged.
+[#854](https://github.com/karanbabu2110/KAOS/issues/854) is now the active
+boundary.

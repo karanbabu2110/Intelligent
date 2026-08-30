@@ -151,18 +151,21 @@ export KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT=512
 ```
 
 The command validates a single 4,096-character prompt, loads the explicit
-model selection, and sends `POST /api/generate` to the fixed loopback Ollama
-endpoint with `stream` set to `true`. It parses newline-delimited JSON as it
-arrives, validates each answer chunk, prints and flushes it once, and assembles
-the same chunks into the bounded final answer. It also sends `think: false` and
-`options.num_predict: 512` for this ordinary configuration. The response body
-is bounded to 1 MiB, generated answer and hidden thinking text to 65,536 Unicode
+model selection, and sends `POST /api/chat` to the fixed loopback Ollama
+endpoint with `stream` set to `true`. Its empty history produces one final
+`user` message; the client also accepts an explicitly supplied ordered history
+before that message. It parses newline-delimited JSON as it arrives, validates
+each answer chunk, prints and flushes it once, and assembles the same chunks into
+the bounded final answer. It also sends `think: false` and
+`options.num_predict: 512` for this ordinary configuration. The serialized
+request and response body are each bounded to 1 MiB; generated answer and hidden
+thinking text to 65,536 Unicode
 code points each, inactivity to 60 seconds, and the complete request to five
 minutes. The HTTP publisher supplies one bounded item at a time. Ordinary
 thinking-off requests retain the unlabeled answer stream. Explicit thinking-on
 requests show a content-free progress line and an answer heading without
-displaying raw reasoning. There is no retry after visible output, conversation,
-system-prompt, tool, image, remote-provider, or persistence behavior.
+displaying raw reasoning. There is no retry after visible output, conversation
+selection, system-prompt, tool, image, remote-provider, or persistence behavior.
 
 Clean `done_reason: stop` completion returns exit `0`. Provider
 `done_reason: length`, local byte/text ceilings, inactivity or total timeout,

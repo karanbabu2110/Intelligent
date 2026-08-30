@@ -27,7 +27,8 @@ import org.junit.jupiter.api.Test;
 /** Deterministic tests across the application, Ollama client, HTTP, and output boundaries. */
 class KaosOllamaIntegrationTest {
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final String TERMINAL = "{\"response\":\"\",\"done\":true,"
+    private static final String TERMINAL = "{\"message\":{\"role\":\"assistant\","
+            + "\"content\":\"\"},\"done\":true,"
             + "\"done_reason\":\"stop\",\"total_duration\":900,"
             + "\"prompt_eval_count\":12,\"eval_count\":7,\"eval_duration\":600}\n";
     private static final OllamaModelConfiguration MODEL = new OllamaModelConfiguration(
@@ -49,7 +50,11 @@ class KaosOllamaIntegrationTest {
 
             JsonNode request = JSON.readTree(server.requestBody());
             assertEquals(MODEL.modelName(), request.get("model").textValue());
-            assertEquals("private integration prompt", request.get("prompt").textValue());
+            assertEquals(1, request.get("messages").size());
+            assertEquals("user",
+                    request.get("messages").get(0).get("role").textValue());
+            assertEquals("private integration prompt",
+                    request.get("messages").get(0).get("content").textValue());
             assertTrue(request.get("stream").booleanValue());
             assertFalse(request.get("think").booleanValue());
             assertEquals(MODEL.contextWindow(),
@@ -64,7 +69,7 @@ class KaosOllamaIntegrationTest {
         URI unavailableEndpoint;
         try (ServerSocket socket = new ServerSocket(0)) {
             unavailableEndpoint = URI.create(
-                    "http://127.0.0.1:" + socket.getLocalPort() + "/api/generate");
+                    "http://127.0.0.1:" + socket.getLocalPort() + "/api/chat");
         }
 
         KaosApplicationHarness.Result result = runPrompt(
@@ -117,7 +122,9 @@ class KaosOllamaIntegrationTest {
 
     private static String record(String response) throws IOException {
         return JSON.writeValueAsString(java.util.Map.of(
-                "response", response, "thinking", "", "done", false)) + "\n";
+                "message", java.util.Map.of(
+                        "role", "assistant", "content", response, "thinking", ""),
+                "done", false)) + "\n";
     }
 
     private static final class LocalOllamaServer implements AutoCloseable {
@@ -140,7 +147,7 @@ class KaosOllamaIntegrationTest {
                 return thread;
             });
             server.setExecutor(executor);
-            server.createContext("/api/generate", this::respond);
+            server.createContext("/api/chat", this::respond);
             server.start();
         }
 
@@ -150,7 +157,7 @@ class KaosOllamaIntegrationTest {
 
         URI endpoint() {
             return URI.create("http://127.0.0.1:" + server.getAddress().getPort()
-                    + "/api/generate");
+                    + "/api/chat");
         }
 
         String method() {
