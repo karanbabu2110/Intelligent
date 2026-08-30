@@ -9,9 +9,9 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), and [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
 - Active epic: [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9)
-- Completed Epic 003 feature: [003.01 — Conversation Domain Model](https://github.com/karanbabu2110/KAOS/issues/852)
-- Active feature: [003.02 — Message History](https://github.com/karanbabu2110/KAOS/issues/853), with active Task [003.02.01 — Maintain Ordered In-Memory Message History](https://github.com/karanbabu2110/KAOS/issues/1078)
-- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned immutable user/assistant messages and ordered in-memory history snapshots, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming prompt flow, one JSON runtime library, deterministic application-to-provider integration coverage, and a verified packaged run against an installed local model
+- Completed Epic 003 features: [003.01 — Conversation Domain Model](https://github.com/karanbabu2110/KAOS/issues/852) and [003.02 — Message History](https://github.com/karanbabu2110/KAOS/issues/853)
+- Active feature: [003.03 — Multi-Turn AI Context](https://github.com/karanbabu2110/KAOS/issues/854), with active Task [003.03.01 — Send Ordered History as Ollama Chat Context](https://github.com/karanbabu2110/KAOS/issues/1079)
+- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned immutable user/assistant messages and ordered in-memory history snapshots, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow that can consume ordered history, one JSON runtime library, deterministic application-to-provider integration coverage, and a verified packaged run against an installed local model
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -96,9 +96,12 @@ $env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "512"
 ```
 
 The request goes only to the fixed loopback endpoint
-`http://127.0.0.1:11434/api/generate`, requests streaming NDJSON, validates each
-answer chunk before printing it, and assembles the same chunks into one bounded
-final answer. Ordinary requests explicitly disable thinking and use a 512-token
+`http://127.0.0.1:11434/api/chat`, sends the current prompt as the final user
+message, requests streaming NDJSON, validates each answer chunk before printing
+it, and assembles the same chunks into one bounded final answer. The current CLI
+supplies empty history; the client can also send an explicitly supplied ordered
+history before that prompt. The serialized request is limited to 1 MiB. Ordinary
+requests explicitly disable thinking and use a 512-token
 generation default. The prompt is limited to 4,096 characters; the response is
 limited to 1 MiB and 65,536 characters; and the complete request is bounded to
 five minutes with a 60-second no-data deadline. Ordinary thinking-off requests
@@ -207,8 +210,8 @@ incremental check.
 ## Next checkpoint
 
 Epics 000-002 are complete and form the cumulative `1.0.0` checkpoint.
-Conversation Capability Epic #9 is active, beginning with Conversation Domain
-Model Feature #852 now complete. Message History Feature #853 and Task #1078
-are active. Ordered immutable in-memory history snapshots now exist; no active
-conversation selection, persistence, limits, or multi-turn prompt behavior is
-implemented yet.
+Conversation Capability Epic #9 is active. Conversation Domain Model Feature
+#852 and Message History Feature #853 are complete. Multi-Turn AI Context
+Feature #854 and Task #1079 are active: the Ollama chat client can send ordered
+history before the current prompt, while the CLI still supplies empty history.
+No active conversation selection, persistence, or history/token policy exists.
