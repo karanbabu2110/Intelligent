@@ -31,7 +31,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-08-31</strong>
-        Version 1.0.0 · Feature 003.05 in progress<br>
+        Version 1.0.0 · Feature 003.06 in progress<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -40,9 +40,9 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 003.05 Task 003.05.01</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 003.06 Task 003.06.01</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the admission and storage bounds added by Feature 003.05 Task 003.05.01. One foreground session now permits 8 conversations and 32 clean turns per conversation; stored messages and immutable histories are bounded before Ollama submission. The underlying implemented, next, and future statuses remain authoritative.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the end-to-end conversation evidence added by Feature 003.06 Task 003.06.01. Deterministic loopback tests now prove selected-history isolation, restored clean context, streamed output, and exclusion of a failed partial turn. Production runtime boundaries are unchanged.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
@@ -85,7 +85,7 @@
           <rect x="365" y="402" width="405" height="88" class="box box-implemented"></rect>
           <text x="387" y="432" class="svg-title">Conversation capability</text>
           <text x="387" y="456" class="svg-copy">messages · histories · active selection</text>
-          <text x="387" y="478" class="svg-copy svg-change">BOUNDED · Task 003.05.01 · 8 × 32 turns</text>
+          <text x="387" y="478" class="svg-copy">bounded · 8 conversations × 32 clean turns</text>
 
           <path d="M254 117 L330 117" class="flow"></path>
           <path d="M555 212 L580 212" class="flow"></path>
@@ -105,7 +105,7 @@
           <rect x="330" y="550" width="474" height="125" class="box box-support"></rect>
           <text x="358" y="582" class="svg-title">Build and verification boundary</text>
           <text x="358" y="609" class="svg-copy">Gradle application plugin · Jackson JSON · JUnit tests</text>
-          <text x="358" y="634" class="svg-copy">clean verifyLocal → compile → test → package → smoke checks</text>
+          <text x="358" y="634" class="svg-copy svg-change">Task 003.06.01 · deterministic conversation loopback</text>
           <text x="358" y="658" class="svg-copy">Jackson Databind 2.22.1 runtime JSON</text>
           <path d="M566 550 L566 520" class="support-flow"></path>
 
@@ -269,16 +269,21 @@
           <h3>Conversation creation and selection</h3>
           <p>One foreground command creates deterministic process-local identifiers, switches isolated histories, sends the selected context, and records only clean turns. Every conversation is discarded when the process ends. Feature 003.04 was delivered by PR #30.</p>
         </article>
-        <article class="card change-current">
-          <div class="change-label">New in Feature 003.05 Task 003.05.01</div>
-          <div class="status implemented">Implemented slice</div>
+        <article class="card">
+          <div class="status implemented">Implemented</div>
           <h3>Conversation limits and validation</h3>
-          <p>One foreground session permits 8 conversations and 32 clean turns per conversation. Stored messages and immutable histories are bounded, and a full conversation rejects another prompt before Ollama submission without changing existing state.</p>
+          <p>One foreground session permits 8 conversations and 32 clean turns per conversation. Stored messages and immutable histories are bounded, and a full conversation rejects another prompt before Ollama submission without changing existing state. Feature 003.05 was delivered by PR #31.</p>
+        </article>
+        <article class="card change-current">
+          <div class="change-label">New in Feature 003.06 Task 003.06.01</div>
+          <div class="status implemented">Implemented slice</div>
+          <h3>Conversation tests</h3>
+          <p>The complete local path now proves selected-conversation isolation, restored ordered history, streamed output, privacy-safe malformed-stream recovery, and exclusion of a failed partial turn from later context.</p>
         </article>
         <article class="card">
           <div class="status next">Next approved work</div>
-          <h3>Conversation tests</h3>
-          <p>Feature 003.06 is next after the bounded-session checkpoint is reviewed and merged. It must add only the missing conversation-level confidence justified by the completed Epic 003 behavior.</p>
+          <h3>Local persistence selection</h3>
+          <p>After Feature 003.06 is reviewed and merged, Epic 004 Feature 004.01 will select the simplest suitable local persistence from current conversation requirements and evidence.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -336,7 +341,8 @@
           <tr><td>Ordered in-memory message history</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationHistoryTest.java"><code>ConversationHistoryTest.java</code></a>, and <a href="../../docs/evolution/conversation-message-history.md">Task 003.02.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Bounded ordered Ollama chat context</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/conversation-multi-turn-ai-context.md">Task 003.03.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Selectable foreground conversation session</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-creation-selection.md">Task 003.04.01 evidence</a></td><td>Implemented; Feature 003.04 delivered by PR #30</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 003.05 Task 003.05.01</span>Bounded conversation admission and storage</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-limits-validation.md">Task 003.05.01 evidence</a></td><td>Implemented slice; Feature 003.05 review in progress</td></tr>
+          <tr><td>Bounded conversation admission and storage</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-limits-validation.md">Task 003.05.01 evidence</a></td><td>Implemented; Feature 003.05 delivered by PR #31</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 003.06 Task 003.06.01</span>End-to-end conversation integration evidence</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a> and <a href="../../docs/evolution/conversation-tests.md">Task 003.06.01 evidence</a></td><td>Implemented slice; Feature 003.06 review in progress</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

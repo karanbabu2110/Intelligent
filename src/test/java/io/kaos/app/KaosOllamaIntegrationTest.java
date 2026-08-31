@@ -19,8 +19,11 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
@@ -107,6 +110,67 @@ class KaosOllamaIntegrationTest {
         }
     }
 
+    @Test
+    void preservesOnlyTheSelectedConversationAcrossTheCompleteLocalAiPath()
+            throws Exception {
+        try (LocalOllamaServer server = LocalOllamaServer.responding(
+                200,
+                record("First answer") + TERMINAL,
+                record("Second answer") + TERMINAL,
+                record("Follow-up answer") + TERMINAL)) {
+            KaosApplicationHarness.Result result = runConversation(
+                    server.endpoint(),
+                    "First topic\n/new\nSecond topic\n/select 1\nFollow up first\n/exit\n");
+
+            assertEquals(KaosApplication.SUCCESS, result.exitCode());
+            assertEquals(1, occurrences(result.standardOutput(), "First answer"));
+            assertEquals(1, occurrences(result.standardOutput(), "Second answer"));
+            assertEquals(1, occurrences(result.standardOutput(), "Follow-up answer"));
+            assertEquals("", result.errorOutput());
+
+            List<String> requests = server.requestBodies();
+            assertEquals(3, requests.size());
+            JsonNode firstMessages = requestMessages(requests.get(0));
+            assertEquals(1, firstMessages.size());
+            assertMessage(firstMessages.get(0), "user", "First topic");
+            JsonNode secondMessages = requestMessages(requests.get(1));
+            assertEquals(1, secondMessages.size());
+            assertMessage(secondMessages.get(0), "user", "Second topic");
+            JsonNode thirdMessages = requestMessages(requests.get(2));
+            assertEquals(3, thirdMessages.size());
+            assertMessage(thirdMessages.get(0), "user", "First topic");
+            assertMessage(thirdMessages.get(1), "assistant", "First answer");
+            assertMessage(thirdMessages.get(2), "user", "Follow up first");
+        }
+    }
+
+    @Test
+    void excludesAPartialMalformedTurnFromTheNextRealRequest() throws Exception {
+        String privateProviderContent = "private-provider-content";
+        try (LocalOllamaServer server = LocalOllamaServer.responding(
+                200,
+                record("safe prefix") + privateProviderContent + "\n",
+                record("Clean answer") + TERMINAL)) {
+            KaosApplicationHarness.Result result = runConversation(
+                    server.endpoint(),
+                    "private failed prompt\nClean recovery prompt\n/exit\n");
+
+            assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+            assertTrue(result.standardOutput().contains("safe prefix"));
+            assertTrue(result.standardOutput().contains("Clean answer"));
+            assertFalse(result.standardOutput().contains(privateProviderContent));
+            assertTrue(result.errorOutput().contains("ERROR [KAOS-AI-002]"));
+            assertFalse(result.errorOutput().contains("private failed prompt"));
+            assertFalse(result.errorOutput().contains(privateProviderContent));
+
+            List<String> requests = server.requestBodies();
+            assertEquals(2, requests.size());
+            JsonNode recoveryMessages = requestMessages(requests.get(1));
+            assertEquals(1, recoveryMessages.size());
+            assertMessage(recoveryMessages.get(0), "user", "Clean recovery prompt");
+        }
+    }
+
     private static KaosApplicationHarness.Result runPrompt(URI endpoint, String prompt) {
         OllamaPromptClient client = OllamaPromptClientTestSupport.client(endpoint);
         return KaosApplicationHarness.capture((output, errorOutput) -> KaosApplication.run(
@@ -120,6 +184,35 @@ class KaosOllamaIntegrationTest {
                 errorOutput));
     }
 
+    private static KaosApplicationHarness.Result runConversation(URI endpoint, String input) {
+        OllamaPromptClient client = OllamaPromptClientTestSupport.client(endpoint);
+        return KaosApplicationHarness.captureInput(input,
+                (testInput, output, errorOutput) -> KaosApplication.run(
+                        new String[] {"conversation"},
+                        new ApplicationConfiguration(
+                                ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                        () -> new OllamaConnectivity.Result(
+                                OllamaConnectivity.Status.REACHABLE, "test-version"),
+                        () -> MODEL,
+                        client::submit,
+                        testInput,
+                        output,
+                        errorOutput));
+    }
+
+    private static JsonNode requestMessages(String requestBody) throws IOException {
+        return JSON.readTree(requestBody).get("messages");
+    }
+
+    private static void assertMessage(JsonNode message, String role, String content) {
+        assertEquals(role, message.get("role").textValue());
+        assertEquals(content, message.get("content").textValue());
+    }
+
+    private static int occurrences(String value, String content) {
+        return (value.length() - value.replace(content, "").length()) / content.length();
+    }
+
     private static String record(String response) throws IOException {
         return JSON.writeValueAsString(java.util.Map.of(
                 "message", java.util.Map.of(
@@ -131,15 +224,21 @@ class KaosOllamaIntegrationTest {
         private final HttpServer server;
         private final ExecutorService executor;
         private final int status;
-        private final byte[] responseBody;
+        private final List<byte[]> responseBodies;
+        private final AtomicInteger responseIndex = new AtomicInteger();
         private final AtomicReference<String> method = new AtomicReference<>();
         private final AtomicReference<String> requestContentType = new AtomicReference<>();
         private final AtomicReference<String> accept = new AtomicReference<>();
-        private final AtomicReference<String> requestBody = new AtomicReference<>();
+        private final List<String> requestBodies = new ArrayList<>();
 
-        private LocalOllamaServer(int status, String responseBody) throws IOException {
+        private LocalOllamaServer(int status, String... responseBodies) throws IOException {
+            if (responseBodies.length == 0) {
+                throw new IllegalArgumentException("at least one response body is required");
+            }
             this.status = status;
-            this.responseBody = responseBody.getBytes(StandardCharsets.UTF_8);
+            this.responseBodies = java.util.Arrays.stream(responseBodies)
+                    .map(body -> body.getBytes(StandardCharsets.UTF_8))
+                    .toList();
             server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             executor = Executors.newSingleThreadExecutor(runnable -> {
                 Thread thread = new Thread(runnable, "kaos-ai-integration-test-server");
@@ -151,8 +250,8 @@ class KaosOllamaIntegrationTest {
             server.start();
         }
 
-        static LocalOllamaServer responding(int status, String body) throws IOException {
-            return new LocalOllamaServer(status, body);
+        static LocalOllamaServer responding(int status, String... bodies) throws IOException {
+            return new LocalOllamaServer(status, bodies);
         }
 
         URI endpoint() {
@@ -173,7 +272,13 @@ class KaosOllamaIntegrationTest {
         }
 
         String requestBody() {
-            return requestBody.get();
+            return requestBodies.isEmpty()
+                    ? null
+                    : requestBodies.get(requestBodies.size() - 1);
+        }
+
+        List<String> requestBodies() {
+            return List.copyOf(requestBodies);
         }
 
         private void respond(HttpExchange exchange) throws IOException {
@@ -181,10 +286,15 @@ class KaosOllamaIntegrationTest {
                 method.set(exchange.getRequestMethod());
                 requestContentType.set(exchange.getRequestHeaders().getFirst("Content-Type"));
                 accept.set(exchange.getRequestHeaders().getFirst("Accept"));
-                requestBody.set(new String(
+                requestBodies.add(new String(
                         exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
                 exchange.getResponseHeaders().set("Content-Type", "application/x-ndjson");
-                exchange.sendResponseHeaders(status, 0);
+                int index = responseIndex.getAndIncrement();
+                int responseStatus = index < responseBodies.size() ? status : 500;
+                byte[] responseBody = index < responseBodies.size()
+                        ? responseBodies.get(index)
+                        : new byte[0];
+                exchange.sendResponseHeaders(responseStatus, 0);
                 exchange.getResponseBody().write(responseBody);
             }
         }

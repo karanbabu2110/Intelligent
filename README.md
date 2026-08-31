@@ -9,9 +9,9 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), and [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
 - Active epic: [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9)
-- Completed Epic 003 features: [003.01 — Conversation Domain Model](https://github.com/karanbabu2110/KAOS/issues/852), [003.02 — Message History](https://github.com/karanbabu2110/KAOS/issues/853), [003.03 — Multi-Turn AI Context](https://github.com/karanbabu2110/KAOS/issues/854), and [003.04 — Conversation Creation and Selection](https://github.com/karanbabu2110/KAOS/issues/855)
-- Active feature: [003.05 — Conversation Limits and Validation](https://github.com/karanbabu2110/KAOS/issues/856), with active Task [003.05.01 — Bound and Validate In-Memory Conversations](https://github.com/karanbabu2110/KAOS/issues/1081)
-- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground in-memory sessions with explicit conversation and turn limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, one JSON runtime library, deterministic application-to-provider integration coverage, and a verified packaged run against an installed local model
+- Completed Epic 003 features: [003.01 — Conversation Domain Model](https://github.com/karanbabu2110/KAOS/issues/852), [003.02 — Message History](https://github.com/karanbabu2110/KAOS/issues/853), [003.03 — Multi-Turn AI Context](https://github.com/karanbabu2110/KAOS/issues/854), [003.04 — Conversation Creation and Selection](https://github.com/karanbabu2110/KAOS/issues/855), and [003.05 — Conversation Limits and Validation](https://github.com/karanbabu2110/KAOS/issues/856)
+- Active feature: [003.06 — Conversation Tests](https://github.com/karanbabu2110/KAOS/issues/857), with active Task [003.06.01 — Verify End-to-End Conversation Behavior](https://github.com/karanbabu2110/KAOS/issues/1082)
+- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground in-memory sessions with explicit conversation and turn limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, one JSON runtime library, deterministic one-shot and multi-conversation application-to-provider integration coverage, and a verified packaged run against an installed local model
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -231,9 +231,10 @@ incremental check.
 ## Next checkpoint
 
 Epics 000-002 are complete and form the cumulative `1.0.0` checkpoint.
-Conversation Capability Epic #9 is active. Features #852 through #854 are
-complete, and Conversation Creation and Selection Feature #855 was delivered by
-PR #30. Conversation Limits and Validation Feature #856 and Task #1081 are
-active: the foreground session now enforces explicit conversation, turn,
-message, history, and serialized-request safety bounds. Persistence, trimming,
-summarization, and provider-token estimation do not exist.
+Conversation Capability Epic #9 is active. Features #852 through #856 are
+complete; Conversation Limits and Validation was delivered by PR #31. Feature
+#857 and Task #1082 now add the missing end-to-end proof that selected histories
+stay isolated and that a partial malformed response is not retained. Local
+Persistence Epic #823 and its first Feature #859 remain the next approved
+checkpoint after this feature merges. Persistence, trimming, summarization, and
+provider-token estimation do not exist.
