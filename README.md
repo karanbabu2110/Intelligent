@@ -9,9 +9,9 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), and [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
 - Active epic: [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9)
-- Completed Epic 003 features: [003.01 — Conversation Domain Model](https://github.com/karanbabu2110/KAOS/issues/852), [003.02 — Message History](https://github.com/karanbabu2110/KAOS/issues/853), and [003.03 — Multi-Turn AI Context](https://github.com/karanbabu2110/KAOS/issues/854)
-- Active feature: [003.04 — Conversation Creation and Selection](https://github.com/karanbabu2110/KAOS/issues/855), with active Task [003.04.01 — Run Selectable In-Memory Conversations](https://github.com/karanbabu2110/KAOS/issues/1080)
-- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned immutable user/assistant messages, ordered histories, selectable foreground in-memory sessions, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, one JSON runtime library, deterministic application-to-provider integration coverage, and a verified packaged run against an installed local model
+- Completed Epic 003 features: [003.01 — Conversation Domain Model](https://github.com/karanbabu2110/KAOS/issues/852), [003.02 — Message History](https://github.com/karanbabu2110/KAOS/issues/853), [003.03 — Multi-Turn AI Context](https://github.com/karanbabu2110/KAOS/issues/854), and [003.04 — Conversation Creation and Selection](https://github.com/karanbabu2110/KAOS/issues/855)
+- Active feature: [003.05 — Conversation Limits and Validation](https://github.com/karanbabu2110/KAOS/issues/856), with active Task [003.05.01 — Bound and Validate In-Memory Conversations](https://github.com/karanbabu2110/KAOS/issues/1081)
+- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground in-memory sessions with explicit conversation and turn limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, one JSON runtime library, deterministic application-to-provider integration coverage, and a verified packaged run against an installed local model
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -130,10 +130,15 @@ Conversation `1` is created and selected automatically. Type prompts normally;
 use `/new` to create and select another conversation, `/select <id>` to switch,
 `/list` to inspect identifiers, `/help` for controls, and `/exit` to finish.
 Only clean user/assistant pairs are retained. Conversations are isolated from
-each other, exist only in this process, and are discarded on exit. No file,
-database, cache, restart recovery, or general history/token limit exists yet.
+each other, exist only in this process, and are discarded on exit. One session
+allows 8 conversations; each conversation allows 32 clean turns; every stored
+message allows 65,536 Unicode code points. KAOS rejects a ninth conversation or
+thirty-third turn without changing existing state or contacting Ollama. These
+initial safety bounds are not configurable. No file, database, cache, restart
+recovery, trimming, summarization, or local provider-token estimation exists.
 See [conversation creation and selection](docs/evolution/conversation-creation-selection.md)
-for the exact lifecycle and limitations.
+for the lifecycle and [conversation limits and validation](docs/evolution/conversation-limits-validation.md)
+for the exact bounds and recovery behavior.
 
 The model remains your explicit choice. Current measurements recommend
 `qwen3:1.7b` only for a fast connectivity smoke test,
@@ -227,7 +232,8 @@ incremental check.
 
 Epics 000-002 are complete and form the cumulative `1.0.0` checkpoint.
 Conversation Capability Epic #9 is active. Features #852 through #854 are
-complete. Conversation Creation and Selection Feature #855 and Task #1080 are
-active: one foreground command can create, select, and use isolated in-memory
-histories. Persistence and general conversation/history/token limits do not yet
-exist.
+complete, and Conversation Creation and Selection Feature #855 was delivered by
+PR #30. Conversation Limits and Validation Feature #856 and Task #1081 are
+active: the foreground session now enforces explicit conversation, turn,
+message, history, and serialized-request safety bounds. Persistence, trimming,
+summarization, and provider-token estimation do not exist.

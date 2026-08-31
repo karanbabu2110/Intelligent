@@ -201,10 +201,19 @@ Each successful request appends one validated user message and one assistant
 message. Failed or partial requests are not retained, although the session can
 continue; its final exit remains nonzero if an AI request failed. Separate
 conversation identifiers keep their histories isolated. All identifiers,
-selection state, and messages disappear when the process ends. There is no
-persistence, restart recovery, naming, deletion, general history limit,
-trimming, or summarization behavior. See
-[conversation creation and selection](../evolution/conversation-creation-selection.md).
+selection state, and messages disappear when the process ends. One session is
+limited to 8 conversations, each conversation to 32 clean turns, each immutable
+history to 64 messages, and each stored message to 65,536 Unicode code points.
+The existing current-prompt limit remains 4,096 code points.
+
+KAOS rejects a ninth `/new` without changing the active identifier. It rejects
+a prompt that would become the thirty-third turn before model configuration is
+loaded or Ollama is contacted. Use `/select` to choose an existing conversation
+with capacity, or `/exit` and restart the ephemeral session. These initial
+limits are not configurable. There is no persistence, restart recovery, naming,
+deletion, trimming, summarization, automatic rollover, or provider-token
+estimation. See [conversation creation and selection](../evolution/conversation-creation-selection.md)
+and [conversation limits and validation](../evolution/conversation-limits-validation.md).
 
 ## Local configuration
 

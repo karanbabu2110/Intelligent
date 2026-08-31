@@ -182,9 +182,21 @@ public final class OllamaPromptClient {
         } catch (RequestLimitException exception) {
             return null;
         } catch (IOException exception) {
+            if (isCausedByRequestLimit(exception)) {
+                return null;
+            }
             throw new IllegalStateException(
                     "Unable to encode validated Ollama request.", exception);
         }
+    }
+
+    private static boolean isCausedByRequestLimit(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof RequestLimitException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String chatRole(ConversationRole role) {

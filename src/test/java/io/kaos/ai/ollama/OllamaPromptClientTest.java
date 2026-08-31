@@ -99,9 +99,11 @@ class OllamaPromptClientTest {
 
     @Test
     void rejectsAnOversizedSerializedHistoryBeforeConnecting() throws Exception {
-        ConversationHistory history = new ConversationHistory(List.of(
-                new ConversationMessage(ConversationRole.USER,
-                        "x".repeat(OllamaPromptClient.MAX_REQUEST_BYTES))));
+        ConversationMessage largestMessage = new ConversationMessage(
+                ConversationRole.USER,
+                "x".repeat(ConversationMessage.MAX_CONTENT_CODE_POINTS));
+        ConversationHistory history = new ConversationHistory(
+                java.util.Collections.nCopies(17, largestMessage));
         try (LocalChatServer server = LocalChatServer.streaming(TERMINAL)) {
             OllamaPromptClient.Result result = client(server.endpoint()).submit(
                     new OllamaModelConfiguration("qwen3"), history,

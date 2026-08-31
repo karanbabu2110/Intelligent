@@ -1,6 +1,7 @@
 package io.kaos.conversation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
@@ -52,5 +53,30 @@ class ConversationMessageTest {
                 () -> new ConversationMessage(ConversationRole.USER, " \n\t "));
 
         assertEquals("conversation message content must not be blank", exception.getMessage());
+    }
+
+    @Test
+    void acceptsTheExactUnicodeContentLimit() {
+        String content = "🌍".repeat(ConversationMessage.MAX_CONTENT_CODE_POINTS);
+
+        ConversationMessage message =
+                new ConversationMessage(ConversationRole.ASSISTANT, content);
+
+        assertEquals(ConversationMessage.MAX_CONTENT_CODE_POINTS,
+                message.content().codePointCount(0, message.content().length()));
+    }
+
+    @Test
+    void rejectsContentBeyondTheUnicodeLimitWithoutEchoingIt() {
+        String privateContent = "🌍".repeat(ConversationMessage.MAX_CONTENT_CODE_POINTS + 1);
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> new ConversationMessage(ConversationRole.ASSISTANT, privateContent));
+
+        assertEquals("conversation message content must contain at most "
+                + ConversationMessage.MAX_CONTENT_CODE_POINTS + " characters",
+                exception.getMessage());
+        assertFalse(exception.getMessage().contains(privateContent));
     }
 }

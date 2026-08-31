@@ -12,6 +12,7 @@ import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.ai.ollama.OllamaThinkingMode;
 import io.kaos.app.config.ApplicationConfiguration;
 import io.kaos.conversation.ConversationHistory;
+import io.kaos.conversation.ConversationSession;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -304,6 +305,50 @@ class KaosApplicationTest {
     }
 
     @Test
+    void rejectsANinthConversationWithoutChangingTheActiveConversation() {
+        KaosApplicationHarness.Result result = runConversation(
+                "/new\n".repeat(ConversationSession.MAX_CONVERSATIONS)
+                        + "/list\n/exit\n",
+                (model, history, prompt, thinking, chunks) -> {
+                    throw new AssertionError("conversation controls must not submit a prompt");
+                });
+
+        assertEquals(KaosApplication.SUCCESS, result.exitCode());
+        assertTrue(result.standardOutput().contains("Conversation 8 created and selected."));
+        assertTrue(result.standardOutput().contains("Conversations: 1 2 3 4 5 6 7 *8"));
+        assertFalse(result.standardOutput().contains("Conversation 9"));
+        assertEquals("Conversation limit reached (8). Select an existing conversation "
+                + "or exit and restart." + System.lineSeparator(), result.errorOutput());
+    }
+
+    @Test
+    void rejectsAThirtyThirdTurnBeforeSubmittingIt() {
+        StringBuilder input = new StringBuilder();
+        for (int turn = 1;
+                turn <= ConversationSession.MAX_TURNS_PER_CONVERSATION + 1;
+                turn++) {
+            input.append("Prompt ").append(turn).append(System.lineSeparator());
+        }
+        input.append("/exit").append(System.lineSeparator());
+        AtomicInteger submissions = new AtomicInteger();
+
+        KaosApplicationHarness.Result result = runConversation(
+                input.toString(),
+                (model, history, prompt, thinking, chunks) -> {
+                    int submission = submissions.incrementAndGet();
+                    String answer = "Answer " + submission;
+                    chunks.accept(answer);
+                    return new OllamaPromptClient.Result(
+                            OllamaPromptClient.Status.SUCCESS, "", answer);
+                });
+
+        assertEquals(KaosApplication.SUCCESS, result.exitCode());
+        assertEquals(ConversationSession.MAX_TURNS_PER_CONVERSATION, submissions.get());
+        assertTrue(result.errorOutput().contains("Conversation turn limit reached (32)."));
+        assertFalse(result.errorOutput().contains("Prompt 33"));
+    }
+
+    @Test
     void failedTurnsAreNotRetainedBeforeTheNextPrompt() {
         List<ConversationHistory> submittedHistories = new ArrayList<>();
         AtomicInteger calls = new AtomicInteger();
@@ -357,6 +402,8 @@ class KaosApplicationTest {
         assertTrue(result.standardOutput().contains("Conversation controls:"));
         assertTrue(result.standardOutput().contains("/select <id>"));
         assertTrue(result.standardOutput().contains("/exit"));
+        assertTrue(result.standardOutput().contains(
+                "Limits: 8 conversations and 32 clean turns per conversation."));
         assertEquals("", result.errorOutput());
     }
 
