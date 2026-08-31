@@ -213,7 +213,7 @@ model accepts one bounded prompt through the single packaged application and
 returns one validated streamed answer. Conversation Capability Epic
 [#9](https://github.com/karanbabu2110/KAOS/issues/9) is the active goal.
 
-## Epic 003 — Conversation Capability (in progress)
+## Epic 003 — Conversation Capability (complete)
 
 ### Feature 003.01 — Conversation Domain Model
 
@@ -250,18 +250,30 @@ returns one validated streamed answer. Conversation Capability Epic
 - Delivery: [PR #31](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/31)
 - Evidence: [Conversation limits and validation](conversation-limits-validation.md)
 
-### Feature 003.06 — Conversation Tests (in progress)
+### Feature 003.06 — Conversation Tests
 
 - [Feature 003.06](https://github.com/karanbabu2110/KAOS/issues/857)
 - [Task 003.06.01 — Verify End-to-End Conversation Behavior](https://github.com/karanbabu2110/KAOS/issues/1082)
+- Delivery: [PR #32](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/32)
 - Evidence: [Conversation tests](conversation-tests.md)
 
-Task 003.06.01 adds the final missing Epic 003 confidence through the real
-application route, real Ollama client, streamed NDJSON, and deterministic
-loopback HTTP. Local Persistence Epic
-[#823](https://github.com/karanbabu2110/KAOS/issues/823) and Local Persistence
-Selection Feature [#859](https://github.com/karanbabu2110/KAOS/issues/859)
-remain incomplete and are not part of this snapshot.
+Epic 003 is verified end to end through the real application route, selectable
+conversation state, real Ollama client, streamed NDJSON, and deterministic
+loopback HTTP. The clean merged-main checkpoint completed all 11 tasks and 148
+tests and is recorded by annotated tag
+[`v1.1.0`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/tree/v1.1.0).
+
+## Epic 004 — Local Persistence (in progress)
+
+### Feature 004.01 — Local Persistence Selection (in progress)
+
+- [Feature 004.01](https://github.com/karanbabu2110/KAOS/issues/859)
+- [Task 004.01.01 — Select Scalable Local SQLite Persistence](https://github.com/karanbabu2110/KAOS/issues/1083)
+- Evidence: [Local persistence selection](local-persistence-selection.md)
+
+Conversation Storage Feature
+[#858](https://github.com/karanbabu2110/KAOS/issues/858) remains incomplete and
+is not part of this snapshot.
 
 ## Maintenance rule
 
