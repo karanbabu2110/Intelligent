@@ -344,9 +344,71 @@ svg text {
 }
 
 .sequence-failure {
-  stroke: var(--accent);
+  stroke: var(--change);
   stroke-dasharray: 8 7;
-  marker-end: url("#sequence-arrow-blue");
+  marker-end: url("#sequence-arrow-pink");
+}
+
+.sequence-map .svg-title {
+  font-size: 16px;
+}
+
+.sequence-map .svg-copy {
+  font-size: 13px;
+}
+
+.command-call,
+.command-return,
+.command-failure,
+.command-branch,
+.conversation-call,
+.conversation-return,
+.conversation-failure,
+.conversation-unwired {
+  fill: none;
+  stroke-width: 2.2;
+}
+
+.command-call {
+  stroke: var(--implemented);
+  marker-end: url("#command-arrow-green");
+}
+
+.command-return {
+  stroke: var(--accent);
+  marker-end: url("#command-arrow-blue");
+}
+
+.command-failure {
+  stroke: var(--change);
+  stroke-dasharray: 8 7;
+  marker-end: url("#command-arrow-pink");
+}
+
+.command-branch {
+  stroke: var(--implemented);
+}
+
+.conversation-call {
+  stroke: var(--implemented);
+  marker-end: url("#conversation-arrow-green");
+}
+
+.conversation-return {
+  stroke: var(--accent);
+  marker-end: url("#conversation-arrow-blue");
+}
+
+.conversation-failure {
+  stroke: var(--change);
+  stroke-dasharray: 8 7;
+  marker-end: url("#conversation-arrow-pink");
+}
+
+.conversation-unwired {
+  stroke: var(--next);
+  stroke-dasharray: 8 7;
+  marker-end: url("#conversation-arrow-gold");
 }
 
 .grid {

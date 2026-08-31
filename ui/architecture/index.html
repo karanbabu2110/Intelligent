@@ -6,6 +6,7 @@
   <meta name="description" content="Evidence-based living architecture for the evolving KAOS application">
   <meta name="theme-color" content="#07111f">
   <title>KAOS Living Architecture</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="assets/styles/site.css">
 </head>
 <body>
@@ -14,7 +15,7 @@
       <a class="brand" href="#overview">KAOS Architecture</a>
       <ul class="nav-links">
         <li><a href="#runtime">Runtime</a></li>
-        <li><a href="#flow">Flow</a></li>
+        <li><a href="#flow">Code flow</a></li>
         <li><a href="#capabilities">Capabilities</a></li>
         <li><a href="#evolution">Evolution</a></li>
         <li><a href="#evidence">Evidence</a></li>
@@ -121,41 +122,135 @@
     </section>
 
     <section id="flow" class="panel" aria-labelledby="flow-heading">
-      <h2 id="flow-heading">AI chat request flow diagram</h2>
-      <p class="rule">This is the implemented Ollama chat flow. The <code>conversation</code> command admits a prompt only when its selected bounded history has room for one clean turn; <code>ollama-prompt</code> supplies empty history. Clean answers return to the selected in-memory history. The SQLite store is not invoked on this path, so it still has no runtime persistence, retry, worker, event bus, or remote provider.</p>
+      <h2 id="flow-heading">Technical functionality maps</h2>
+      <p class="rule">Read these three connected views in order. Green arrows are calls, blue arrows are returned data or control, magenta dashed arrows are failures, and gold dashed arrows are implemented code that is not runtime-wired.</p>
+
+      <h3 id="command-map-heading">1. Command routing</h3>
+      <p>This view answers: “Which code handles my command, and where does that branch finish?” Only one command branch is selected for each invocation. The two AI branches continue into view 2.</p>
+      <div class="diagram-wrap" tabindex="0" aria-label="Scrollable command routing map">
+        <svg viewBox="0 0 1140 535" role="img" aria-labelledby="command-title command-description">
+          <title id="command-title">KAOS command routing map</title>
+          <desc id="command-description">Terminal arguments enter KaosApplication main, which installs cancellation cleanup and invokes launch. Launch loads ApplicationConfiguration and calls run. Run selects exactly one command branch. Status and help print directly. Ollama status calls OllamaConnectivity check. Ollama model loads OllamaModelConfiguration. Ollama prompt passes empty history to the shared AI path. Conversation enters runConversation with a foreground ConversationSession and then calls the same AI path for prompts. Invalid configuration and arguments return coded safe errors.</desc>
+          <defs>
+            <marker id="command-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
+            <marker id="command-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
+            <marker id="command-arrow-pink" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ff8bd4"></path></marker>
+          </defs>
+
+          <text x="30" y="32" class="svg-label">ENTRY · EXACT CALL ORDER →</text>
+          <rect x="30" y="55" width="190" height="105" class="box box-implemented"></rect>
+          <text x="50" y="90" class="svg-title">Terminal</text>
+          <text x="50" y="118" class="svg-copy">arguments · stdin</text>
+          <text x="50" y="142" class="svg-copy">stdout · stderr</text>
+
+          <rect x="260" y="55" width="220" height="105" class="box box-implemented"></rect>
+          <text x="280" y="90" class="svg-title">KaosApplication.main</text>
+          <text x="280" y="118" class="svg-copy">install cancellation hook</text>
+          <text x="280" y="142" class="svg-copy">handle process exit</text>
+
+          <rect x="520" y="55" width="250" height="105" class="box box-support"></rect>
+          <text x="540" y="90" class="svg-title">KaosApplication.launch</text>
+          <text x="540" y="118" class="svg-copy">ApplicationConfiguration.load</text>
+          <text x="540" y="142" class="svg-copy">top-level error boundary</text>
+
+          <rect x="810" y="55" width="300" height="105" class="box box-implemented"></rect>
+          <text x="830" y="90" class="svg-title">KaosApplication.run</text>
+          <text x="830" y="118" class="svg-copy">select exactly one command</text>
+          <text x="830" y="142" class="svg-copy">reject invalid arguments</text>
+
+          <path d="M220 107 L260 107" class="command-call"></path>
+          <path d="M480 107 L520 107" class="command-call"></path>
+          <path d="M770 107 L810 107" class="command-call"></path>
+
+          <text x="30" y="215" class="svg-label">ONE BRANCH ONLY ↓</text>
+          <path d="M960 160 L960 195 L130 195" class="command-branch"></path>
+
+          <rect x="30" y="225" width="180" height="118" class="box box-support"></rect>
+          <text x="50" y="260" class="svg-title">status · help</text>
+          <text x="50" y="288" class="svg-copy">format and print</text>
+          <text x="50" y="312" class="svg-copy">return success</text>
+
+          <rect x="250" y="225" width="190" height="118" class="box box-support"></rect>
+          <text x="270" y="260" class="svg-title">ollama-status</text>
+          <text x="270" y="288" class="svg-copy">OllamaConnectivity.check</text>
+          <text x="270" y="312" class="svg-copy">GET /api/version</text>
+
+          <rect x="480" y="225" width="190" height="118" class="box box-support"></rect>
+          <text x="500" y="260" class="svg-title">ollama-model</text>
+          <text x="500" y="288" class="svg-copy">OllamaModelConfiguration</text>
+          <text x="500" y="312" class="svg-copy">.load · validate · display</text>
+
+          <rect x="710" y="225" width="180" height="118" class="box box-implemented"></rect>
+          <text x="730" y="260" class="svg-title">ollama-prompt</text>
+          <text x="730" y="288" class="svg-copy">empty history</text>
+          <text x="730" y="312" class="svg-copy">one prompt → view 2</text>
+
+          <rect x="930" y="225" width="180" height="118" class="box box-implemented"></rect>
+          <text x="950" y="260" class="svg-title">conversation</text>
+          <text x="950" y="288" class="svg-copy">runConversation</text>
+          <text x="950" y="312" class="svg-copy">view 3 ↔ view 2</text>
+
+          <path d="M120 195 L120 225" class="command-call"></path>
+          <path d="M345 195 L345 225" class="command-call"></path>
+          <path d="M575 195 L575 225" class="command-call"></path>
+          <path d="M800 195 L800 225" class="command-call"></path>
+          <path d="M1020 195 L1020 225" class="command-call"></path>
+
+          <rect x="70" y="405" width="280" height="82" class="box box-support"></rect>
+          <text x="90" y="438" class="svg-title">Direct command result</text>
+          <text x="90" y="464" class="svg-copy">stdout/stderr · return exit code</text>
+          <path d="M120 343 L120 375 L210 375 L210 405" class="command-return"></path>
+          <path d="M345 343 L345 375 L230 375 L230 405" class="command-return"></path>
+          <path d="M575 343 L575 385 L250 385 L250 405" class="command-return"></path>
+
+          <rect x="710" y="405" width="400" height="82" class="box box-implemented"></rect>
+          <text x="730" y="438" class="svg-title">Shared AI execution · continue to view 2</text>
+          <text x="730" y="464" class="svg-copy">submitOllamaPrompt(prompt, selected history, callbacks)</text>
+          <path d="M800 343 L800 405" class="command-call"></path>
+          <path d="M1020 343 L1020 380 L980 380 L980 405" class="command-call"></path>
+
+          <path d="M650 160 L650 370 L430 370 L430 445 L350 445" class="command-failure"></path>
+          <text x="440" y="360" class="svg-copy svg-change">invalid configuration</text>
+        </svg>
+      </div>
+
+      <h3 id="streaming-map-heading">2. AI streaming sequence</h3>
+      <p>This view answers: “What crosses the Ollama boundary, what repeats while streaming, and what returns once?” Green moves toward Ollama; blue moves back to KAOS and the user.</p>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable AI chat request flow diagram">
-        <svg viewBox="0 0 1140 535" role="img" aria-labelledby="flow-title flow-description">
-          <title id="flow-title">KAOS Ollama chat request flow</title>
-          <desc id="flow-description">The one-shot command supplies empty history, while the foreground conversation command first checks its conversation-owned turn capacity, then supplies the selected immutable history plus one bounded current prompt. A prompt that would exceed thirty-two clean turns is rejected before model loading or provider contact. KAOS maps every admitted stored role and content in order, appends the prompt as the final user message, enforces a serialized request limit, and routes the chat request to the fixed loopback provider. Ollama returns backpressured UTF-8 newline-delimited JSON. KAOS reconstructs and validates each assistant message record, keeps reasoning hidden, displays each answer chunk exactly once, and validates the terminal reason and metrics. A clean user and assistant pair is appended to the selected conversation. Invalid, timed out, limited, interrupted, rejected, or incomplete requests take a privacy-safe failure path and are not retained.</desc>
+        <svg class="sequence-map" viewBox="0 0 1140 535" role="img" aria-labelledby="flow-title flow-description">
+          <title id="flow-title">KAOS AI streaming sequence</title>
+          <desc id="flow-description">KaosApplication submitOllamaPrompt validates the prompt and model, then calls OllamaPromptClient submit with selected or empty history. The client encodes the request and posts it to local Ollama. The response returns through PublisherInputStream and decodeStream. Each validated answer chunk invokes the output callback immediately and exactly once. After the terminal record, one classified Result returns to KaosApplication. Success becomes a PromptOutcome and failure becomes coded recovery without history mutation.</desc>
           <defs>
             <marker id="sequence-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="sequence-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
+            <marker id="sequence-arrow-pink" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ff8bd4"></path></marker>
           </defs>
 
-          <text x="30" y="34" class="svg-label">REQUEST · USER TO FIXED LOCAL PROVIDER</text>
+          <text x="30" y="34" class="svg-label">REQUEST → USER TO FIXED LOCAL PROVIDER</text>
 
           <rect x="30" y="60" width="180" height="118" class="box box-implemented"></rect>
-          <text x="50" y="96" class="svg-title">1 · Caller</text>
-          <text x="50" y="124" class="svg-copy svg-change">selected bounded history or empty</text>
-          <text x="50" y="148" class="svg-copy">one current prompt</text>
+          <text x="50" y="96" class="svg-title">1 · Calling command</text>
+          <text x="50" y="124" class="svg-copy">KaosApplication</text>
+          <text x="50" y="148" class="svg-copy">history + current prompt</text>
 
           <rect x="255" y="60" width="180" height="118" class="box box-support"></rect>
-          <text x="275" y="96" class="svg-title">2 · Validate</text>
-          <text x="275" y="124" class="svg-copy svg-change">message · history · turn capacity</text>
-          <text x="275" y="148" class="svg-copy">request · response limits</text>
+          <text x="275" y="96" class="svg-title">2 · App preparation</text>
+          <text x="275" y="124" class="svg-copy">submitOllamaPrompt</text>
+          <text x="275" y="148" class="svg-copy">prompt · model · callbacks</text>
 
           <rect x="480" y="60" width="180" height="118" class="box box-implemented"></rect>
-          <text x="500" y="96" class="svg-title">3 · Route</text>
-          <text x="500" y="124" class="svg-copy">KaosApplication</text>
-          <text x="500" y="148" class="svg-copy">safe error boundary</text>
+          <text x="500" y="96" class="svg-title">3 · Client submission</text>
+          <text x="500" y="120" class="svg-copy">OllamaPromptClient</text>
+          <text x="500" y="142" class="svg-copy">.submit · encodeRequest</text>
+          <text x="500" y="164" class="svg-copy">HttpClient.send</text>
 
           <rect x="705" y="60" width="180" height="118" class="box box-implemented"></rect>
-          <text x="725" y="96" class="svg-title">4 · Request</text>
-          <text x="725" y="124" class="svg-copy">OllamaPromptClient</text>
-          <text x="725" y="148" class="svg-copy">POST /api/chat · stream true</text>
+          <text x="725" y="96" class="svg-title">4 · HTTP request</text>
+          <text x="725" y="124" class="svg-copy">POST /api/chat</text>
+          <text x="725" y="148" class="svg-copy">bounded JSON · stream true</text>
 
           <rect x="930" y="60" width="180" height="118" class="box box-implemented"></rect>
-          <text x="950" y="96" class="svg-title">5 · Chat</text>
+          <text x="950" y="96" class="svg-title">5 · Local Ollama</text>
           <text x="950" y="124" class="svg-copy">127.0.0.1:11434</text>
           <text x="950" y="148" class="svg-copy">explicit installed model</text>
 
@@ -164,46 +259,159 @@
           <path d="M660 119 L705 119" class="sequence-flow"></path>
           <path d="M885 119 L930 119" class="sequence-flow"></path>
 
-          <text x="30" y="235" class="svg-label">RESPONSE · VALIDATED INCREMENTAL OUTPUT</text>
+          <text x="30" y="235" class="svg-label">← RESPONSE · FIXED LOCAL PROVIDER TO USER</text>
 
           <rect x="930" y="260" width="180" height="118" class="box box-support"></rect>
-          <text x="950" y="296" class="svg-title">6 · NDJSON</text>
-          <text x="950" y="324" class="svg-copy">UTF-8 publisher data</text>
-          <text x="950" y="348" class="svg-copy">one item at a time</text>
+          <text x="950" y="296" class="svg-title">6 · Response body</text>
+          <text x="950" y="324" class="svg-copy">PublisherInputStream</text>
+          <text x="950" y="348" class="svg-copy">bytes · limits · cancellation</text>
 
           <rect x="705" y="260" width="180" height="118" class="box box-support"></rect>
-          <text x="725" y="296" class="svg-title">7 · Guard</text>
-          <text x="725" y="324" class="svg-copy">parse · validate · bound</text>
-          <text x="725" y="348" class="svg-copy">reasoning stays hidden</text>
+          <text x="725" y="296" class="svg-title">7 · decodeStream</text>
+          <text x="725" y="324" class="svg-copy">UTF-8 NDJSON · validate</text>
+          <text x="725" y="348" class="svg-copy">bounds · terminal metrics</text>
 
           <rect x="480" y="260" width="180" height="118" class="box box-implemented"></rect>
-          <text x="500" y="296" class="svg-title">8 · Stream</text>
-          <text x="500" y="324" class="svg-copy">answer chunks once</text>
-          <text x="500" y="348" class="svg-copy">flush immediately</text>
+          <text x="500" y="296" class="svg-title">8 · Chunk callback</text>
+          <text x="500" y="324" class="svg-copy">answerChunk · repeats 0..n</text>
+          <text x="500" y="348" class="svg-copy">print once · flush now</text>
 
           <rect x="255" y="260" width="180" height="118" class="box box-support"></rect>
-          <text x="275" y="296" class="svg-title">9 · Complete</text>
-          <text x="275" y="324" class="svg-copy">done reason · metrics</text>
-          <text x="275" y="348" class="svg-copy">assembled bounded answer</text>
+          <text x="275" y="296" class="svg-title">9 · Result</text>
+          <text x="275" y="324" class="svg-copy">once after terminal record</text>
+          <text x="275" y="348" class="svg-copy">status · bounded response</text>
 
           <rect x="30" y="260" width="180" height="118" class="box box-implemented"></rect>
-          <text x="50" y="296" class="svg-title">10 · Return</text>
-          <text x="50" y="324" class="svg-copy">validated stdout</text>
-          <text x="50" y="348" class="svg-copy">clean turn retained</text>
+          <text x="50" y="296" class="svg-title">10 · App outcome</text>
+          <text x="50" y="324" class="svg-copy">PromptOutcome</text>
+          <text x="50" y="348" class="svg-copy">return to calling command</text>
 
           <path d="M1020 178 L1020 260" class="sequence-return"></path>
           <path d="M930 319 L885 319" class="sequence-return"></path>
           <path d="M705 319 L660 319" class="sequence-return"></path>
           <path d="M480 319 L435 319" class="sequence-return"></path>
           <path d="M255 319 L210 319" class="sequence-return"></path>
+          <path d="M120 260 L120 178" class="sequence-return"></path>
 
           <rect x="440" y="430" width="360" height="76" class="box box-support"></rect>
           <text x="462" y="462" class="svg-title">Safe non-clean ending</text>
-          <text x="462" y="487" class="svg-copy">cancel · classify · coded recovery · no retry</text>
+          <text x="462" y="487" class="svg-copy">validation · request · stream · terminal · cancellation</text>
+          <path d="M345 178 L345 205 L450 205 L450 410 L520 430" class="sequence-failure"></path>
+          <path d="M795 178 L795 205 L900 205 L900 410 L720 430" class="sequence-failure"></path>
           <path d="M795 378 L795 410 L720 430" class="sequence-failure"></path>
           <path d="M345 378 L345 410 L520 430" class="sequence-failure"></path>
         </svg>
       </div>
+    </section>
+
+    <section id="conversation-flow" class="panel" aria-labelledby="conversation-flow-heading">
+      <h2 id="conversation-flow-heading">3. Conversation state</h2>
+      <p class="rule">This view answers: “What happens after each input line, when is history changed, and where does the loop return?” A clean prompt uses view 2. The implemented SQLite store remains outside this runtime loop.</p>
+      <div class="diagram-wrap" tabindex="0" aria-label="Scrollable conversation state map">
+        <svg viewBox="0 0 1140 720" role="img" aria-labelledby="conversation-title conversation-description">
+          <title id="conversation-title">KAOS foreground conversation state flow</title>
+          <desc id="conversation-description">KaosApplication runConversation creates and selects the first in-memory conversation, then reads UTF-8 lines in a foreground loop. Control commands update or inspect ConversationSession and return to the input loop. Exit or end of input ends the session and discards in-memory conversations. A prompt first checks turn capacity, then calls the shared AI execution shown in view 2 with active history. A successful PromptOutcome appends the user and assistant turn atomically and returns to the next input line. A non-clean result does not mutate history and returns to input unless interruption ends the command. SqliteConversationStore is implemented but no application call connects it to this loop.</desc>
+          <defs>
+            <marker id="conversation-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
+            <marker id="conversation-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
+            <marker id="conversation-arrow-pink" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ff8bd4"></path></marker>
+            <marker id="conversation-arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
+          </defs>
+
+          <text x="30" y="32" class="svg-label">FOREGROUND LOOP · IN-MEMORY STATE</text>
+          <rect x="30" y="55" width="250" height="105" class="box box-implemented"></rect>
+          <text x="50" y="90" class="svg-title">KaosApplication</text>
+          <text x="50" y="118" class="svg-copy">runConversation · new session</text>
+          <text x="50" y="142" class="svg-copy">create and select first ID</text>
+
+          <rect x="340" y="55" width="220" height="105" class="box box-implemented"></rect>
+          <text x="360" y="90" class="svg-title">Read next UTF-8 line</text>
+          <text x="360" y="118" class="svg-copy">print prompt · flush</text>
+          <text x="360" y="142" class="svg-copy">blank · control · prompt · EOF</text>
+
+          <rect x="620" y="55" width="220" height="105" class="box box-support"></rect>
+          <text x="640" y="90" class="svg-title">Classify line</text>
+          <text x="640" y="118" class="svg-copy">one branch per line</text>
+          <text x="640" y="142" class="svg-copy">no background worker</text>
+
+          <path d="M280 107 L340 107" class="conversation-call"></path>
+          <path d="M560 107 L620 107" class="conversation-call"></path>
+
+          <rect x="30" y="230" width="240" height="112" class="box box-support"></rect>
+          <text x="50" y="265" class="svg-title">Controls</text>
+          <text x="50" y="293" class="svg-copy">/new · /select · /list</text>
+          <text x="50" y="317" class="svg-copy">/help · blank · unknown</text>
+
+          <rect x="320" y="230" width="240" height="112" class="box box-support"></rect>
+          <text x="340" y="265" class="svg-title">/exit or EOF</text>
+          <text x="340" y="293" class="svg-copy">end foreground session</text>
+          <text x="340" y="317" class="svg-copy">in-memory state is discarded</text>
+
+          <rect x="610" y="230" width="230" height="112" class="box box-implemented"></rect>
+          <text x="630" y="265" class="svg-title">Prompt</text>
+          <text x="630" y="293" class="svg-copy">canAppendTurn?</text>
+          <text x="630" y="317" class="svg-copy">read activeHistory</text>
+
+          <rect x="890" y="230" width="220" height="112" class="box box-implemented"></rect>
+          <text x="910" y="265" class="svg-title">View 2 · AI sequence</text>
+          <text x="910" y="293" class="svg-copy">submitOllamaPrompt</text>
+          <text x="910" y="317" class="svg-copy">returns PromptOutcome</text>
+
+          <path d="M730 160 L730 195 L150 195 L150 230" class="conversation-call"></path>
+          <text x="165" y="188" class="svg-copy">control</text>
+          <path d="M730 160 L730 205 L440 205 L440 230" class="conversation-call"></path>
+          <text x="455" y="198" class="svg-copy">exit / EOF</text>
+          <path d="M730 160 L730 230" class="conversation-call"></path>
+          <text x="742" y="198" class="svg-copy">prompt</text>
+          <path d="M840 286 L890 286" class="conversation-call"></path>
+
+          <rect x="30" y="410" width="280" height="112" class="box box-implemented"></rect>
+          <text x="50" y="445" class="svg-title">Append clean turn</text>
+          <text x="50" y="473" class="svg-copy">ConversationSession.appendTurn</text>
+          <text x="50" y="497" class="svg-copy">user + assistant atomically</text>
+
+          <rect x="390" y="410" width="280" height="112" class="box box-support"></rect>
+          <text x="410" y="445" class="svg-title">Non-clean outcome</text>
+          <text x="410" y="473" class="svg-copy">coded guidance · no mutation</text>
+          <text x="410" y="497" class="svg-copy">continue unless interrupted</text>
+
+          <rect x="750" y="410" width="360" height="112" class="box box-support"></rect>
+          <text x="770" y="445" class="svg-title">Command ends on interruption</text>
+          <text x="770" y="473" class="svg-copy">merge exit code · cleanup hook waits</text>
+          <text x="770" y="497" class="svg-copy">no incomplete turn retained</text>
+
+          <path d="M1000 342 L1000 375 L170 375 L170 410" class="conversation-return"></path>
+          <text x="185" y="368" class="svg-copy">successful PromptOutcome</text>
+          <path d="M1000 342 L1000 390 L530 390 L530 410" class="conversation-failure"></path>
+          <text x="545" y="384" class="svg-copy svg-change">non-clean result</text>
+          <path d="M670 466 L750 466" class="conversation-failure"></path>
+          <text x="680" y="455" class="svg-copy">interrupted</text>
+
+          <rect x="330" y="550" width="250" height="60" class="box box-support"></rect>
+          <text x="350" y="586" class="svg-title">Continue input loop</text>
+          <path d="M150 342 L150 365 L15 365 L15 570 L330 570" class="conversation-return"></path>
+          <text x="18" y="355" class="svg-copy">control handled</text>
+          <path d="M170 522 L170 590 L330 590" class="conversation-return"></path>
+          <text x="182" y="548" class="svg-copy">clean turn saved</text>
+          <path d="M530 522 L530 550" class="conversation-return"></path>
+          <text x="542" y="542" class="svg-copy">recover</text>
+          <path d="M330 580 L15 580 L15 180 L450 180 L450 160" class="conversation-return"></path>
+          <text x="22" y="175" class="svg-copy">read next line</text>
+
+          <text x="30" y="620" class="svg-label">IMPLEMENTED PERSISTENCE API · OUTSIDE THIS LOOP</text>
+          <rect x="80" y="640" width="290" height="55" class="box box-implemented"></rect>
+          <text x="100" y="674" class="svg-copy">ConversationHistory + identifier</text>
+          <rect x="450" y="640" width="290" height="55" class="box box-implemented"></rect>
+          <text x="470" y="674" class="svg-copy">SqliteConversationStore methods</text>
+          <rect x="820" y="640" width="240" height="55" class="box box-support"></rect>
+          <text x="840" y="674" class="svg-copy">SQLite JDBC</text>
+          <path d="M370 667 L450 667" class="conversation-unwired"></path>
+          <path d="M740 667 L820 667" class="conversation-unwired"></path>
+          <text x="375" y="654" class="svg-copy">no application call</text>
+        </svg>
+      </div>
+
+      <p class="rule">Code evidence: <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/main/java/io/kaos/app/config/ApplicationConfiguration.java"><code>ApplicationConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaConnectivity.java"><code>OllamaConnectivity.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, and <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>.</p>
     </section>
 
     <section class="panel" aria-labelledby="status-heading">
