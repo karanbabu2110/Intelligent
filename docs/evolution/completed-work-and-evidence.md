@@ -236,8 +236,16 @@ returns one validated streamed answer. Conversation Capability Epic
 - Delivery: [PR #29](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/29)
 - Evidence: [Multi-turn AI context](conversation-multi-turn-ai-context.md)
 
-Conversation Creation and Selection Feature
-[#855](https://github.com/karanbabu2110/KAOS/issues/855) is active. Later
+### Feature 003.04 — Conversation Creation and Selection
+
+- [Feature 003.04](https://github.com/karanbabu2110/KAOS/issues/855)
+- [Task 003.04.01 — Run Selectable In-Memory Conversations](https://github.com/karanbabu2110/KAOS/issues/1080)
+- Delivery: [PR #30](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/30)
+- Evidence: [Conversation creation and selection](conversation-creation-selection.md)
+
+Conversation Limits and Validation Feature
+[#856](https://github.com/karanbabu2110/KAOS/issues/856) and Task
+[#1081](https://github.com/karanbabu2110/KAOS/issues/1081) are active. Later
 conversation features remain incomplete and are not part of this snapshot.
 
 ## Maintenance rule

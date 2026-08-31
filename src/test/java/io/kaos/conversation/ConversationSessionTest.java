@@ -78,4 +78,40 @@ class ConversationSessionTest {
         assertEquals("conversation session has no active conversation", appendFailure.getMessage());
         assertFalse(appendFailure.getMessage().contains("private"));
     }
+
+    @Test
+    void rejectsAConversationBeyondTheLimitWithoutChangingSelectionOrSequence() {
+        ConversationSession session = new ConversationSession();
+        for (int expected = 1; expected <= ConversationSession.MAX_CONVERSATIONS; expected++) {
+            assertEquals(expected, session.create());
+        }
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class, session::create);
+
+        assertFalse(session.canCreate());
+        assertEquals(ConversationSession.MAX_CONVERSATIONS, session.activeIdentifier());
+        assertEquals(ConversationSession.MAX_CONVERSATIONS,
+                session.conversationIdentifiers().size());
+        assertEquals("conversation session has reached its conversation limit",
+                exception.getMessage());
+    }
+
+    @Test
+    void rejectsATurnBeyondTheLimitWithoutChangingHistoryOrExposingContent() {
+        ConversationSession session = new ConversationSession();
+        session.create();
+        for (int turn = 0; turn < ConversationSession.MAX_TURNS_PER_CONVERSATION; turn++) {
+            session.appendTurn("Question " + turn, "Answer " + turn);
+        }
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> session.appendTurn("private rejected question", "private rejected answer"));
+
+        assertFalse(session.canAppendTurn());
+        assertEquals(ConversationHistory.MAX_MESSAGES, session.activeHistory().messages().size());
+        assertEquals("active conversation has reached its turn limit", exception.getMessage());
+        assertFalse(exception.getMessage().contains("private"));
+    }
 }

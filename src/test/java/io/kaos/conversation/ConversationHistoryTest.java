@@ -1,6 +1,7 @@
 package io.kaos.conversation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -74,5 +75,33 @@ class ConversationHistoryTest {
                 "conversation history messages must not contain null entries",
                 nullEntry.getMessage());
         assertEquals("conversation history message must not be null", nullAppend.getMessage());
+    }
+
+    @Test
+    void acceptsTheExactMessageLimitAndRejectsAnotherAppend() {
+        ConversationHistory history = new ConversationHistory(
+                java.util.Collections.nCopies(ConversationHistory.MAX_MESSAGES, USER_MESSAGE));
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class, () -> history.append(ASSISTANT_MESSAGE));
+
+        assertEquals(ConversationHistory.MAX_MESSAGES, history.messages().size());
+        assertEquals("conversation history has reached its message limit",
+                exception.getMessage());
+    }
+
+    @Test
+    void rejectsConstructionBeyondTheMessageLimitWithoutExposingContent() {
+        ConversationMessage privateMessage =
+                new ConversationMessage(ConversationRole.USER, "private message content");
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> new ConversationHistory(java.util.Collections.nCopies(
+                        ConversationHistory.MAX_MESSAGES + 1, privateMessage)));
+
+        assertEquals("conversation history must contain at most "
+                + ConversationHistory.MAX_MESSAGES + " messages", exception.getMessage());
+        assertFalse(exception.getMessage().contains(privateMessage.content()));
     }
 }

@@ -5,6 +5,8 @@ import java.util.List;
 
 /** An immutable, ordered in-memory snapshot of conversation messages. */
 public record ConversationHistory(List<ConversationMessage> messages) {
+    public static final int MAX_MESSAGES = 64;
+
     public ConversationHistory {
         if (messages == null) {
             throw new IllegalArgumentException("conversation history messages must not be null");
@@ -12,6 +14,10 @@ public record ConversationHistory(List<ConversationMessage> messages) {
         if (messages.stream().anyMatch(message -> message == null)) {
             throw new IllegalArgumentException(
                     "conversation history messages must not contain null entries");
+        }
+        if (messages.size() > MAX_MESSAGES) {
+            throw new IllegalArgumentException(
+                    "conversation history must contain at most " + MAX_MESSAGES + " messages");
         }
         messages = List.copyOf(messages);
     }
@@ -25,6 +31,10 @@ public record ConversationHistory(List<ConversationMessage> messages) {
     public ConversationHistory append(ConversationMessage message) {
         if (message == null) {
             throw new IllegalArgumentException("conversation history message must not be null");
+        }
+        if (messages.size() == MAX_MESSAGES) {
+            throw new IllegalStateException(
+                    "conversation history has reached its message limit");
         }
 
         List<ConversationMessage> appendedMessages = new ArrayList<>(messages);

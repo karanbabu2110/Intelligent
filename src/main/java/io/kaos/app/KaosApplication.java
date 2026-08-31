@@ -343,6 +343,12 @@ public final class KaosApplication {
                 continue;
             }
             if ("/new".equals(command)) {
+                if (!session.canCreate()) {
+                    errorOutput.println("Conversation limit reached ("
+                            + ConversationSession.MAX_CONVERSATIONS
+                            + "). Select an existing conversation or exit and restart.");
+                    continue;
+                }
                 long identifier = session.create();
                 output.println("Conversation " + identifier + " created and selected.");
                 continue;
@@ -357,6 +363,12 @@ public final class KaosApplication {
             }
             if (command.startsWith("/")) {
                 errorOutput.println("Unknown conversation control. Type /help.");
+                continue;
+            }
+            if (!session.canAppendTurn()) {
+                errorOutput.println("Conversation turn limit reached ("
+                        + ConversationSession.MAX_TURNS_PER_CONVERSATION
+                        + "). Select another conversation with capacity or exit and restart.");
                 continue;
             }
 
@@ -424,7 +436,9 @@ public final class KaosApplication {
                   /help         Show these controls.
                   /exit         End the session and discard all conversations.
                 Any other nonblank line is sent as a prompt.
-                """;
+                Limits: %d conversations and %d clean turns per conversation.
+                """.formatted(ConversationSession.MAX_CONVERSATIONS,
+                        ConversationSession.MAX_TURNS_PER_CONVERSATION);
     }
 
     private static int reportOllamaPrompt(

@@ -30,8 +30,8 @@
         <p class="lede">This website records what exists, what is approved next, and which boundaries remain only candidates. It is updated alongside implementation—not designed years ahead of it.</p>
       </div>
       <div class="stamp">
-        <strong>Verified 2026-08-30</strong>
-        Version 1.0.0 · Feature 003.04 in progress<br>
+        <strong>Verified 2026-08-31</strong>
+        Version 1.0.0 · Feature 003.05 in progress<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -40,16 +40,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 003.04 Task 003.04.01</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 003.05 Task 003.05.01</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the selectable foreground conversation lifecycle added by Feature 003.04 Task 003.04.01. One command now creates process-local conversations, switches their isolated histories, and supplies the selected history to the bounded Ollama chat path. The underlying implemented, next, and future statuses remain authoritative.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the admission and storage bounds added by Feature 003.05 Task 003.05.01. One foreground session now permits 8 conversations and 32 clean turns per conversation; stored messages and immutable histories are bounded before Ollama submission. The underlying implemented, next, and future statuses remain authoritative.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 700" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes the implemented packaged KAOS application. The application validates local configuration and routes status, help, Ollama status, model, one-shot prompt, and interactive conversation commands. The conversation package owns immutable user and assistant messages, ordered immutable histories, and one caller-owned foreground session with deterministic identifiers and active selection. The conversation command supplies the selected history to the Ollama client, which maps it in order and appends the current prompt as the final user message; clean user and assistant pairs return to the selected history. The one-shot command supplies empty history. There is no persistence or general history and token policy. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one bounded streaming chat request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces request, total, inactivity, response-byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. The standard JUnit suite verifies the application and its current capability packages. Gradle and Jackson support the application.</desc>
+          <desc id="diagram-description">A terminal invokes the implemented packaged KAOS application. The application validates local configuration and routes status, help, Ollama status, model, one-shot prompt, and interactive conversation commands. The conversation package owns bounded immutable user and assistant messages, bounded ordered histories, and one caller-owned foreground session with deterministic identifiers, active selection, an eight-conversation limit, and a thirty-two-clean-turn limit per conversation. The conversation command checks capacity before submission, then supplies the selected history to the Ollama client, which maps it in order and appends the current prompt as the final user message; clean user and assistant pairs return to the selected history. The one-shot command supplies empty history. There is no persistence, trimming, summarization, or provider-token estimation. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one bounded streaming chat request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces request, total, inactivity, response-byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. The standard JUnit suite verifies the application and its current capability packages. Gradle and Jackson support the application.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -61,7 +61,7 @@
           <text x="58" y="105" class="svg-title">Terminal</text>
           <text x="58" y="126" class="svg-copy">status · help</text>
           <text x="58" y="148" class="svg-copy">ollama-status · ollama-model</text>
-          <text x="58" y="170" class="svg-copy svg-change">ollama-prompt · conversation</text>
+          <text x="58" y="170" class="svg-copy">ollama-prompt · conversation</text>
 
           <text x="340" y="40" class="svg-label">SINGLE JAVA 21 PROCESS</text>
           <rect x="330" y="65" width="474" height="455" class="box box-implemented"></rect>
@@ -85,7 +85,7 @@
           <rect x="365" y="402" width="405" height="88" class="box box-implemented"></rect>
           <text x="387" y="432" class="svg-title">Conversation capability</text>
           <text x="387" y="456" class="svg-copy">messages · histories · active selection</text>
-          <text x="387" y="478" class="svg-copy svg-change">UPDATED · Task 003.04.01 · process-local</text>
+          <text x="387" y="478" class="svg-copy svg-change">BOUNDED · Task 003.05.01 · 8 × 32 turns</text>
 
           <path d="M254 117 L330 117" class="flow"></path>
           <path d="M555 212 L580 212" class="flow"></path>
@@ -114,7 +114,7 @@
           <text x="890" y="310" class="svg-title">Local Ollama</text>
           <text x="890" y="338" class="svg-copy">127.0.0.1:11434</text>
           <text x="890" y="360" class="svg-copy">verified · installed model</text>
-          <text x="890" y="383" class="svg-copy svg-change">GET version · POST chat</text>
+          <text x="890" y="383" class="svg-copy">GET version · POST chat</text>
           <path d="M770 330 L866 330" class="flow" marker-start="url(#arrow-green)"></path>
         </svg>
       </div>
@@ -122,11 +122,11 @@
 
     <section id="flow" class="panel" aria-labelledby="flow-heading">
       <h2 id="flow-heading">AI chat request flow diagram</h2>
-      <p class="rule">This is the implemented Ollama chat flow. The <code>conversation</code> command supplies its selected process-local history before each prompt; <code>ollama-prompt</code> supplies empty history. Clean answers return to the selected history. The success and safe-failure paths remain inside one foreground Java process with no persistence, retry, worker, event bus, or remote provider.</p>
+      <p class="rule">This is the implemented Ollama chat flow. The <code>conversation</code> command admits a prompt only when its selected bounded history has room for one clean turn; <code>ollama-prompt</code> supplies empty history. Clean answers return to the selected history. The success and safe-failure paths remain inside one foreground Java process with no persistence, retry, worker, event bus, or remote provider.</p>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable AI chat request flow diagram">
         <svg viewBox="0 0 1140 535" role="img" aria-labelledby="flow-title flow-description">
           <title id="flow-title">KAOS Ollama chat request flow</title>
-          <desc id="flow-description">The one-shot command supplies empty history, while the foreground conversation command supplies its selected immutable history plus one bounded current prompt. KAOS maps every stored role and content in order, appends the prompt as the final user message, enforces a serialized request limit, and routes the chat request to the fixed loopback provider. Ollama returns backpressured UTF-8 newline-delimited JSON. KAOS reconstructs and validates each assistant message record, keeps reasoning hidden, displays each answer chunk exactly once, and validates the terminal reason and metrics. A clean user and assistant pair is appended to the selected conversation. Invalid, timed out, limited, interrupted, rejected, or incomplete requests take a privacy-safe failure path and are not retained.</desc>
+          <desc id="flow-description">The one-shot command supplies empty history, while the foreground conversation command first checks its conversation-owned turn capacity, then supplies the selected immutable history plus one bounded current prompt. A prompt that would exceed thirty-two clean turns is rejected before model loading or provider contact. KAOS maps every admitted stored role and content in order, appends the prompt as the final user message, enforces a serialized request limit, and routes the chat request to the fixed loopback provider. Ollama returns backpressured UTF-8 newline-delimited JSON. KAOS reconstructs and validates each assistant message record, keeps reasoning hidden, displays each answer chunk exactly once, and validates the terminal reason and metrics. A clean user and assistant pair is appended to the selected conversation. Invalid, timed out, limited, interrupted, rejected, or incomplete requests take a privacy-safe failure path and are not retained.</desc>
           <defs>
             <marker id="sequence-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="sequence-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
@@ -136,12 +136,12 @@
 
           <rect x="30" y="60" width="180" height="118" class="box box-implemented"></rect>
           <text x="50" y="96" class="svg-title">1 · Caller</text>
-          <text x="50" y="124" class="svg-copy svg-change">selected history or empty</text>
+          <text x="50" y="124" class="svg-copy svg-change">selected bounded history or empty</text>
           <text x="50" y="148" class="svg-copy">one current prompt</text>
 
           <rect x="255" y="60" width="180" height="118" class="box box-support"></rect>
           <text x="275" y="96" class="svg-title">2 · Validate</text>
-          <text x="275" y="124" class="svg-copy">roles · prompt · model</text>
+          <text x="275" y="124" class="svg-copy svg-change">message · history · turn capacity</text>
           <text x="275" y="148" class="svg-copy">request · response limits</text>
 
           <rect x="480" y="60" width="180" height="118" class="box box-implemented"></rect>
@@ -152,7 +152,7 @@
           <rect x="705" y="60" width="180" height="118" class="box box-implemented"></rect>
           <text x="725" y="96" class="svg-title">4 · Request</text>
           <text x="725" y="124" class="svg-copy">OllamaPromptClient</text>
-          <text x="725" y="148" class="svg-copy svg-change">POST /api/chat · stream true</text>
+          <text x="725" y="148" class="svg-copy">POST /api/chat · stream true</text>
 
           <rect x="930" y="60" width="180" height="118" class="box box-implemented"></rect>
           <text x="950" y="96" class="svg-title">5 · Chat</text>
@@ -189,7 +189,7 @@
           <rect x="30" y="260" width="180" height="118" class="box box-implemented"></rect>
           <text x="50" y="296" class="svg-title">10 · Return</text>
           <text x="50" y="324" class="svg-copy">validated stdout</text>
-          <text x="50" y="348" class="svg-copy svg-change">clean turn retained</text>
+          <text x="50" y="348" class="svg-copy">clean turn retained</text>
 
           <path d="M1020 178 L1020 260" class="sequence-return"></path>
           <path d="M930 319 L885 319" class="sequence-return"></path>
@@ -264,16 +264,21 @@
           <h3>Multi-turn AI context</h3>
           <p>The bounded Ollama chat client maps a supplied history in order, appends the current user prompt once, and decodes streamed assistant messages. Feature 003.03 was delivered by PR #29.</p>
         </article>
-        <article class="card change-current">
-          <div class="change-label">New in Feature 003.04 Task 003.04.01</div>
-          <div class="status implemented">Implemented slice</div>
+        <article class="card">
+          <div class="status implemented">Implemented</div>
           <h3>Conversation creation and selection</h3>
-          <p>One foreground command creates deterministic process-local identifiers, switches isolated histories, sends the selected context, and records only clean turns. Every conversation is discarded when the process ends.</p>
+          <p>One foreground command creates deterministic process-local identifiers, switches isolated histories, sends the selected context, and records only clean turns. Every conversation is discarded when the process ends. Feature 003.04 was delivered by PR #30.</p>
+        </article>
+        <article class="card change-current">
+          <div class="change-label">New in Feature 003.05 Task 003.05.01</div>
+          <div class="status implemented">Implemented slice</div>
+          <h3>Conversation limits and validation</h3>
+          <p>One foreground session permits 8 conversations and 32 clean turns per conversation. Stored messages and immutable histories are bounded, and a full conversation rejects another prompt before Ollama submission without changing existing state.</p>
         </article>
         <article class="card">
           <div class="status next">Next approved work</div>
-          <h3>Conversation limits and validation</h3>
-          <p>Feature 003.05 is next after the selectable-session checkpoint is reviewed and merged. No general conversation-count, message-count, token, trimming, retention, or summarization policy exists yet.</p>
+          <h3>Conversation tests</h3>
+          <p>Feature 003.06 is next after the bounded-session checkpoint is reviewed and merged. It must add only the missing conversation-level confidence justified by the completed Epic 003 behavior.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -330,7 +335,8 @@
           <tr><td>Conversation message vocabulary</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationRole.java"><code>ConversationRole.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationMessageTest.java"><code>ConversationMessageTest.java</code></a>, and <a href="../../docs/evolution/conversation-domain-model.md">Task 003.01.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Ordered in-memory message history</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationHistoryTest.java"><code>ConversationHistoryTest.java</code></a>, and <a href="../../docs/evolution/conversation-message-history.md">Task 003.02.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Bounded ordered Ollama chat context</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/conversation-multi-turn-ai-context.md">Task 003.03.01 evidence</a></td><td>Implemented</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 003.04 Task 003.04.01</span>Selectable foreground conversation session</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-creation-selection.md">Task 003.04.01 evidence</a></td><td>Implemented slice; Feature 003.04 review in progress</td></tr>
+          <tr><td>Selectable foreground conversation session</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-creation-selection.md">Task 003.04.01 evidence</a></td><td>Implemented; Feature 003.04 delivered by PR #30</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 003.05 Task 003.05.01</span>Bounded conversation admission and storage</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-limits-validation.md">Task 003.05.01 evidence</a></td><td>Implemented slice; Feature 003.05 review in progress</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>
