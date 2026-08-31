@@ -50,6 +50,9 @@ packaging, and the existing `status` and `help` smoke commands.
 This evidence does not add persistence, restart recovery, concurrency,
 provider-token estimation, trimming, summarization, deletion, rename, import,
 or export. Local Persistence Epic
-[#823](https://github.com/karanbabu2110/KAOS/issues/823) and its first Feature
-[#859](https://github.com/karanbabu2110/KAOS/issues/859) remain the next
-approved checkpoint after Feature 003.06 is reviewed and merged.
+[#823](https://github.com/karanbabu2110/KAOS/issues/823) is now active after
+Feature 003.06 was delivered by
+[PR #32](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/32)
+and included in `v1.1.0`. Local Persistence Selection Feature
+[#859](https://github.com/karanbabu2110/KAOS/issues/859) records its decision in
+[Local persistence selection](local-persistence-selection.md).

@@ -31,7 +31,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-08-31</strong>
-        Version 1.0.0 · Feature 003.06 in progress<br>
+        Version 1.1.0 · Feature 004.01 in progress<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -40,9 +40,9 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 003.06 Task 003.06.01</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 004.01 Task 004.01.01</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the end-to-end conversation evidence added by Feature 003.06 Task 003.06.01. Deterministic loopback tests now prove selected-history isolation, restored clean context, streamed output, and exclusion of a failed partial turn. Production runtime boundaries are unchanged.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the persistence decision added by Feature 004.01 Task 004.01.01. Local SQLite is selected as the authoritative conversation store so persisted history can grow beyond current in-memory limits. No driver, schema, database file, filesystem access, or runtime boundary exists yet.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
@@ -105,7 +105,7 @@
           <rect x="330" y="550" width="474" height="125" class="box box-support"></rect>
           <text x="358" y="582" class="svg-title">Build and verification boundary</text>
           <text x="358" y="609" class="svg-copy">Gradle application plugin · Jackson JSON · JUnit tests</text>
-          <text x="358" y="634" class="svg-copy svg-change">Task 003.06.01 · deterministic conversation loopback</text>
+          <text x="358" y="634" class="svg-copy">clean verifyLocal → compile → test → package → smoke checks</text>
           <text x="358" y="658" class="svg-copy">Jackson Databind 2.22.1 runtime JSON</text>
           <path d="M566 550 L566 520" class="support-flow"></path>
 
@@ -274,16 +274,21 @@
           <h3>Conversation limits and validation</h3>
           <p>One foreground session permits 8 conversations and 32 clean turns per conversation. Stored messages and immutable histories are bounded, and a full conversation rejects another prompt before Ollama submission without changing existing state. Feature 003.05 was delivered by PR #31.</p>
         </article>
-        <article class="card change-current">
-          <div class="change-label">New in Feature 003.06 Task 003.06.01</div>
-          <div class="status implemented">Implemented slice</div>
+        <article class="card">
+          <div class="status implemented">Implemented</div>
           <h3>Conversation tests</h3>
-          <p>The complete local path now proves selected-conversation isolation, restored ordered history, streamed output, privacy-safe malformed-stream recovery, and exclusion of a failed partial turn from later context.</p>
+          <p>The complete local path proves selected-conversation isolation, restored ordered history, streamed output, privacy-safe malformed-stream recovery, and exclusion of a failed partial turn from later context. Feature 003.06 was delivered by PR #32.</p>
+        </article>
+        <article class="card change-current">
+          <div class="change-label">New in Feature 004.01 Task 004.01.01</div>
+          <div class="status implemented">Selected decision</div>
+          <h3>Local persistence selection</h3>
+          <p>Local SQLite is selected as the authoritative store for conversations and ordered messages. It remains in process and supports transactional, targeted access beyond current in-memory limits; no driver, schema, database file, read, or write behavior is implemented yet.</p>
         </article>
         <article class="card">
           <div class="status next">Next approved work</div>
-          <h3>Local persistence selection</h3>
-          <p>After Feature 003.06 is reviewed and merged, Epic 004 Feature 004.01 will select the simplest suitable local persistence from current conversation requirements and evidence.</p>
+          <h3>Conversation storage</h3>
+          <p>After Feature 004.01 is reviewed and merged, Feature 004.02 will implement the smallest safe storage slice using the selected local SQLite decision.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -342,7 +347,8 @@
           <tr><td>Bounded ordered Ollama chat context</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/conversation-multi-turn-ai-context.md">Task 003.03.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Selectable foreground conversation session</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-creation-selection.md">Task 003.04.01 evidence</a></td><td>Implemented; Feature 003.04 delivered by PR #30</td></tr>
           <tr><td>Bounded conversation admission and storage</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-limits-validation.md">Task 003.05.01 evidence</a></td><td>Implemented; Feature 003.05 delivered by PR #31</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 003.06 Task 003.06.01</span>End-to-end conversation integration evidence</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a> and <a href="../../docs/evolution/conversation-tests.md">Task 003.06.01 evidence</a></td><td>Implemented slice; Feature 003.06 review in progress</td></tr>
+          <tr><td>End-to-end conversation integration evidence</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a> and <a href="../../docs/evolution/conversation-tests.md">Task 003.06.01 evidence</a></td><td>Implemented; Feature 003.06 delivered by PR #32</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 004.01 Task 004.01.01</span>Scalable local SQLite persistence selection</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, and <a href="../../docs/evolution/local-persistence-selection.md">Task 004.01.01 decision evidence</a></td><td>Selected decision; SQLite not implemented</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

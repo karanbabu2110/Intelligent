@@ -7,11 +7,10 @@ inside the verified single application.
 ## Current development state
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
-- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), and [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3)
-- Active epic: [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9)
-- Completed Epic 003 features: [003.01 — Conversation Domain Model](https://github.com/karanbabu2110/KAOS/issues/852), [003.02 — Message History](https://github.com/karanbabu2110/KAOS/issues/853), [003.03 — Multi-Turn AI Context](https://github.com/karanbabu2110/KAOS/issues/854), [003.04 — Conversation Creation and Selection](https://github.com/karanbabu2110/KAOS/issues/855), and [003.05 — Conversation Limits and Validation](https://github.com/karanbabu2110/KAOS/issues/856)
-- Active feature: [003.06 — Conversation Tests](https://github.com/karanbabu2110/KAOS/issues/857), with active Task [003.06.01 — Verify End-to-End Conversation Behavior](https://github.com/karanbabu2110/KAOS/issues/1082)
-- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground in-memory sessions with explicit conversation and turn limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, one JSON runtime library, deterministic one-shot and multi-conversation application-to-provider integration coverage, and a verified packaged run against an installed local model
+- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), and [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9)
+- Active epic: [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
+- Active feature: [004.01 — Local Persistence Selection](https://github.com/karanbabu2110/KAOS/issues/859), with active Task [004.01.01 — Select Scalable Local SQLite Persistence](https://github.com/karanbabu2110/KAOS/issues/1083)
+- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground in-memory sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, one JSON runtime library, deterministic one-shot and multi-conversation application-to-provider integration coverage, and a selected but not yet implemented local SQLite persistence approach
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -35,16 +34,14 @@ build outputs, troubleshooting, and the feature delivery workflow.
 
 ## Version
 
-The current cumulative release is **1.0.0**, identified by annotated tag
-[`v1.0.0`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/tree/v1.0.0).
+The current cumulative release is **1.1.0**, identified by annotated tag
+[`v1.1.0`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/tree/v1.1.0).
 
-This release represents all verified work through Epic 002: the evolutionary
-development model, the minimal runnable application, and the complete first
-local AI integration with bounded streaming, safe failure handling,
-deterministic integration coverage, and a packaged installed-model
-demonstration. It is a complete capability milestone, not a production-readiness
-claim or a promise that later conversation and persistence designs are fixed.
-See the [1.0.0 release notes](docs/releases/v1.0.0.md).
+This release represents all verified work through Epic 003: the evolutionary
+development model, minimal runnable application, complete first local AI
+integration, and bounded selectable in-memory conversations with deterministic
+end-to-end coverage. It is a capability milestone, not a production-readiness
+claim. Persistent conversations are not included in `1.1.0`.
 
 ## Run the application
 
@@ -230,11 +227,10 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-002 are complete and form the cumulative `1.0.0` checkpoint.
-Conversation Capability Epic #9 is active. Features #852 through #856 are
-complete; Conversation Limits and Validation was delivered by PR #31. Feature
-#857 and Task #1082 now add the missing end-to-end proof that selected histories
-stay isolated and that a partial malformed response is not retained. Local
-Persistence Epic #823 and its first Feature #859 remain the next approved
-checkpoint after this feature merges. Persistence, trimming, summarization, and
-provider-token estimation do not exist.
+Epics 000-003 are complete and form the cumulative `1.1.0` checkpoint. Local
+Persistence Epic #823 is active. Feature #859 and Task #1083 select local SQLite
+as the authoritative conversation store so later persistence can grow beyond
+the current in-memory limits without whole-dataset rewrites. They do not add a
+driver, schema, database file, or runtime behavior. Conversation Storage Feature
+#858 remains the next implementation checkpoint. Persistence, restart recovery,
+trimming, summarization, and provider-token estimation do not exist.
