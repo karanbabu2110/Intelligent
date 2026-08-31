@@ -219,25 +219,7 @@ class SqliteConversationStoreTest {
 
     private Path initializedDatabase(String fileName) throws SQLException {
         Path database = temporaryDirectory.resolve(fileName);
-        try (Connection connection = DriverManager.getConnection(databaseUrl(database));
-                Statement statement = connection.createStatement()) {
-            statement.executeUpdate("""
-                    CREATE TABLE conversations (
-                        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-                        identifier INTEGER NOT NULL UNIQUE
-                    )
-                    """);
-            statement.executeUpdate("""
-                    CREATE TABLE messages (
-                        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-                        conversation_identifier INTEGER NOT NULL,
-                        role TEXT NOT NULL,
-                        content TEXT NOT NULL,
-                        FOREIGN KEY (conversation_identifier)
-                            REFERENCES conversations(identifier)
-                    )
-                    """);
-        }
+        SqliteConversationSchema.initialize(database);
         return database;
     }
 
