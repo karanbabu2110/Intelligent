@@ -46,18 +46,21 @@ must not be bound to a public network interface for ordinary development.
 
 ## Information architecture
 
-The landing page answers seven questions in order:
+The landing page answers nine questions in order:
 
 1. What architecture is implemented and verified now?
-2. How does one implemented AI request move from input to clean completion or
-   safe failure?
-3. What is the next approved integration but not yet implemented?
-4. What context was added or updated by the current feature?
-5. Which long-term capabilities preserve the vision without prescribing
+2. Which concrete class and method handles each command branch?
+3. How do an AI request, repeated answer chunks, and one final result cross the
+   Ollama boundary in both directions?
+4. How does the foreground conversation loop change state, and which
+   persistence API remains outside that loop?
+5. What is the next approved integration but not yet implemented?
+6. What context was added or updated by the current feature?
+7. Which long-term capabilities preserve the vision without prescribing
    topology?
-6. What evidence would justify a stronger module, repository, or service
+8. What evidence would justify a stronger module, repository, or service
    boundary?
-7. Which repository artifacts prove each architectural claim?
+9. Which repository artifacts prove each architectural claim?
 
 Use these status meanings consistently:
 

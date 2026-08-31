@@ -5,107 +5,80 @@ description: Implement or document KAOS roadmap features, stories, and tasks in 
 
 # KAOS Evolutionary Development
 
-Develop one useful KAOS goal at a time while keeping the repository's current
-state, evidence, and architecture understandable.
+Deliver one useful KAOS goal at a time with the least process needed to keep the
+code, roadmap, and architectural claims trustworthy.
 
-## Orient before changing KAOS
+## Work from the current delta
 
-Read the active checkpoint in `README.md`, the relevant #814 roadmap issue, the
-code affected by the goal, and `ui/architecture/index.html`. Treat repository
-code and current verification results as implementation truth. Planned issues
-preserve intent but do not prove that a capability exists.
+Confirm the checkout and active #814 issue, then inspect only the source and
+tests affected by the goal. Read `README.md`, evolution records, or the
+architecture website only when the change may make them inaccurate or the
+checkpoint is unclear. Reuse evidence already inspected in the same turn; do
+not repeat an audit because a later step mentions the same artifact.
 
-Use only issues under
-[KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
-as active development requirements. Preserve older material only as historical
-evidence when it helps the current goal.
+Repository code and current test results are implementation truth. Planned
+issues preserve intent but do not prove capability. Only #814 descendants are
+active development requirements.
 
-## Implement one goal
+## Deliver one feature
 
-- Start a capability as a package in the single application.
-- Add a Gradle module, library, repository, plugin, or service only when current
-  evidence satisfies the extraction rules in
-  `docs/evolution/capability-boundary-evolution.md`.
-- Create stories only when a feature needs independently understandable pieces;
-  otherwise use direct tasks.
-- Keep all stories and tasks for one feature on its feature branch and publish
-  one pull request for the completed feature.
-- Include the story or task number and GitHub issue at the end of each commit
-  message, for example:
-  `feat(STORY-002.01.01): connect to local Ollama #<issue>`.
-- Do not create a Git tag or GitHub release unless the user explicitly asks.
+- Use one feature branch and one pull request.
+- Change Project fields only at real transitions: the active chain when work
+  starts and Done after merge.
+- Create a child story or task only for a separate outcome, commit, or needed
+  acceptance detail. A small concrete feature may use its feature issue.
+- Briefly state the intended behavior, boundaries, and likely files before
+  implementation. Expand the explanation only when real alternatives exist.
+- Start inside the single application and existing package. Add a module,
+  library, repository, plugin, worker, event bus, or service only when current
+  evidence satisfies `docs/evolution/capability-boundary-evolution.md`.
+- Keep each commit independently understandable and include its issue number,
+  for example `feat(TASK-002.01.01): connect to local Ollama #123`.
+- Never create a tag or release unless the user explicitly requests it.
 
-Prepare and test working-tree changes when needed, but do not commit them until
-the user has reviewed a simple pre-commit explanation. Before every commit:
+Before every commit, present:
 
-- list the files that will be included;
-- explain what changed in each file and why it is needed;
-- report the relevant validation results;
-- provide the exact proposed commit message; and
-- wait for the user's explicit approval to commit.
+- every included file and why it changed;
+- relevant validation results; and
+- the exact commit message.
 
-Do not push the commit or open the feature pull request as a substitute for this
-approval checkpoint.
+Wait for explicit approval before committing. After approval, push and open the
+single feature PR without adding another approval gate unless the user asks.
 
-Verify in proportion to the change. For application changes, use the focused
-tests during development and run the repository's complete `verifyLocal`
-checkpoint before completing the feature.
+## Validate proportionally
 
-## Maintain the living architecture
+- Run focused tests while relevant code is changing.
+- For application or build changes, run `clean verifyLocal` once on the exact
+  final pre-commit tree. Rerun only if code, build configuration, or fixtures
+  change afterward.
+- For documentation- or skill-only work, use targeted content checks and
+  `git diff --check`; do not run application tests.
+- Combine compatible repository and GitHub reads. Do not refetch unchanged
+  issue, Project, branch, or PR data.
 
-Update `ui/architecture/` in the same feature pull request whenever
-the work changes any of these:
+After merge, compare the verified feature-head tree with merged `main`. If the
+trees match, reuse the pre-merge validation and check only checkout/status. Run
+`verifyLocal` again when the merge changed the tree or the merged content was
+not previously verified.
 
-- packages, modules, repositories, plugins, processes, or deployment units;
-- production dependencies or external integrations;
-- runtime request, command, or data flow;
-- configuration, security, data ownership, or failure boundaries;
-- the status of a capability or architectural boundary.
+Rely on PR close keywords, Project automation, and automatic branch deletion.
+Inspect final state once and fix only exceptions; do not duplicate completion
+comments already recorded in the PR. Finish cleanup, then wait for the user to
+continue before activating another feature.
 
-Keep the diagram evidence-based:
+## Update only affected documentation
 
-- show implemented and verified elements as implemented;
-- show the active approved addition as next work until its evidence exists;
-- show longer-term capabilities as candidates, not promised topology;
-- remove or revise stale elements instead of accumulating historical states;
-- link architectural claims to source, build, decision, or roadmap evidence;
-- update the verification date only after comparing the page with the code;
-- keep the page self-contained unless the repository deliberately adopts a
-  documented architecture-rendering dependency.
+Change the architecture website only when packages, dependencies, integrations,
+runtime/data flow, configuration, security/failure boundaries, deployment, or
+architectural status changed. Otherwise leave it untouched. When it changes,
+follow `.agents/skills/kaos-architecture-website/SKILL.md`.
 
-If a feature does not change architecture, explicitly check the page and leave
-it unchanged. Never update the visual merely to suggest progress.
+Do not edit documentation merely to record activity:
 
-When an architecture update is required, read and follow
-`.agents/skills/kaos-architecture-website/SKILL.md` for the website-specific
-evidence, organization, accessibility, growth, and visual-validation workflow.
-
-## Keep project entry points readable
-
-Inspect documentation affected by the current goal, but edit only files whose
-content would otherwise become inaccurate, incomplete, or misleading. Running
-this skill does not by itself require a README, developer-guide, architecture,
-evidence, or roadmap-history change. Do not touch a file merely to refresh it,
-record that it was checked, or create documentation churn.
-
-Keep `README.md` focused on the current state, essential usage, active roadmap
-chain, architecture link, and next checkpoint. Update it only when one of those
-entry-point facts changes.
-
-Keep `docs/development/developer-guide.md` as the practical source of truth for
-setting up, running, testing, verifying, and troubleshooting the current
-application. Update it only when the feature changes prerequisites, commands,
-Gradle tasks, test scopes, generated outputs, developer-facing configuration,
-troubleshooting, or the delivery workflow. Keep evidence-heavy implementation
-history in the relevant `docs/evolution` record rather than expanding the guide.
-
-Update `docs/evolution/completed-work-and-evidence.md` only when a roadmap item
-is completed or its verified-evidence link changes. When an epic completes, move
-its feature, story, task, and verified-evidence links there from the README.
-
-Create or update a feature-specific `docs/evolution` record only when the active
-issue requires durable implementation evidence that is not already clear from
-source, tests, the developer guide, or the architecture page.
-
-Before handing off a documentation change, verify local links, run
-`git diff --check`, and report whether application tests were or were not needed.
+- update `README.md` for product state or usage, not only an active task number;
+- update the developer guide for prerequisites, commands, outputs, or
+  troubleshooting;
+- keep detailed evidence in the feature record and PR;
+- update completed-work indexes only when their current summary becomes false
+  or at an epic/release checkpoint; and
+- check only added or changed local links, then run `git diff --check`.
