@@ -371,11 +371,13 @@ Run only the deterministic application-to-Ollama integration suite:
 ./gradlew.bat test --tests 'io.kaos.app.KaosOllamaIntegrationTest' --no-daemon --warning-mode=all
 ```
 
-This suite enters through the `ollama-prompt` application route, uses the real
-`OllamaPromptClient`, sends HTTP only to an ephemeral loopback server, consumes
-streamed NDJSON, and verifies exact request, output, failure, and privacy
-behavior. It does not contact the fixed production port, require an installed
-model, or use external network access.
+This suite enters through both the `ollama-prompt` and `conversation`
+application routes, uses the real `OllamaPromptClient`, sends HTTP only to an
+ephemeral loopback server, and consumes streamed NDJSON. It verifies exact
+one-shot behavior plus selected-conversation isolation, restored history, and
+exclusion of a failed partial turn from the next request. It does not contact
+the fixed production port, require an installed model, or use external network
+access.
 
 Run only the real child-process and timeout scenarios:
 

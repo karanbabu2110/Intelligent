@@ -78,5 +78,8 @@ This feature does not add:
 Unicode code points and complete turns are deterministic local storage bounds;
 they are not estimates of provider tokens. The configured Ollama context window
 and serialized-request limit remain the request-time safeguards. Conversation
-Tests Feature [#857](https://github.com/karanbabu2110/KAOS/issues/857) remains
-the next approved boundary after Feature 003.05 is reviewed and merged.
+Tests Feature [#857](https://github.com/karanbabu2110/KAOS/issues/857) is the
+active boundary after Feature 003.05 was delivered by
+[PR #31](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/31).
+Its end-to-end evidence is recorded in
+[Conversation tests](conversation-tests.md).

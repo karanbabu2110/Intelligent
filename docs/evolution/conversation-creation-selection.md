@@ -87,5 +87,7 @@ Task 003.04.01 does not introduce:
 Feature 003.04 was delivered by
 [PR #30](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/30).
 Conversation Limits and Validation Feature
-[#856](https://github.com/karanbabu2110/KAOS/issues/856) is the active next
-boundary.
+[#856](https://github.com/karanbabu2110/KAOS/issues/856) was delivered by
+[PR #31](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/31).
+Conversation Tests Feature
+[#857](https://github.com/karanbabu2110/KAOS/issues/857) is now active.

@@ -243,10 +243,25 @@ returns one validated streamed answer. Conversation Capability Epic
 - Delivery: [PR #30](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/30)
 - Evidence: [Conversation creation and selection](conversation-creation-selection.md)
 
-Conversation Limits and Validation Feature
-[#856](https://github.com/karanbabu2110/KAOS/issues/856) and Task
-[#1081](https://github.com/karanbabu2110/KAOS/issues/1081) are active. Later
-conversation features remain incomplete and are not part of this snapshot.
+### Feature 003.05 — Conversation Limits and Validation
+
+- [Feature 003.05](https://github.com/karanbabu2110/KAOS/issues/856)
+- [Task 003.05.01 — Bound and Validate In-Memory Conversations](https://github.com/karanbabu2110/KAOS/issues/1081)
+- Delivery: [PR #31](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/31)
+- Evidence: [Conversation limits and validation](conversation-limits-validation.md)
+
+### Feature 003.06 — Conversation Tests (in progress)
+
+- [Feature 003.06](https://github.com/karanbabu2110/KAOS/issues/857)
+- [Task 003.06.01 — Verify End-to-End Conversation Behavior](https://github.com/karanbabu2110/KAOS/issues/1082)
+- Evidence: [Conversation tests](conversation-tests.md)
+
+Task 003.06.01 adds the final missing Epic 003 confidence through the real
+application route, real Ollama client, streamed NDJSON, and deterministic
+loopback HTTP. Local Persistence Epic
+[#823](https://github.com/karanbabu2110/KAOS/issues/823) and Local Persistence
+Selection Feature [#859](https://github.com/karanbabu2110/KAOS/issues/859)
+remain incomplete and are not part of this snapshot.
 
 ## Maintenance rule
 
