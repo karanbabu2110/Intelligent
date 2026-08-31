@@ -272,15 +272,22 @@ tests and is recorded by annotated tag
 - Delivery: [PR #33](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/33)
 - Evidence: [Local persistence selection](local-persistence-selection.md)
 
-### Feature 004.02 — Conversation Storage (in progress)
+### Feature 004.02 — Conversation Storage
 
 - [Feature 004.02](https://github.com/karanbabu2110/KAOS/issues/858)
 - [Task 004.02.01 — Persist Conversation Records in Local SQLite](https://github.com/karanbabu2110/KAOS/issues/1084)
+- Delivery: [PR #34](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/34)
 - Evidence: [Conversation storage](conversation-storage.md)
 
-The concrete store exists but is not connected to the foreground application.
-Feature 004.02 remains incomplete until its pull request is reviewed and
-merged.
+### Feature 004.03 — Message Storage (in progress)
+
+- [Feature 004.03](https://github.com/karanbabu2110/KAOS/issues/861)
+- [Task 004.03.01 — Persist Ordered Conversation Messages in Local SQLite](https://github.com/karanbabu2110/KAOS/issues/1085)
+- Evidence: [Message storage](message-storage.md)
+
+The concrete store owns conversation records and ordered messages but is not
+connected to the foreground application. Feature 004.03 remains incomplete
+until its pull request is reviewed and merged.
 
 ## Maintenance rule
 

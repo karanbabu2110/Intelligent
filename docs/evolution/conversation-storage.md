@@ -60,3 +60,6 @@ by the application.
 
 The selected driver version is verified against the official
 [Xerial SQLite JDBC 3.53.4.0 release](https://github.com/xerial/sqlite-jdbc/releases/tag/3.53.4.0).
+
+Feature 004.03 subsequently extends this concrete store with bounded ordered
+[message storage](message-storage.md).
