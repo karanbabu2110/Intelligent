@@ -21,6 +21,21 @@ public final class SqliteConversationStore {
             "INSERT INTO conversations (identifier) VALUES (?)";
     private static final String SELECT_CONVERSATIONS =
             "SELECT identifier FROM conversations ORDER BY sequence LIMIT ?";
+    private static final String SELECT_CONVERSATION =
+            "SELECT 1 FROM conversations WHERE identifier = ?";
+    private static final String COUNT_MESSAGES =
+            "SELECT COUNT(*) FROM messages WHERE conversation_identifier = ?";
+    private static final String INSERT_MESSAGE = """
+            INSERT INTO messages (conversation_identifier, role, content)
+            VALUES (?, ?, ?)
+            """;
+    private static final String SELECT_MESSAGES = """
+            SELECT role, content
+            FROM messages
+            WHERE conversation_identifier = ?
+            ORDER BY sequence
+            LIMIT ?
+            """;
 
     private final String databaseUrl;
 
@@ -63,6 +78,133 @@ public final class SqliteConversationStore {
             throw storageFailure();
         }
         return List.copyOf(identifiers);
+    }
+
+    public void appendMessages(
+            long conversationIdentifier,
+            List<ConversationMessage> messages) {
+        validateConversationIdentifier(conversationIdentifier);
+        if (messages == null) {
+            throw new IllegalArgumentException("messages must not be null");
+        }
+        if (messages.isEmpty()) {
+            throw new IllegalArgumentException("messages must not be empty");
+        }
+        if (messages.size() > ConversationHistory.MAX_MESSAGES) {
+            throw new IllegalArgumentException(
+                    "messages must contain at most "
+                            + ConversationHistory.MAX_MESSAGES + " entries");
+        }
+        if (messages.stream().anyMatch(message -> message == null)) {
+            throw new IllegalArgumentException("messages must not contain null entries");
+        }
+        List<ConversationMessage> messageBatch = List.copyOf(messages);
+
+        try (Connection connection = DriverManager.getConnection(databaseUrl)) {
+            enableForeignKeys(connection);
+            connection.setAutoCommit(false);
+            try {
+                requireConversation(connection, conversationIdentifier);
+                requireMessageCapacity(connection, conversationIdentifier, messageBatch.size());
+                insertMessages(connection, conversationIdentifier, messageBatch);
+                connection.commit();
+            } catch (SQLException exception) {
+                rollback(connection);
+                throw storageFailure();
+            } catch (ConversationStorageException exception) {
+                rollback(connection);
+                throw exception;
+            }
+        } catch (SQLException exception) {
+            throw storageFailure();
+        }
+    }
+
+    public ConversationHistory conversationHistory(long conversationIdentifier) {
+        validateConversationIdentifier(conversationIdentifier);
+        List<ConversationMessage> messages = new ArrayList<>();
+        try (Connection connection = DriverManager.getConnection(databaseUrl)) {
+            requireConversation(connection, conversationIdentifier);
+            try (PreparedStatement statement = connection.prepareStatement(SELECT_MESSAGES)) {
+                statement.setLong(1, conversationIdentifier);
+                statement.setInt(2, ConversationHistory.MAX_MESSAGES + 1);
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    while (resultSet.next()) {
+                        String role = resultSet.getString("role");
+                        String content = resultSet.getString("content");
+                        if (role == null || content == null) {
+                            throw storageFailure();
+                        }
+                        messages.add(new ConversationMessage(
+                                ConversationRole.valueOf(role),
+                                content));
+                    }
+                }
+            }
+            if (messages.size() > ConversationHistory.MAX_MESSAGES) {
+                throw storageFailure();
+            }
+            return new ConversationHistory(messages);
+        } catch (SQLException | IllegalArgumentException exception) {
+            throw storageFailure();
+        }
+    }
+
+    private static void validateConversationIdentifier(long conversationIdentifier) {
+        if (conversationIdentifier <= 0) {
+            throw new IllegalArgumentException("conversationIdentifier must be positive");
+        }
+    }
+
+    private static void enableForeignKeys(Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("PRAGMA foreign_keys = ON")) {
+            statement.execute();
+        }
+    }
+
+    private static void requireConversation(
+            Connection connection,
+            long conversationIdentifier) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(SELECT_CONVERSATION)) {
+            statement.setLong(1, conversationIdentifier);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    throw storageFailure();
+                }
+            }
+        }
+    }
+
+    private static void requireMessageCapacity(
+            Connection connection,
+            long conversationIdentifier,
+            int additionalMessages) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(COUNT_MESSAGES)) {
+            statement.setLong(1, conversationIdentifier);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                long messageCount = resultSet.getLong(1);
+                if (messageCount
+                        > ConversationHistory.MAX_MESSAGES - additionalMessages) {
+                    throw storageFailure();
+                }
+            }
+        }
+    }
+
+    private static void insertMessages(
+            Connection connection,
+            long conversationIdentifier,
+            List<ConversationMessage> messages) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(INSERT_MESSAGE)) {
+            for (ConversationMessage message : messages) {
+                statement.setLong(1, conversationIdentifier);
+                statement.setString(2, message.role().name());
+                statement.setString(3, message.content());
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
     }
 
     private static void rollback(Connection connection) {

@@ -31,7 +31,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-08-31</strong>
-        Version 1.1.0 · Feature 004.02 in progress<br>
+        Version 1.1.0 · Feature 004.03 in progress<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -40,16 +40,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 004.02 Task 004.02.01</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 004.03 Task 004.03.01</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify the concrete SQLite conversation-record store added by Feature 004.02 Task 004.02.01. It persists positive identifiers transactionally and reads at most 1,000 in creation order. The store requires caller-initialized schema and is not yet invoked by the application.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify ordered SQLite message storage added by Feature 004.03 Task 004.03.01. One bounded message batch commits or rolls back as a unit, and validated histories retain exact roles, content, and insertion order after reopen. The store still requires caller-initialized schema and is not invoked by the application.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 700" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes the implemented packaged KAOS application. The application validates local configuration and routes status, help, Ollama status, model, one-shot prompt, and interactive conversation commands. The conversation package owns bounded immutable user and assistant messages, bounded ordered histories, and one caller-owned foreground session with deterministic identifiers, active selection, an eight-conversation limit, and a thirty-two-clean-turn limit per conversation. The package also contains a concrete SQLite store that transactionally writes positive conversation identifiers and reads at most one thousand in creation order from a caller-initialized table. That store is verified with temporary databases but is not invoked by the application, so foreground state remains in memory and no production database path or schema lifecycle exists. The conversation command checks capacity before submission, then supplies the selected history to the Ollama client, which maps it in order and appends the current prompt as the final user message; clean user and assistant pairs return to the selected history. The one-shot command supplies empty history. There is no message persistence, restoration, trimming, summarization, or provider-token estimation. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one bounded streaming chat request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces request, total, inactivity, response-byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. The standard JUnit suite verifies the application and its current capability packages. Gradle, Jackson, and SQLite JDBC support the application.</desc>
+          <desc id="diagram-description">A terminal invokes the implemented packaged KAOS application. The application validates local configuration and routes status, help, Ollama status, model, one-shot prompt, and interactive conversation commands. The conversation package owns bounded immutable user and assistant messages, bounded ordered histories, and one caller-owned foreground session with deterministic identifiers, active selection, an eight-conversation limit, and a thirty-two-clean-turn limit per conversation. The package also contains a concrete SQLite store that transactionally writes positive conversation identifiers plus bounded ordered user and assistant message batches. It reconstructs validated histories with exact content after reopen, while the overall database collection can exceed eight conversations and 512 messages. That store is verified with temporary databases but is not invoked by the application, so foreground state remains in memory and no production database path or schema lifecycle exists. The conversation command checks capacity before submission, then supplies the selected history to the Ollama client, which maps it in order and appends the current prompt as the final user message; clean user and assistant pairs return to the selected history. The one-shot command supplies empty history. There is no runtime persistence, restoration, trimming, summarization, or provider-token estimation. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one bounded streaming chat request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces request, total, inactivity, response-byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. The standard JUnit suite verifies the application and its current capability packages. Gradle, Jackson, and SQLite JDBC support the application.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -85,7 +85,7 @@
           <rect x="365" y="402" width="405" height="88" class="box box-implemented"></rect>
           <text x="387" y="432" class="svg-title">Conversation capability</text>
           <text x="387" y="456" class="svg-copy">messages · histories · active selection</text>
-          <text x="387" y="478" class="svg-copy svg-change">SQLite ID store · bounded · not runtime-wired</text>
+          <text x="387" y="478" class="svg-copy svg-change">SQLite IDs + messages · bounded · not runtime-wired</text>
 
           <path d="M254 117 L330 117" class="flow"></path>
           <path d="M555 212 L580 212" class="flow"></path>
@@ -284,16 +284,21 @@
           <h3>Local persistence selection</h3>
           <p>Feature 004.01 selected local SQLite as the authoritative store for conversations and ordered messages. It remains in process and supports transactional, targeted access beyond current in-memory limits.</p>
         </article>
-        <article class="card change-current">
-          <div class="change-label">New in Feature 004.02 Task 004.02.01</div>
+        <article class="card">
           <div class="status implemented">Implemented component</div>
           <h3>SQLite conversation-record store</h3>
           <p>A concrete store persists stable identifiers transactionally and returns an immutable creation-ordered list capped at 1,000. It requires caller-owned path and schema setup and is not connected to the foreground session.</p>
         </article>
+        <article class="card change-current">
+          <div class="change-label">New in Feature 004.03 Task 004.03.01</div>
+          <div class="status implemented">Implemented component</div>
+          <h3>Ordered SQLite message storage</h3>
+          <p>Bounded user and assistant batches commit atomically. Exact validated roles and content return in insertion order after reopen, and tests prove 576 messages across nine conversations. Runtime wiring remains absent.</p>
+        </article>
         <article class="card">
           <div class="status next">Next roadmap checkpoint</div>
-          <h3>Ordered message storage</h3>
-          <p>Feature 004.03 owns durable user and assistant messages. It will extend the proven SQLite boundary after Feature 004.02 is reviewed and merged.</p>
+          <h3>Schema management</h3>
+          <p>Feature 004.04 owns production table initialization, schema versions, and migrations after Feature 004.03 is reviewed and merged.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -354,7 +359,8 @@
           <tr><td>Bounded conversation admission and storage</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-limits-validation.md">Task 003.05.01 evidence</a></td><td>Implemented; Feature 003.05 delivered by PR #31</td></tr>
           <tr><td>End-to-end conversation integration evidence</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a> and <a href="../../docs/evolution/conversation-tests.md">Task 003.06.01 evidence</a></td><td>Implemented; Feature 003.06 delivered by PR #32</td></tr>
           <tr><td>Scalable local SQLite persistence selection</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, and <a href="../../docs/evolution/local-persistence-selection.md">Task 004.01.01 decision evidence</a></td><td>Selected; delivered by PR #33</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 004.02 Task 004.02.01</span>Bounded transactional SQLite conversation records</td><td><a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationStorageException.java"><code>ConversationStorageException.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/SqliteConversationStoreTest.java"><code>SqliteConversationStoreTest.java</code></a>, <a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, and <a href="../../docs/evolution/conversation-storage.md">Task 004.02.01 evidence</a></td><td>Implemented component; application wiring and schema lifecycle not implemented</td></tr>
+          <tr><td>Bounded transactional SQLite conversation records</td><td><a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationStorageException.java"><code>ConversationStorageException.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/SqliteConversationStoreTest.java"><code>SqliteConversationStoreTest.java</code></a>, <a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, and <a href="../../docs/evolution/conversation-storage.md">Task 004.02.01 evidence</a></td><td>Implemented component; delivered by PR #34</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 004.03 Task 004.03.01</span>Atomic ordered SQLite message storage</td><td><a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/SqliteConversationStoreTest.java"><code>SqliteConversationStoreTest.java</code></a>, and <a href="../../docs/evolution/message-storage.md">Task 004.03.01 evidence</a></td><td>Implemented component; application wiring and production schema lifecycle not implemented</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>
