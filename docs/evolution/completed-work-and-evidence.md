@@ -279,15 +279,22 @@ tests and is recorded by annotated tag
 - Delivery: [PR #34](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/34)
 - Evidence: [Conversation storage](conversation-storage.md)
 
-### Feature 004.03 — Message Storage (in progress)
+### Feature 004.03 — Message Storage
 
 - [Feature 004.03](https://github.com/karanbabu2110/KAOS/issues/861)
 - [Task 004.03.01 — Persist Ordered Conversation Messages in Local SQLite](https://github.com/karanbabu2110/KAOS/issues/1085)
+- Delivery: [PR #35](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/35)
 - Evidence: [Message storage](message-storage.md)
 
-The concrete store owns conversation records and ordered messages but is not
-connected to the foreground application. Feature 004.03 remains incomplete
-until its pull request is reviewed and merged.
+### Feature 004.04 — Schema Management (in progress)
+
+- [Feature 004.04](https://github.com/karanbabu2110/KAOS/issues/860)
+- [Task 004.04.01 — Initialize and Version Local SQLite Schema](https://github.com/karanbabu2110/KAOS/issues/1086)
+- Evidence: [Schema management](schema-management.md)
+
+The concrete store and versioned schema initializer remain outside the
+foreground application. Feature 004.05 owns application wiring and restart
+restoration.
 
 ## Maintenance rule
 

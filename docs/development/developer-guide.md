@@ -353,15 +353,16 @@ Run every test:
 ./gradlew.bat test --no-daemon
 ```
 
-Run only the deterministic temporary-SQLite conversation and message storage tests:
+Run only the deterministic temporary-SQLite schema and storage tests:
 
 ```powershell
-./gradlew.bat test --tests 'io.kaos.conversation.SqliteConversationStoreTest' --no-daemon --warning-mode=all
+./gradlew.bat test --tests 'io.kaos.conversation.SqliteConversationSchemaTest' --tests 'io.kaos.conversation.SqliteConversationStoreTest' --no-daemon --warning-mode=all
 ```
 
-These tests create their own database files and minimal tables under JUnit's
-temporary directory. The application does not yet select a database location,
-initialize schema, or persist foreground conversations.
+These tests create temporary database files, initialize and validate schema
+version 1, and exercise conversation and message storage. The application does
+not yet select a database location, invoke the initializer, or persist and
+restore foreground conversations.
 
 Run the current application package tests for focused feedback:
 
