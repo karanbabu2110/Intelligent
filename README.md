@@ -9,8 +9,8 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), and [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9)
 - Active epic: [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
-- Active feature: [004.01 — Local Persistence Selection](https://github.com/karanbabu2110/KAOS/issues/859), with active Task [004.01.01 — Select Scalable Local SQLite Persistence](https://github.com/karanbabu2110/KAOS/issues/1083)
-- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground in-memory sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, one JSON runtime library, deterministic one-shot and multi-conversation application-to-provider integration coverage, and a selected but not yet implemented local SQLite persistence approach
+- Active feature: [004.02 — Conversation Storage](https://github.com/karanbabu2110/KAOS/issues/858), with active Task [004.02.01 — Persist Conversation Records in Local SQLite](https://github.com/karanbabu2110/KAOS/issues/1084)
+- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground in-memory sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, deterministic application/provider coverage, and a concrete bounded SQLite conversation-record store that is not yet wired into the application lifecycle
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -228,9 +228,10 @@ incremental check.
 ## Next checkpoint
 
 Epics 000-003 are complete and form the cumulative `1.1.0` checkpoint. Local
-Persistence Epic #823 is active. Feature #859 and Task #1083 select local SQLite
-as the authoritative conversation store so later persistence can grow beyond
-the current in-memory limits without whole-dataset rewrites. They do not add a
-driver, schema, database file, or runtime behavior. Conversation Storage Feature
-#858 remains the next implementation checkpoint. Persistence, restart recovery,
+Persistence Epic #823 is active. Completed Feature #859 selected local SQLite
+as the authoritative conversation store. Feature #858 and Task #1084 now add
+the pinned driver plus one transactional, bounded conversation-identifier store
+that survives database reopen and grows beyond eight records. It requires a
+caller-initialized table and is not wired to the foreground application;
+message persistence, production schema management, restart restoration,
 trimming, summarization, and provider-token estimation do not exist.

@@ -4,7 +4,8 @@ Feature [#859](https://github.com/karanbabu2110/KAOS/issues/859) and Task
 [#1083](https://github.com/karanbabu2110/KAOS/issues/1083) select local SQLite
 as the authoritative store for the first KAOS conversation persistence
 implementation. This is an architecture decision; no driver, schema, database
-file, or persistence behavior exists yet.
+file, or persistence behavior was added by Feature 004.01 itself. Feature
+004.02 subsequently implements the first bounded conversation-record store.
 
 ## Decision
 
@@ -37,8 +38,8 @@ The application still has one process and one user, but future storage needs:
 
 SQLite supplies the local transactional boundary. The Xerial SQLite JDBC
 project provides Java JDBC access in a single dependency and packages native
-libraries for major operating systems. The exact driver version is deliberately
-selected and verified in Feature 004.02, not added by this decision.
+libraries for major operating systems. Feature 004.02 pins and verifies the
+exact driver version in the build.
 
 ## Options considered
 
@@ -139,5 +140,5 @@ and rebuild/consistency rules. Because no runtime code or data exists in this
 feature, rollback is deletion of this decision before Feature 004.02 begins.
 
 Conversation Storage Feature
-[#858](https://github.com/karanbabu2110/KAOS/issues/858) is the next approved
-implementation checkpoint after this decision is reviewed and merged.
+[#858](https://github.com/karanbabu2110/KAOS/issues/858) implements its first
+bounded record store in [Conversation Storage](conversation-storage.md).

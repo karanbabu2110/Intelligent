@@ -265,15 +265,22 @@ tests and is recorded by annotated tag
 
 ## Epic 004 — Local Persistence (in progress)
 
-### Feature 004.01 — Local Persistence Selection (in progress)
+### Feature 004.01 — Local Persistence Selection
 
 - [Feature 004.01](https://github.com/karanbabu2110/KAOS/issues/859)
 - [Task 004.01.01 — Select Scalable Local SQLite Persistence](https://github.com/karanbabu2110/KAOS/issues/1083)
+- Delivery: [PR #33](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/33)
 - Evidence: [Local persistence selection](local-persistence-selection.md)
 
-Conversation Storage Feature
-[#858](https://github.com/karanbabu2110/KAOS/issues/858) remains incomplete and
-is not part of this snapshot.
+### Feature 004.02 — Conversation Storage (in progress)
+
+- [Feature 004.02](https://github.com/karanbabu2110/KAOS/issues/858)
+- [Task 004.02.01 — Persist Conversation Records in Local SQLite](https://github.com/karanbabu2110/KAOS/issues/1084)
+- Evidence: [Conversation storage](conversation-storage.md)
+
+The concrete store exists but is not connected to the foreground application.
+Feature 004.02 remains incomplete until its pull request is reviewed and
+merged.
 
 ## Maintenance rule
 
