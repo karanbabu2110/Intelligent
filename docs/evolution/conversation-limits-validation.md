@@ -4,6 +4,11 @@ Feature [#856](https://github.com/karanbabu2110/KAOS/issues/856) and Task
 [#1081](https://github.com/karanbabu2110/KAOS/issues/1081) bound the selectable
 foreground conversation capability delivered by Feature 003.04.
 
+This document preserves the Feature 003.05 delivery boundary. Feature 004.05
+later restores the newest bounded foreground working set from a durable
+collection that can exceed eight conversations; see
+[Conversation Restore](conversation-restore.md).
+
 ## Implemented outcome
 
 One `conversation` command now permits:
