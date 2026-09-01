@@ -19,6 +19,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -26,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Deterministic tests across the application, Ollama client, HTTP, and output boundaries. */
 class KaosOllamaIntegrationTest {
@@ -36,6 +38,9 @@ class KaosOllamaIntegrationTest {
             + "\"prompt_eval_count\":12,\"eval_count\":7,\"eval_duration\":600}\n";
     private static final OllamaModelConfiguration MODEL = new OllamaModelConfiguration(
             "qwen3:4b-instruct", 8_192, OllamaThinkingMode.OFF, 256);
+
+    @TempDir
+    Path temporaryDirectory;
 
     @Test
     void streamsOneAnswerAcrossTheCompleteLocalAiPath() throws Exception {
@@ -184,7 +189,7 @@ class KaosOllamaIntegrationTest {
                 errorOutput));
     }
 
-    private static KaosApplicationHarness.Result runConversation(URI endpoint, String input) {
+    private KaosApplicationHarness.Result runConversation(URI endpoint, String input) {
         OllamaPromptClient client = OllamaPromptClientTestSupport.client(endpoint);
         return KaosApplicationHarness.captureInput(input,
                 (testInput, output, errorOutput) -> KaosApplication.run(
@@ -195,6 +200,7 @@ class KaosOllamaIntegrationTest {
                                 OllamaConnectivity.Status.REACHABLE, "test-version"),
                         () -> MODEL,
                         client::submit,
+                        () -> temporaryDirectory.resolve("conversations.db"),
                         testInput,
                         output,
                         errorOutput));

@@ -5,6 +5,10 @@ Feature [#855](https://github.com/karanbabu2110/KAOS/issues/855) and Task
 conversation history and Ollama chat-context path usable from one foreground
 command.
 
+This document preserves the Feature 003.04 delivery boundary. Feature 004.05
+later made clean conversations durable across process restarts; see
+[Conversation Restore](conversation-restore.md).
+
 ## Implemented outcome
 
 Run the interactive command after explicitly configuring an installed model:

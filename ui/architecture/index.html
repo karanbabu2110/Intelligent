@@ -31,8 +31,8 @@
         <p class="lede">This website records what exists, what is approved next, and which boundaries remain only candidates. It is updated alongside implementation—not designed years ahead of it.</p>
       </div>
       <div class="stamp">
-        <strong>Verified 2026-08-31</strong>
-        Version 1.1.0 · Feature 004.04 in progress<br>
+        <strong>Verified 2026-09-01</strong>
+        Version 1.1.0 · Feature 004.05 in progress<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -41,16 +41,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 004.04 Task 004.04.01</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 004.05 Task 004.05.01</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify SQLite schema management added by Feature 004.04 Task 004.04.01. An empty caller-selected database becomes validated schema version 1 transactionally; conflicting, incomplete, or unsupported schemas fail safely. The application still does not choose a path or invoke persistence.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify conversation restore added by Feature 004.05 Task 004.05.01. The conversation command now resolves one local SQLite path, validates schema version 1, reconstructs its newest bounded working set after restart, and persists new identifiers plus complete clean turns.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 700" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes the implemented packaged KAOS application. The application validates local configuration and routes status, help, Ollama status, model, one-shot prompt, and interactive conversation commands. The conversation package owns bounded immutable user and assistant messages, bounded ordered histories, and one caller-owned foreground session with deterministic identifiers, active selection, an eight-conversation limit, and a thirty-two-clean-turn limit per conversation. The package also contains a version-1 SQLite schema initializer and a concrete store that transactionally writes positive conversation identifiers plus bounded ordered user and assistant message batches. It reconstructs validated histories with exact content after reopen, while the overall database collection can exceed eight conversations and 512 messages. The schema and store are verified with temporary databases but are not invoked by the application, so foreground state remains in memory and no production database path or runtime persistence lifecycle exists. The conversation command checks capacity before submission, then supplies the selected history to the Ollama client, which maps it in order and appends the current prompt as the final user message; clean user and assistant pairs return to the selected history. The one-shot command supplies empty history. There is no runtime persistence, restoration, trimming, summarization, or provider-token estimation. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one bounded streaming chat request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces request, total, inactivity, response-byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. The standard JUnit suite verifies the application and its current capability packages. Gradle, Jackson, and SQLite JDBC support the application.</desc>
+          <desc id="diagram-description">A terminal invokes the implemented packaged KAOS application. The application validates local configuration and routes status, help, Ollama status, model, one-shot prompt, and interactive conversation commands. The conversation package owns bounded immutable user and assistant messages, ordered histories, one bounded foreground session, a local database-path resolver, SQLite schema version 1, and a concrete transactional store. At conversation startup the application creates the local data directory, validates the schema, loads only the newest eight conversation histories, selects the newest restored conversation, and continues identifiers above the complete durable collection. New conversations and complete clean user and assistant turns are written to SQLite; the same clean turns remain in the foreground session. The durable collection can exceed eight conversations and 512 messages, although older conversations are not yet pageable from the CLI. The conversation command supplies selected history to the Ollama client, which maps it in order and appends the current prompt as the final user message. The one-shot command supplies empty history. Exact last selection, complete persistence recovery, trimming, summarization, and provider-token estimation are not implemented. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one bounded streaming chat request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces request, total, inactivity, response-byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. The standard JUnit suite verifies the application and its current capability packages. Gradle, Jackson, and SQLite JDBC support the application.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -86,19 +86,20 @@
           <rect x="365" y="402" width="405" height="88" class="box box-implemented"></rect>
           <text x="387" y="432" class="svg-title">Conversation capability</text>
           <text x="387" y="456" class="svg-copy">messages · histories · active selection</text>
-          <text x="387" y="478" class="svg-copy svg-change">SQLite schema v1 + store · not runtime-wired</text>
+          <text x="387" y="478" class="svg-copy svg-change">SQLite restore + clean-turn writes · runtime-wired</text>
 
           <path d="M254 117 L330 117" class="flow"></path>
           <path d="M555 212 L580 212" class="flow"></path>
           <path d="M675 402 L675 377" class="flow"></path>
 
-          <rect x="34" y="270" width="220" height="170" class="box box-implemented"></rect>
+          <rect x="34" y="270" width="220" height="190" class="box box-implemented"></rect>
           <text x="58" y="307" class="svg-title">Local configuration</text>
           <text x="58" y="335" class="svg-copy">App name: property / env</text>
           <text x="58" y="357" class="svg-copy">Model: property / env</text>
           <text x="58" y="379" class="svg-copy">Context: property / env / 4K</text>
           <text x="58" y="401" class="svg-copy">Thinking: off / on</text>
           <text x="58" y="423" class="svg-copy">Response: 512 / 2K</text>
+          <text x="58" y="445" class="svg-copy svg-change">Data directory: property / env</text>
           <path d="M254 334 L365 330" class="flow"></path>
           <path d="M254 375 L580 350" class="flow"></path>
           <path d="M460 259 L675 284" class="flow"></path>
@@ -117,20 +118,28 @@
           <text x="890" y="360" class="svg-copy">verified · installed model</text>
           <text x="890" y="383" class="svg-copy">GET version · POST chat</text>
           <path d="M770 330 L866 330" class="flow" marker-start="url(#arrow-green)"></path>
+
+          <text x="875" y="440" class="svg-label">LOCAL DATA BOUNDARY</text>
+          <rect x="866" y="465" width="240" height="115" class="box box-implemented"></rect>
+          <text x="890" y="500" class="svg-title">SQLite database</text>
+          <text x="890" y="528" class="svg-copy">conversations.db · schema v1</text>
+          <text x="890" y="552" class="svg-copy svg-change">restore reads · transactional writes</text>
+          <path d="M770 442 L835 442 L835 500 L866 500" class="flow"></path>
+          <path d="M866 548 L820 548 L820 480 L770 480" class="support-flow"></path>
         </svg>
       </div>
     </section>
 
     <section id="flow" class="panel" aria-labelledby="flow-heading">
       <h2 id="flow-heading">Technical functionality maps</h2>
-      <p class="rule">Read these three connected views in order. Green arrows are calls, blue arrows are returned data or control, magenta dashed arrows are failures, and gold dashed arrows are implemented code that is not runtime-wired.</p>
+      <p class="rule">Read these three connected views in order. Green arrows are calls or writes toward a dependency, blue arrows are returned data or control, and magenta dashed arrows are failures. Arrow direction follows the actual call or return direction.</p>
 
       <h3 id="command-map-heading">1. Command routing</h3>
       <p>This view answers: “Which code handles my command, and where does that branch finish?” Only one command branch is selected for each invocation. The two AI branches continue into view 2.</p>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable command routing map">
         <svg viewBox="0 0 1140 535" role="img" aria-labelledby="command-title command-description">
           <title id="command-title">KAOS command routing map</title>
-          <desc id="command-description">Terminal arguments enter KaosApplication main, which installs cancellation cleanup and invokes launch. Launch loads ApplicationConfiguration and calls run. Run selects exactly one command branch. Status and help print directly. Ollama status calls OllamaConnectivity check. Ollama model loads OllamaModelConfiguration. Ollama prompt passes empty history to the shared AI path. Conversation enters runConversation with a foreground ConversationSession and then calls the same AI path for prompts. Invalid configuration and arguments return coded safe errors.</desc>
+          <desc id="command-description">Terminal arguments enter KaosApplication main, which installs cancellation cleanup and invokes launch. Launch loads ApplicationConfiguration and calls run. Run selects exactly one command branch. Status and help print directly. Ollama status calls OllamaConnectivity check. Ollama model loads OllamaModelConfiguration. Ollama prompt passes empty history to the shared AI path. Conversation enters runConversation, opens and restores local persistence as shown in view 3, and then calls the same AI path for prompts. Invalid configuration, arguments, and storage startup return coded safe errors.</desc>
           <defs>
             <marker id="command-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="command-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
@@ -187,7 +196,7 @@
 
           <rect x="930" y="225" width="180" height="118" class="box box-implemented"></rect>
           <text x="950" y="260" class="svg-title">conversation</text>
-          <text x="950" y="288" class="svg-copy">runConversation</text>
+          <text x="950" y="288" class="svg-copy svg-change">restore local SQLite</text>
           <text x="950" y="312" class="svg-copy">view 3 ↔ view 2</text>
 
           <path d="M120 195 L120 225" class="command-call"></path>
@@ -306,11 +315,11 @@
 
     <section id="conversation-flow" class="panel" aria-labelledby="conversation-flow-heading">
       <h2 id="conversation-flow-heading">3. Conversation state</h2>
-      <p class="rule">This view answers: “What happens after each input line, when is history changed, and where does the loop return?” A clean prompt uses view 2. The implemented SQLite store remains outside this runtime loop.</p>
+      <p class="rule">This view answers: “What is restored before input, what is written after a clean result, and where does control return?” A clean prompt uses view 2. Green arrows point into calls and writes; blue arrows carry restored data, commits, or loop control back.</p>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable conversation state map">
         <svg viewBox="0 0 1140 720" role="img" aria-labelledby="conversation-title conversation-description">
           <title id="conversation-title">KAOS foreground conversation state flow</title>
-          <desc id="conversation-description">KaosApplication runConversation creates and selects the first in-memory conversation, then reads UTF-8 lines in a foreground loop. Control commands update or inspect ConversationSession and return to the input loop. Exit or end of input ends the session and discards in-memory conversations. A prompt first checks turn capacity, then calls the shared AI execution shown in view 2 with active history. A successful PromptOutcome appends the user and assistant turn atomically and returns to the next input line. A non-clean result does not mutate history and returns to input unless interruption ends the command. SqliteConversationStore is implemented but no application call connects it to this loop.</desc>
+          <desc id="conversation-description">KaosApplication runConversation resolves the local conversation database path, creates its directory, initializes or validates schema version 1, and asks SqliteConversationStore for the newest bounded identifier set, each ordered history, and the greatest durable identifier. ConversationSession restore validates clean turn order, selects the newest restored conversation, and continues identifier allocation above the complete durable collection. If storage is empty, conversation 1 is created and stored. The foreground loop reads UTF-8 lines. New conversation controls create an identifier and store it; selection, listing, and help remain in memory. Exit ends the process while durable state remains. A prompt checks capacity and calls the AI sequence in view 2. A clean PromptOutcome writes the user and assistant pair as one SQLite batch before appending the same turn to ConversationSession. A non-clean result performs no persistence write. Storage failure ends the command safely.</desc>
           <defs>
             <marker id="conversation-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="conversation-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
@@ -318,11 +327,11 @@
             <marker id="conversation-arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
           </defs>
 
-          <text x="30" y="32" class="svg-label">FOREGROUND LOOP · IN-MEMORY STATE</text>
+          <text x="30" y="32" class="svg-label">FOREGROUND LOOP · RESTORED WORKING SET</text>
           <rect x="30" y="55" width="250" height="105" class="box box-implemented"></rect>
           <text x="50" y="90" class="svg-title">KaosApplication</text>
-          <text x="50" y="118" class="svg-copy">runConversation · new session</text>
-          <text x="50" y="142" class="svg-copy">create and select first ID</text>
+          <text x="50" y="118" class="svg-copy svg-change">runConversation · restore runtime</text>
+          <text x="50" y="142" class="svg-copy">select newest · or create ID 1</text>
 
           <rect x="340" y="55" width="220" height="105" class="box box-implemented"></rect>
           <text x="360" y="90" class="svg-title">Read next UTF-8 line</text>
@@ -339,13 +348,13 @@
 
           <rect x="30" y="230" width="240" height="112" class="box box-support"></rect>
           <text x="50" y="265" class="svg-title">Controls</text>
-          <text x="50" y="293" class="svg-copy">/new · /select · /list</text>
+          <text x="50" y="293" class="svg-copy svg-change">/new · create then store ID</text>
           <text x="50" y="317" class="svg-copy">/help · blank · unknown</text>
 
           <rect x="320" y="230" width="240" height="112" class="box box-support"></rect>
           <text x="340" y="265" class="svg-title">/exit or EOF</text>
           <text x="340" y="293" class="svg-copy">end foreground session</text>
-          <text x="340" y="317" class="svg-copy">in-memory state is discarded</text>
+          <text x="340" y="317" class="svg-copy svg-change">durable SQLite state remains</text>
 
           <rect x="610" y="230" width="230" height="112" class="box box-implemented"></rect>
           <text x="630" y="265" class="svg-title">Prompt</text>
@@ -366,9 +375,9 @@
           <path d="M840 286 L890 286" class="conversation-call"></path>
 
           <rect x="30" y="410" width="280" height="112" class="box box-implemented"></rect>
-          <text x="50" y="445" class="svg-title">Append clean turn</text>
-          <text x="50" y="473" class="svg-copy">ConversationSession.appendTurn</text>
-          <text x="50" y="497" class="svg-copy">user + assistant atomically</text>
+          <text x="50" y="445" class="svg-title">Persist, then append</text>
+          <text x="50" y="473" class="svg-copy svg-change">Store.appendMessages · one batch</text>
+          <text x="50" y="497" class="svg-copy">then Session.appendTurn</text>
 
           <rect x="390" y="410" width="280" height="112" class="box box-support"></rect>
           <text x="410" y="445" class="svg-title">Non-clean outcome</text>
@@ -392,26 +401,35 @@
           <path d="M150 342 L150 365 L15 365 L15 570 L330 570" class="conversation-return"></path>
           <text x="18" y="355" class="svg-copy">control handled</text>
           <path d="M170 522 L170 590 L330 590" class="conversation-return"></path>
-          <text x="182" y="548" class="svg-copy">clean turn saved</text>
+          <text x="182" y="548" class="svg-copy">committed + in memory</text>
           <path d="M530 522 L530 550" class="conversation-return"></path>
           <text x="542" y="542" class="svg-copy">recover</text>
           <path d="M330 580 L15 580 L15 180 L450 180 L450 160" class="conversation-return"></path>
           <text x="22" y="175" class="svg-copy">read next line</text>
 
-          <text x="30" y="620" class="svg-label">IMPLEMENTED PERSISTENCE API · OUTSIDE THIS LOOP</text>
-          <rect x="80" y="640" width="290" height="55" class="box box-implemented"></rect>
-          <text x="100" y="674" class="svg-copy">caller path + history + identifier</text>
-          <rect x="450" y="640" width="290" height="55" class="box box-implemented"></rect>
-          <text x="470" y="674" class="svg-copy">Schema.initialize + Store methods</text>
-          <rect x="820" y="640" width="240" height="55" class="box box-support"></rect>
-          <text x="840" y="674" class="svg-copy">SQLite JDBC · schema v1</text>
-          <path d="M370 667 L450 667" class="conversation-unwired"></path>
-          <path d="M740 667 L820 667" class="conversation-unwired"></path>
-          <text x="375" y="654" class="svg-copy">no application call</text>
+          <text x="30" y="620" class="svg-label">LOCAL PERSISTENCE · ACTIVE STARTUP AND WRITE PATH</text>
+          <rect x="30" y="640" width="270" height="55" class="box box-implemented"></rect>
+          <text x="50" y="674" class="svg-copy svg-change">Path resolver · fixed filename</text>
+          <rect x="390" y="640" width="320" height="55" class="box box-implemented"></rect>
+          <text x="410" y="674" class="svg-copy svg-change">Schema.initialize · Store read/write</text>
+          <rect x="800" y="640" width="290" height="55" class="box box-implemented"></rect>
+          <text x="820" y="674" class="svg-copy">SQLite JDBC · conversations.db · v1</text>
+          <path d="M300 667 L390 667" class="conversation-call"></path>
+          <text x="315" y="657" class="svg-copy">startup path</text>
+          <path d="M710 660 L800 660" class="conversation-call"></path>
+          <text x="724" y="651" class="svg-copy">read / write</text>
+          <path d="M800 680 L710 680" class="conversation-return"></path>
+          <text x="724" y="698" class="svg-copy">rows / commit</text>
+          <path d="M150 342 L150 365 L720 365 L720 650 L710 650" class="conversation-call"></path>
+          <text x="264" y="358" class="svg-copy">/new write</text>
+          <path d="M170 522 L170 625 L550 625 L550 640" class="conversation-call"></path>
+          <text x="285" y="618" class="svg-copy">clean pair write</text>
+          <path d="M390 690 L350 690 L350 510 L310 510" class="conversation-return"></path>
+          <text x="315" y="704" class="svg-copy">commit before append</text>
         </svg>
       </div>
 
-      <p class="rule">Code evidence: <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/main/java/io/kaos/app/config/ApplicationConfiguration.java"><code>ApplicationConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaConnectivity.java"><code>OllamaConnectivity.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationSchema.java"><code>SqliteConversationSchema.java</code></a>, and <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>.</p>
+      <p class="rule">Code evidence: <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/main/java/io/kaos/app/config/ApplicationConfiguration.java"><code>ApplicationConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaConnectivity.java"><code>OllamaConnectivity.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationDatabasePath.java"><code>ConversationDatabasePath.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationSchema.java"><code>SqliteConversationSchema.java</code></a>, and <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>.</p>
     </section>
 
     <section class="panel" aria-labelledby="status-heading">
@@ -475,7 +493,7 @@
         <article class="card">
           <div class="status implemented">Implemented</div>
           <h3>Conversation creation and selection</h3>
-          <p>One foreground command creates deterministic process-local identifiers, switches isolated histories, sends the selected context, and records only clean turns. Every conversation is discarded when the process ends. Feature 003.04 was delivered by PR #30.</p>
+          <p>One foreground command creates deterministic identifiers, switches isolated histories, sends selected context, and records only clean turns. Feature 003.04 introduced the session; Feature 004.05 now restores its newest bounded working set.</p>
         </article>
         <article class="card">
           <div class="status implemented">Implemented</div>
@@ -495,23 +513,23 @@
         <article class="card">
           <div class="status implemented">Implemented component</div>
           <h3>SQLite conversation-record store</h3>
-          <p>A concrete store persists stable identifiers transactionally and returns an immutable creation-ordered list capped at 1,000. It accepts a caller-owned path and remains disconnected from the foreground session.</p>
+          <p>A concrete store persists stable identifiers transactionally, returns creation-ordered records capped at 1,000, and supplies only the newest bounded foreground working set at application startup.</p>
         </article>
         <article class="card">
           <div class="status implemented">Implemented component</div>
           <h3>Ordered SQLite message storage</h3>
           <p>Bounded user and assistant batches commit atomically. Exact validated roles and content return in insertion order after reopen, and tests prove 576 messages across nine conversations. Feature 004.03 was delivered by PR #35.</p>
         </article>
-        <article class="card change-current">
-          <div class="change-label">New in Feature 004.04 Task 004.04.01</div>
+        <article class="card">
           <div class="status implemented">Implemented component</div>
           <h3>SQLite schema management</h3>
           <p>An empty database is initialized transactionally as version 1. Reopen validates columns, identifier uniqueness, the message foreign key, and the ordered-read index; conflicting and unsupported schemas fail safely.</p>
         </article>
-        <article class="card">
-          <div class="status next">Next roadmap checkpoint</div>
+        <article class="card change-current">
+          <div class="change-label">New in Feature 004.05 Task 004.05.01</div>
+          <div class="status implemented">Implemented runtime path</div>
           <h3>Conversation restore</h3>
-          <p>Feature 004.05 owns application database-path selection, persistence wiring, and reconstruction of foreground conversations after restart.</p>
+          <p>The conversation command resolves a fixed local database filename, validates schema v1, restores its newest eight histories, continues identifiers above the durable maximum, and writes new identifiers plus complete clean turns.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -574,7 +592,8 @@
           <tr><td>Scalable local SQLite persistence selection</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, and <a href="../../docs/evolution/local-persistence-selection.md">Task 004.01.01 decision evidence</a></td><td>Selected; delivered by PR #33</td></tr>
           <tr><td>Bounded transactional SQLite conversation records</td><td><a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationStorageException.java"><code>ConversationStorageException.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/SqliteConversationStoreTest.java"><code>SqliteConversationStoreTest.java</code></a>, <a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, and <a href="../../docs/evolution/conversation-storage.md">Task 004.02.01 evidence</a></td><td>Implemented component; delivered by PR #34</td></tr>
           <tr><td>Atomic ordered SQLite message storage</td><td><a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/SqliteConversationStoreTest.java"><code>SqliteConversationStoreTest.java</code></a>, and <a href="../../docs/evolution/message-storage.md">Task 004.03.01 evidence</a></td><td>Implemented component; delivered by PR #35</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 004.04 Task 004.04.01</span>Versioned SQLite schema initialization</td><td><a href="../../src/main/java/io/kaos/conversation/SqliteConversationSchema.java"><code>SqliteConversationSchema.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/SqliteConversationSchemaTest.java"><code>SqliteConversationSchemaTest.java</code></a>, and <a href="../../docs/evolution/schema-management.md">Task 004.04.01 evidence</a></td><td>Implemented component; application path and runtime wiring not implemented</td></tr>
+          <tr><td>Versioned SQLite schema initialization</td><td><a href="../../src/main/java/io/kaos/conversation/SqliteConversationSchema.java"><code>SqliteConversationSchema.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/SqliteConversationSchemaTest.java"><code>SqliteConversationSchemaTest.java</code></a>, and <a href="../../docs/evolution/schema-management.md">Task 004.04.01 evidence</a></td><td>Implemented; delivered by PR #37 and now used by the conversation command</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 004.05 Task 004.05.01</span>Bounded conversation restart restore</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationDatabasePath.java"><code>ConversationDatabasePath.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-restore.md">Task 004.05.01 evidence</a></td><td>Implemented on the feature branch; complete recovery remains Feature 004.06</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

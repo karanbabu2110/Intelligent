@@ -6,6 +6,10 @@ durable persistence slice selected by Feature 004.01. A concrete
 `SqliteConversationStore` in `io.kaos.conversation` stores stable positive
 conversation identifiers in local SQLite and reads them in creation order.
 
+This document preserves the Feature 004.02 delivery boundary. Feature 004.05
+now supplies the production path and invokes this store from the conversation
+runtime; see [Conversation Restore](conversation-restore.md).
+
 ## Implemented boundary
 
 - `build.gradle.kts` pins Xerial SQLite JDBC `3.53.4.0` as a production
@@ -19,9 +23,8 @@ conversation identifiers in local SQLite and reads them in creation order.
   identifiers.
 
 The store is a concrete package component, not a repository interface or a new
-service. The foreground `ConversationSession` does not invoke it yet, and KAOS
-does not choose or create a production database path. Temporary databases and
-the minimal table are created only by deterministic tests.
+service. At Feature 004.02 delivery it was not yet invoked by the foreground
+application; Feature 004.05 later connected it directly.
 
 ## Capacity and safety evidence
 

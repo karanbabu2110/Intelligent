@@ -41,6 +41,20 @@ class SqliteConversationStoreTest {
     }
 
     @Test
+    void returnsOnlyTheNewestWorkingSetInCreationOrder() throws SQLException {
+        Path database = initializedDatabase("recent.db");
+        SqliteConversationStore store = new SqliteConversationStore(database);
+        List<Long> identifiers = List.of(20L, 3L, 11L, 40L, 5L, 60L, 7L, 80L, 9L, 100L);
+        identifiers.forEach(store::store);
+
+        assertEquals(List.of(11L, 40L, 5L, 60L, 7L, 80L, 9L, 100L),
+                store.recentConversationIdentifiers(ConversationSession.MAX_CONVERSATIONS));
+        assertThrows(IllegalArgumentException.class,
+                () -> store.recentConversationIdentifiers(0));
+        assertEquals(100L, store.greatestConversationIdentifier());
+    }
+
+    @Test
     void boundsTheNumberOfConversationsReturned() throws SQLException {
         Path database = initializedDatabase("bounded.db");
         insertFixtureConversations(database, SqliteConversationStore.MAX_STORED_CONVERSATIONS_PER_READ + 1);

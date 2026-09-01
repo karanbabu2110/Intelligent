@@ -6,8 +6,14 @@ import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.ai.ollama.OllamaThinkingMode;
 import io.kaos.app.config.ApplicationConfiguration;
+import io.kaos.conversation.ConversationDatabasePath;
 import io.kaos.conversation.ConversationHistory;
+import io.kaos.conversation.ConversationMessage;
+import io.kaos.conversation.ConversationRole;
 import io.kaos.conversation.ConversationSession;
+import io.kaos.conversation.ConversationStorageException;
+import io.kaos.conversation.SqliteConversationSchema;
+import io.kaos.conversation.SqliteConversationStore;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,6 +21,11 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +52,7 @@ public final class KaosApplication {
     static final String OLLAMA_TIMEOUT_CODE = "KAOS-AI-005";
     static final String OLLAMA_CANCELLATION_CODE = "KAOS-AI-006";
     static final String CONVERSATION_INPUT_CODE = "KAOS-CONVERSATION-001";
+    static final String CONVERSATION_STORAGE_CODE = "KAOS-CONVERSATION-002";
 
     private KaosApplication() {
     }
@@ -222,11 +234,27 @@ public final class KaosApplication {
             InputStream input,
             PrintStream output,
             PrintStream errorOutput) {
+        return run(arguments, configuration, ollamaConnectivityCheck,
+                ollamaModelConfigurationLoader, ollamaPromptSubmission,
+                ConversationDatabasePath::load, input, output, errorOutput);
+    }
+
+    static int run(
+            String[] arguments,
+            ApplicationConfiguration configuration,
+            Supplier<OllamaConnectivity.Result> ollamaConnectivityCheck,
+            Supplier<OllamaModelConfiguration> ollamaModelConfigurationLoader,
+            OllamaPromptSubmission ollamaPromptSubmission,
+            Supplier<Path> conversationDatabasePathLoader,
+            InputStream input,
+            PrintStream output,
+            PrintStream errorOutput) {
         Objects.requireNonNull(arguments, "arguments");
         Objects.requireNonNull(configuration, "configuration");
         Objects.requireNonNull(ollamaConnectivityCheck, "ollamaConnectivityCheck");
         Objects.requireNonNull(ollamaModelConfigurationLoader, "ollamaModelConfigurationLoader");
         Objects.requireNonNull(ollamaPromptSubmission, "ollamaPromptSubmission");
+        Objects.requireNonNull(conversationDatabasePathLoader, "conversationDatabasePathLoader");
         Objects.requireNonNull(input, "input");
         Objects.requireNonNull(output, "output");
         Objects.requireNonNull(errorOutput, "errorOutput");
@@ -261,7 +289,8 @@ public final class KaosApplication {
 
         if (isCommand(arguments, "conversation")) {
             return runConversation(input, ollamaModelConfigurationLoader,
-                    ollamaPromptSubmission, output, errorOutput);
+                    ollamaPromptSubmission, conversationDatabasePathLoader,
+                    output, errorOutput);
         }
 
         if (arguments.length > 0 && "ollama-prompt".equals(arguments[0])) {
@@ -288,7 +317,7 @@ public final class KaosApplication {
                   ollama-status  Check connectivity to the local Ollama server.
                   ollama-model   Show the explicitly configured local Ollama model.
                   ollama-prompt  Submit one quoted prompt and stream the answer.
-                  conversation   Start selectable in-memory conversations.
+                  conversation   Start selectable persistent local conversations.
                 """;
     }
 
@@ -296,11 +325,29 @@ public final class KaosApplication {
             InputStream input,
             Supplier<OllamaModelConfiguration> modelConfigurationLoader,
             OllamaPromptSubmission promptSubmission,
+            Supplier<Path> databasePathLoader,
             PrintStream output,
             PrintStream errorOutput) {
-        ConversationSession session = new ConversationSession();
-        long firstIdentifier = session.create();
-        output.println("Conversation " + firstIdentifier + " created and selected.");
+        ConversationRuntime conversationRuntime;
+        try {
+            conversationRuntime = restoreConversationRuntime(databasePathLoader.get());
+        } catch (IOException | ConversationStorageException | IllegalArgumentException
+                | IllegalStateException | SecurityException exception) {
+            logConversationStorageFailure(errorOutput);
+            return APPLICATION_ERROR;
+        }
+        ConversationSession session = conversationRuntime.session();
+        SqliteConversationStore store = conversationRuntime.store();
+        if (conversationRuntime.restoredCount() == 0) {
+            output.println("Conversation " + session.activeIdentifier()
+                    + " created and selected.");
+        } else {
+            output.println("Restored " + conversationRuntime.restoredCount()
+                    + (conversationRuntime.restoredCount() == 1
+                            ? " conversation. "
+                            : " conversations. ")
+                    + "Conversation " + session.activeIdentifier() + " selected.");
+        }
         output.println("Type /help for conversation controls.");
         int sessionExitCode = SUCCESS;
 
@@ -350,6 +397,12 @@ public final class KaosApplication {
                     continue;
                 }
                 long identifier = session.create();
+                try {
+                    store.store(identifier);
+                } catch (ConversationStorageException exception) {
+                    logConversationStorageFailure(errorOutput);
+                    return APPLICATION_ERROR;
+                }
                 output.println("Conversation " + identifier + " created and selected.");
                 continue;
             }
@@ -383,8 +436,50 @@ public final class KaosApplication {
                 }
                 continue;
             }
+            try {
+                store.appendMessages(session.activeIdentifier(), List.of(
+                        new ConversationMessage(ConversationRole.USER, outcome.prompt()),
+                        new ConversationMessage(ConversationRole.ASSISTANT, outcome.response())));
+            } catch (ConversationStorageException exception) {
+                logConversationStorageFailure(errorOutput);
+                return APPLICATION_ERROR;
+            }
             session.appendTurn(outcome.prompt(), outcome.response());
         }
+    }
+
+    private static ConversationRuntime restoreConversationRuntime(Path databasePath)
+            throws IOException {
+        Objects.requireNonNull(databasePath, "databasePath");
+        Path parent = databasePath.toAbsolutePath().normalize().getParent();
+        if (parent == null) {
+            throw new IllegalArgumentException("conversation database parent is unavailable");
+        }
+        Files.createDirectories(parent);
+        if (Files.exists(databasePath) && !Files.isRegularFile(databasePath)) {
+            throw new IllegalArgumentException("conversation database target is not a regular file");
+        }
+
+        SqliteConversationSchema.initialize(databasePath);
+        SqliteConversationStore store = new SqliteConversationStore(databasePath);
+        Map<Long, ConversationHistory> restoredHistories = new LinkedHashMap<>();
+        for (long identifier : store.recentConversationIdentifiers(
+                ConversationSession.MAX_CONVERSATIONS)) {
+            restoredHistories.put(identifier, store.conversationHistory(identifier));
+        }
+        ConversationSession session = ConversationSession.restore(
+                restoredHistories, store.greatestConversationIdentifier());
+        if (restoredHistories.isEmpty()) {
+            long identifier = session.create();
+            store.store(identifier);
+        }
+        return new ConversationRuntime(store, session, restoredHistories.size());
+    }
+
+    private static void logConversationStorageFailure(PrintStream errorOutput) {
+        logError(errorOutput, CONVERSATION_STORAGE_CODE,
+                "Local conversation storage could not be used safely. "
+                        + "Check the KAOS data directory and retry.");
     }
 
     private static int mergeSessionExitCode(int current, int next) {
@@ -434,7 +529,7 @@ public final class KaosApplication {
                   /select <id>  Select an existing conversation.
                   /list         List conversations; * marks the selected one.
                   /help         Show these controls.
-                  /exit         End the session and discard all conversations.
+                  /exit         End the session; clean turns remain stored locally.
                 Any other nonblank line is sent as a prompt.
                 Limits: %d conversations and %d clean turns per conversation.
                 """.formatted(ConversationSession.MAX_CONVERSATIONS,
@@ -562,6 +657,12 @@ public final class KaosApplication {
         private static PromptOutcome failed(int exitCode) {
             return new PromptOutcome(exitCode, "", "");
         }
+    }
+
+    private record ConversationRuntime(
+            SqliteConversationStore store,
+            ConversationSession session,
+            int restoredCount) {
     }
 
     private static final class OllamaPromptOutput {

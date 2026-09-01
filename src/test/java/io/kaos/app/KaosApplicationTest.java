@@ -13,16 +13,23 @@ import io.kaos.ai.ollama.OllamaThinkingMode;
 import io.kaos.app.config.ApplicationConfiguration;
 import io.kaos.conversation.ConversationHistory;
 import io.kaos.conversation.ConversationSession;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class KaosApplicationTest {
+    @TempDir
+    Path temporaryDirectory;
+
     @Test
     void identifiesTheApplicationBaselineWithoutClaimingAProductCapability() {
         assertEquals(
@@ -255,6 +262,37 @@ class KaosApplicationTest {
     }
 
     @Test
+    void restoresAStoredCleanTurnAfterTheConversationCommandRestarts() {
+        KaosApplicationHarness.Result firstRun = runConversation(
+                "My name is Karan.\n/exit\n",
+                (model, history, prompt, thinking, chunks) -> {
+                    chunks.accept("Understood.");
+                    return new OllamaPromptClient.Result(
+                            OllamaPromptClient.Status.SUCCESS, "", "Understood.");
+                });
+        AtomicReference<ConversationHistory> restoredHistory = new AtomicReference<>();
+
+        KaosApplicationHarness.Result secondRun = runConversation(
+                "What is my name?\n/exit\n",
+                (model, history, prompt, thinking, chunks) -> {
+                    restoredHistory.set(history);
+                    chunks.accept("Karan.");
+                    return new OllamaPromptClient.Result(
+                            OllamaPromptClient.Status.SUCCESS, "", "Karan.");
+                });
+
+        assertEquals(KaosApplication.SUCCESS, firstRun.exitCode());
+        assertEquals(KaosApplication.SUCCESS, secondRun.exitCode());
+        assertEquals(List.of("My name is Karan.", "Understood."),
+                restoredHistory.get().messages().stream()
+                        .map(message -> message.content())
+                        .toList());
+        assertTrue(secondRun.standardOutput().contains(
+                "Restored 1 conversation. Conversation 1 selected."));
+        assertEquals("", secondRun.errorOutput());
+    }
+
+    @Test
     void createsSelectsAndIsolatesConversationHistories() {
         List<ConversationHistory> submittedHistories = new ArrayList<>();
         AtomicInteger calls = new AtomicInteger();
@@ -388,6 +426,26 @@ class KaosApplicationTest {
         assertTrue(result.standardOutput().endsWith(
                 "Conversation session ended." + System.lineSeparator()));
         assertEquals("", result.errorOutput());
+    }
+
+    @Test
+    void rejectsANonRegularDatabaseTargetWithoutExposingItsPath() throws IOException {
+        Path privateTarget = temporaryDirectory.resolve("private-database-target");
+        Files.createDirectory(privateTarget);
+
+        KaosApplicationHarness.Result result = runConversation(
+                "/exit\n",
+                (model, history, prompt, thinking, chunks) -> {
+                    throw new AssertionError("storage failure must happen before a prompt");
+                },
+                privateTarget);
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals("ERROR [KAOS-CONVERSATION-002] Local conversation storage could not "
+                + "be used safely. Check the KAOS data directory and retry."
+                + System.lineSeparator(), result.errorOutput());
+        assertFalse(result.errorOutput().contains(privateTarget.toString()));
     }
 
     @Test
@@ -919,9 +977,17 @@ class KaosApplicationTest {
                 new String[] {"ollama-prompt", prompt}, modelLoader, submission);
     }
 
-    private static KaosApplicationHarness.Result runConversation(
+    private KaosApplicationHarness.Result runConversation(
             String input,
             KaosApplication.OllamaPromptSubmission submission) {
+        return runConversation(
+                input, submission, temporaryDirectory.resolve("conversations.db"));
+    }
+
+    private static KaosApplicationHarness.Result runConversation(
+            String input,
+            KaosApplication.OllamaPromptSubmission submission,
+            Path databasePath) {
         return KaosApplicationHarness.captureInput(input,
                 (testInput, output, errorOutput) -> KaosApplication.run(
                         new String[] {"conversation"},
@@ -931,6 +997,7 @@ class KaosApplicationTest {
                                 OllamaConnectivity.Status.REACHABLE, "test-version"),
                         () -> new OllamaModelConfiguration("qwen3"),
                         submission,
+                        () -> databasePath,
                         testInput,
                         output,
                         errorOutput));

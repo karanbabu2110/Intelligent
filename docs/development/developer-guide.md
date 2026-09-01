@@ -185,35 +185,45 @@ configuration or application failure returns exit code `1` and a safe coded
 error on standard error. Supplied values, exception messages, and stack traces
 are not logged.
 
-Start selectable process-local conversations:
+Start selectable persistent local conversations:
 
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 ./gradlew.bat run --args=conversation
 ```
 
-The Gradle `run` task forwards standard input. KAOS creates and selects
-conversation `1`; type any nonblank prompt to send it with that conversation's
-earlier clean turns. The available controls are `/new`, `/select <id>`, `/list`,
-`/help`, and `/exit`.
+The Gradle `run` task forwards standard input. On an empty database KAOS creates
+and selects conversation `1`; on later runs it restores the newest bounded
+working set and selects its newest conversation. Type any nonblank prompt to send
+it with that conversation's earlier clean turns. The available controls are
+`/new`, `/select <id>`, `/list`, `/help`, and `/exit`.
 
 Each successful request appends one validated user message and one assistant
 message. Failed or partial requests are not retained, although the session can
 continue; its final exit remains nonzero if an AI request failed. Separate
-conversation identifiers keep their histories isolated. All identifiers,
-selection state, and messages disappear when the process ends. One session is
-limited to 8 conversations, each conversation to 32 clean turns, each immutable
+conversation identifiers keep their histories isolated. New identifiers and
+complete clean turns are stored before the foreground session accepts them. One
+loaded working set is limited to 8 conversations, each conversation to 32 clean turns, each immutable
 history to 64 messages, and each stored message to 65,536 Unicode code points.
 The existing current-prompt limit remains 4,096 code points.
 
 KAOS rejects a ninth `/new` without changing the active identifier. It rejects
 a prompt that would become the thirty-third turn before model configuration is
-loaded or Ollama is contacted. Use `/select` to choose an existing conversation
-with capacity, or `/exit` and restart the ephemeral session. These initial
-limits are not configurable. There is no persistence, restart recovery, naming,
-deletion, trimming, summarization, automatic rollover, or provider-token
-estimation. See [conversation creation and selection](../evolution/conversation-creation-selection.md)
-and [conversation limits and validation](../evolution/conversation-limits-validation.md).
+loaded or Ollama is contacted. Use `/select` to choose a loaded conversation
+with capacity. These initial limits are not configurable. The durable collection
+can exceed 8 conversations, but the CLI restores only the newest 8 and does not
+yet page older entries. Exact last selection, naming, deletion, trimming,
+summarization, automatic rollover, and provider-token estimation are not stored.
+See [conversation restore](../evolution/conversation-restore.md) and
+[conversation limits and validation](../evolution/conversation-limits-validation.md).
+
+The default database is `.kaos/conversations.db` below the Java user-home
+directory. Set `KAOS_CONVERSATION_DATA_DIRECTORY` to choose another local data
+directory, or use the higher-precedence JVM property
+`kaos.conversation.data-directory`. Both configure a directory; KAOS always uses
+the fixed `conversations.db` filename. Startup creates the directory if needed,
+initializes or validates schema version 1, and returns
+`KAOS-CONVERSATION-002` without private database detail if storage cannot be used.
 
 ## Local configuration
 
@@ -360,9 +370,9 @@ Run only the deterministic temporary-SQLite schema and storage tests:
 ```
 
 These tests create temporary database files, initialize and validate schema
-version 1, and exercise conversation and message storage. The application does
-not yet select a database location, invoke the initializer, or persist and
-restore foreground conversations.
+version 1, exercise conversation and message storage, resolve the application
+path, and prove bounded session reconstruction. Application tests additionally
+prove that a clean turn from one command run becomes history in the next run.
 
 Run the current application package tests for focused feedback:
 

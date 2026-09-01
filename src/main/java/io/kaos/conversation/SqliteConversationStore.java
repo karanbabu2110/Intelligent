@@ -21,6 +21,18 @@ public final class SqliteConversationStore {
             "INSERT INTO conversations (identifier) VALUES (?)";
     private static final String SELECT_CONVERSATIONS =
             "SELECT identifier FROM conversations ORDER BY sequence LIMIT ?";
+    private static final String SELECT_RECENT_CONVERSATIONS = """
+            SELECT identifier
+            FROM (
+                SELECT sequence, identifier
+                FROM conversations
+                ORDER BY sequence DESC
+                LIMIT ?
+            )
+            ORDER BY sequence
+            """;
+    private static final String SELECT_GREATEST_CONVERSATION_IDENTIFIER =
+            "SELECT COALESCE(MAX(identifier), 0) FROM conversations";
     private static final String SELECT_CONVERSATION =
             "SELECT 1 FROM conversations WHERE identifier = ?";
     private static final String COUNT_MESSAGES =
@@ -65,10 +77,37 @@ public final class SqliteConversationStore {
     }
 
     public List<Long> conversationIdentifiers() {
+        return conversationIdentifiers(SELECT_CONVERSATIONS,
+                MAX_STORED_CONVERSATIONS_PER_READ);
+    }
+
+    /** Returns the newest bounded working set in its original creation order. */
+    public List<Long> recentConversationIdentifiers(int limit) {
+        if (limit <= 0 || limit > MAX_STORED_CONVERSATIONS_PER_READ) {
+            throw new IllegalArgumentException(
+                    "limit must be between 1 and " + MAX_STORED_CONVERSATIONS_PER_READ);
+        }
+        return conversationIdentifiers(SELECT_RECENT_CONVERSATIONS, limit);
+    }
+
+    /** Returns zero for an empty store or the greatest durable identifier otherwise. */
+    public long greatestConversationIdentifier() {
+        try (Connection connection = DriverManager.getConnection(databaseUrl);
+                PreparedStatement statement = connection.prepareStatement(
+                        SELECT_GREATEST_CONVERSATION_IDENTIFIER);
+                ResultSet resultSet = statement.executeQuery()) {
+            resultSet.next();
+            return resultSet.getLong(1);
+        } catch (SQLException exception) {
+            throw storageFailure();
+        }
+    }
+
+    private List<Long> conversationIdentifiers(String sql, int limit) {
         List<Long> identifiers = new ArrayList<>();
         try (Connection connection = DriverManager.getConnection(databaseUrl);
-                PreparedStatement statement = connection.prepareStatement(SELECT_CONVERSATIONS)) {
-            statement.setInt(1, MAX_STORED_CONVERSATIONS_PER_READ);
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, limit);
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     identifiers.add(resultSet.getLong("identifier"));

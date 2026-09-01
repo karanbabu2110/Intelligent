@@ -38,10 +38,9 @@ of conflicting or incomplete schemas, unsupported-version preservation, and
 unavailable-path diagnostics.
 
 The schema initializer and store remain concrete classes in
-`io.kaos.conversation`. The application does not choose a database location or
-invoke either component. Feature 004.05 owns application wiring and restart
-restore. Feature 004.06 owns the complete locked, corrupt, disk-full, backup,
-repair, and recovery policy.
+`io.kaos.conversation`. Feature 004.05 now invokes them directly from the
+conversation application lifecycle for restart restore. Feature 004.06 owns the
+complete locked, corrupt, disk-full, backup, repair, and recovery policy.
 
 ## Validation
 
@@ -52,6 +51,6 @@ Run the focused schema and store tests with:
 ```
 
 Before completion, run `clean verifyLocal`, local-link and diff checks, plus the
-desktop/mobile living-architecture validation. Rollback before application
-wiring is removal of the initializer and continued use of explicit test-owned
-fixtures; no production database is currently created by KAOS.
+desktop/mobile living-architecture validation. The initializer is now part of
+the production conversation startup path; Feature 004.05 records that integration
+and its rollback boundary.

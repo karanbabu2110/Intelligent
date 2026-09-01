@@ -6,6 +6,10 @@ Feature [#861](https://github.com/karanbabu2110/KAOS/issues/861) and Task
 validated message batch to an existing conversation in one transaction and
 reconstruct one bounded `ConversationHistory` after the database is reopened.
 
+This document preserves the Feature 004.03 delivery boundary. Feature 004.05
+now invokes the same API from the conversation runtime; see
+[Conversation Restore](conversation-restore.md).
+
 ## Implemented behavior
 
 - `appendMessages` accepts a positive conversation identifier and a non-empty
@@ -42,11 +46,10 @@ Deterministic temporary-database tests prove:
   is not capped by the foreground session's eight-conversation/512-message
   aggregate.
 
-Messages are private local user data. Production KAOS still does not choose a
-database path or perform persistence, so only test-owned temporary files are
-written in this feature. Operating-system account and disk protections remain
-the available at-rest protection; no encryption or key-management claim is
-introduced.
+Messages are private local user data. Feature 004.03 itself wrote only
+test-owned temporary files; Feature 004.05 later selected the production path
+and runtime lifecycle. Operating-system account and disk protections remain the
+available at-rest protection; no encryption or key-management claim is introduced.
 
 ## Schema contract and exclusions
 

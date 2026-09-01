@@ -5,10 +5,54 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ConversationSessionTest {
+    @Test
+    void restoresCleanHistoriesAndContinuesAfterTheGreatestIdentifier() {
+        Map<Long, ConversationHistory> histories = new LinkedHashMap<>();
+        histories.put(4L, new ConversationHistory(List.of(
+                new ConversationMessage(ConversationRole.USER, "First question"),
+                new ConversationMessage(ConversationRole.ASSISTANT, "First answer"))));
+        histories.put(9L, ConversationHistory.empty());
+
+        ConversationSession session = ConversationSession.restore(histories);
+
+        assertEquals(List.of(4L, 9L), session.conversationIdentifiers());
+        assertEquals(9L, session.activeIdentifier());
+        assertEquals(10L, session.create());
+    }
+
+    @Test
+    void continuesAfterIdentifiersOutsideTheRestoredWorkingSet() {
+        ConversationSession session = ConversationSession.restore(
+                Map.of(7L, ConversationHistory.empty()), 41L);
+
+        assertEquals(42L, session.create());
+    }
+
+    @Test
+    void rejectsIncompleteOrMisorderedRestoredTurnsWithoutExposingContent() {
+        ConversationHistory incomplete = new ConversationHistory(List.of(
+                new ConversationMessage(ConversationRole.USER, "private incomplete content")));
+        ConversationHistory misordered = new ConversationHistory(List.of(
+                new ConversationMessage(ConversationRole.ASSISTANT, "private first content"),
+                new ConversationMessage(ConversationRole.USER, "private second content")));
+
+        IllegalArgumentException incompleteFailure = assertThrows(
+                IllegalArgumentException.class,
+                () -> ConversationSession.restore(Map.of(1L, incomplete)));
+        IllegalArgumentException orderFailure = assertThrows(
+                IllegalArgumentException.class,
+                () -> ConversationSession.restore(Map.of(1L, misordered)));
+
+        assertFalse(incompleteFailure.getMessage().contains("private"));
+        assertFalse(orderFailure.getMessage().contains("private"));
+    }
+
     @Test
     void createsAndSelectsDeterministicIdentifiers() {
         ConversationSession session = new ConversationSession();

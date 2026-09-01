@@ -286,15 +286,23 @@ tests and is recorded by annotated tag
 - Delivery: [PR #35](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/35)
 - Evidence: [Message storage](message-storage.md)
 
-### Feature 004.04 — Schema Management (in progress)
+### Feature 004.04 — Schema Management
 
 - [Feature 004.04](https://github.com/karanbabu2110/KAOS/issues/860)
 - [Task 004.04.01 — Initialize and Version Local SQLite Schema](https://github.com/karanbabu2110/KAOS/issues/1086)
+- Delivery: [PR #37](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/37)
 - Evidence: [Schema management](schema-management.md)
 
-The concrete store and versioned schema initializer remain outside the
-foreground application. Feature 004.05 owns application wiring and restart
-restoration.
+### Feature 004.05 — Conversation Restore (in progress)
+
+- [Feature 004.05](https://github.com/karanbabu2110/KAOS/issues/863)
+- [Task 004.05.01 — Restore Persisted Conversations on Startup](https://github.com/karanbabu2110/KAOS/issues/1087)
+- Evidence: [Conversation restore](conversation-restore.md)
+
+The conversation command now invokes the versioned schema and concrete store,
+restores its newest bounded working set after restart, and persists new
+identifiers plus complete clean turns. Feature 004.06 owns complete persistence
+failure and recovery behavior.
 
 ## Maintenance rule
 
