@@ -1,5 +1,6 @@
 package io.kaos.app;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,11 +14,18 @@ import io.kaos.ai.ollama.OllamaThinkingMode;
 import io.kaos.app.config.ApplicationConfiguration;
 import io.kaos.conversation.ConversationHistory;
 import io.kaos.conversation.ConversationSession;
+import io.kaos.conversation.ConversationStorageException;
+import io.kaos.conversation.SqliteConversationSchema;
+import io.kaos.conversation.SqliteConversationStore;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -442,10 +450,84 @@ class KaosApplicationTest {
 
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
         assertEquals("", result.standardOutput());
-        assertEquals("ERROR [KAOS-CONVERSATION-002] Local conversation storage could not "
-                + "be used safely. Check the KAOS data directory and retry."
+        assertEquals("ERROR [KAOS-CONVERSATION-002] "
+                + KaosApplication.conversationStorageRecovery(
+                        ConversationStorageException.Reason.INVALID_STATE,
+                        KaosApplication.ConversationStoragePhase.STARTUP)
                 + System.lineSeparator(), result.errorOutput());
         assertFalse(result.errorOutput().contains(privateTarget.toString()));
+    }
+
+    @Test
+    void reportsCorruptStartupWithoutReplacingOrExposingTheDatabase() throws IOException {
+        Path privateDatabase = temporaryDirectory.resolve("private-corrupt.db");
+        byte[] original = "not sqlite private content".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Files.write(privateDatabase, original);
+
+        KaosApplicationHarness.Result result = runConversation(
+                "/exit\n",
+                (model, history, prompt, thinking, chunks) -> {
+                    throw new AssertionError("corrupt startup must happen before a prompt");
+                },
+                privateDatabase);
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertTrue(result.errorOutput().contains("storage is corrupt"));
+        assertTrue(result.errorOutput().contains("offline copy"));
+        assertTrue(result.errorOutput().contains("did not delete, replace, or automatically repair"));
+        assertFalse(result.errorOutput().contains(privateDatabase.toString()));
+        assertFalse(result.errorOutput().contains("private content"));
+        assertArrayEquals(original, Files.readAllBytes(privateDatabase));
+    }
+
+    @Test
+    void reportsThatADisplayedTurnWasNotSavedAfterTransactionalWriteFailure()
+            throws SQLException {
+        Path database = temporaryDirectory.resolve("write-failure.db");
+        SqliteConversationSchema.initialize(database);
+        SqliteConversationStore store = new SqliteConversationStore(database);
+        store.store(1);
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database);
+                Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    CREATE TRIGGER reject_private_test_turn
+                    BEFORE INSERT ON messages
+                    BEGIN
+                        SELECT RAISE(ABORT, 'private trigger detail');
+                    END
+                    """);
+        }
+
+        KaosApplicationHarness.Result result = runConversation(
+                "Store this turn\n",
+                (model, history, prompt, thinking, chunks) -> {
+                    chunks.accept("Displayed answer");
+                    return new OllamaPromptClient.Result(
+                            OllamaPromptClient.Status.SUCCESS, "", "Displayed answer");
+                },
+                database);
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertTrue(result.standardOutput().contains("Displayed answer"));
+        assertTrue(result.errorOutput().contains(
+                "completed turn was not saved even though its answer was displayed"));
+        assertFalse(result.errorOutput().contains("private trigger detail"));
+        assertEquals(List.of(), store.conversationHistory(1).messages());
+    }
+
+    @Test
+    void suppliesRecoveryGuidanceForEveryStorageReasonAndPhase() {
+        for (ConversationStorageException.Reason reason
+                : ConversationStorageException.Reason.values()) {
+            for (KaosApplication.ConversationStoragePhase phase
+                    : KaosApplication.ConversationStoragePhase.values()) {
+                String recovery = KaosApplication.conversationStorageRecovery(reason, phase);
+
+                assertFalse(recovery.isBlank());
+                assertFalse(recovery.contains("private"));
+            }
+        }
     }
 
     @Test

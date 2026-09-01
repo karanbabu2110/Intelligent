@@ -60,8 +60,9 @@ store contract but is not production schema initialization or migration.
 
 Feature 004.04 owns production schema versioning, initialization, indexes, and
 migrations. Feature 004.05 owns application wiring and restart restoration.
-Feature 004.06 owns complete locked, unreadable, corrupt, disk-full, diagnostic,
-and recovery policy. Feature 004.07 owns complete persistence integration.
+Feature 004.06 now classifies locked, corrupt, read-only, capacity, unavailable,
+invalid-state, and unknown failures and gives phase-specific recovery without
+automatic retry or repair. Feature 004.07 owns complete persistence integration.
 
 ## Validation
 

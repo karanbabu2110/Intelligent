@@ -39,8 +39,9 @@ unavailable-path diagnostics.
 
 The schema initializer and store remain concrete classes in
 `io.kaos.conversation`. Feature 004.05 now invokes them directly from the
-conversation application lifecycle for restart restore. Feature 004.06 owns the
-complete locked, corrupt, disk-full, backup, repair, and recovery policy.
+conversation application lifecycle for restart restore. Feature 004.06 now
+classifies persistence failures and supplies privacy-safe, offline-copy-first
+recovery without automatic retry, repair, replacement, or deletion.
 
 ## Validation
 

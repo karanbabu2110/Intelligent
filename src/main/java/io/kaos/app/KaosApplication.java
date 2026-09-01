@@ -12,6 +12,7 @@ import io.kaos.conversation.ConversationMessage;
 import io.kaos.conversation.ConversationRole;
 import io.kaos.conversation.ConversationSession;
 import io.kaos.conversation.ConversationStorageException;
+import io.kaos.conversation.ConversationStorageException.Reason;
 import io.kaos.conversation.SqliteConversationSchema;
 import io.kaos.conversation.SqliteConversationStore;
 import java.io.BufferedReader;
@@ -331,9 +332,17 @@ public final class KaosApplication {
         ConversationRuntime conversationRuntime;
         try {
             conversationRuntime = restoreConversationRuntime(databasePathLoader.get());
-        } catch (IOException | ConversationStorageException | IllegalArgumentException
-                | IllegalStateException | SecurityException exception) {
-            logConversationStorageFailure(errorOutput);
+        } catch (ConversationStorageException exception) {
+            logConversationStorageFailure(
+                    errorOutput, exception.reason(), ConversationStoragePhase.STARTUP);
+            return APPLICATION_ERROR;
+        } catch (IOException | IllegalStateException | SecurityException exception) {
+            logConversationStorageFailure(
+                    errorOutput, Reason.UNAVAILABLE, ConversationStoragePhase.STARTUP);
+            return APPLICATION_ERROR;
+        } catch (IllegalArgumentException exception) {
+            logConversationStorageFailure(
+                    errorOutput, Reason.INVALID_STATE, ConversationStoragePhase.STARTUP);
             return APPLICATION_ERROR;
         }
         ConversationSession session = conversationRuntime.session();
@@ -400,7 +409,8 @@ public final class KaosApplication {
                 try {
                     store.store(identifier);
                 } catch (ConversationStorageException exception) {
-                    logConversationStorageFailure(errorOutput);
+                    logConversationStorageFailure(errorOutput, exception.reason(),
+                            ConversationStoragePhase.CONVERSATION_CREATE);
                     return APPLICATION_ERROR;
                 }
                 output.println("Conversation " + identifier + " created and selected.");
@@ -441,7 +451,8 @@ public final class KaosApplication {
                         new ConversationMessage(ConversationRole.USER, outcome.prompt()),
                         new ConversationMessage(ConversationRole.ASSISTANT, outcome.response())));
             } catch (ConversationStorageException exception) {
-                logConversationStorageFailure(errorOutput);
+                logConversationStorageFailure(errorOutput, exception.reason(),
+                        ConversationStoragePhase.TURN_WRITE);
                 return APPLICATION_ERROR;
             }
             session.appendTurn(outcome.prompt(), outcome.response());
@@ -476,10 +487,55 @@ public final class KaosApplication {
         return new ConversationRuntime(store, session, restoredHistories.size());
     }
 
-    private static void logConversationStorageFailure(PrintStream errorOutput) {
+    private static void logConversationStorageFailure(
+            PrintStream errorOutput,
+            Reason reason,
+            ConversationStoragePhase phase) {
         logError(errorOutput, CONVERSATION_STORAGE_CODE,
-                "Local conversation storage could not be used safely. "
-                        + "Check the KAOS data directory and retry.");
+                conversationStorageRecovery(reason, phase));
+    }
+
+    static String conversationStorageRecovery(
+            Reason reason,
+            ConversationStoragePhase phase) {
+        Objects.requireNonNull(reason, "reason");
+        Objects.requireNonNull(phase, "phase");
+        String recovery = switch (reason) {
+            case LOCKED ->
+                    "Local conversation storage is locked. Close other processes using "
+                            + "conversations.db and retry.";
+            case CORRUPT ->
+                    "Local conversation storage is corrupt or is not a SQLite database. "
+                            + "Stop KAOS and make an offline copy of conversations.db before "
+                            + "attempting repair.";
+            case READ_ONLY ->
+                    "Local conversation storage is read-only. Grant the current account write "
+                            + "access or select a writable KAOS data directory, then retry.";
+            case CAPACITY ->
+                    "Local conversation storage has insufficient capacity. Free local disk "
+                            + "space and retry.";
+            case UNAVAILABLE ->
+                    "Local conversation storage is unavailable. Check the configured KAOS data "
+                            + "directory and process permissions, then retry.";
+            case INVALID_STATE ->
+                    "Local conversation storage contains an unsupported or inconsistent state. "
+                            + "Make an offline copy, verify the configured KAOS data directory, "
+                            + "and retry without replacing the original.";
+            case UNKNOWN ->
+                    "Local conversation storage failed for an unknown reason. Stop KAOS, keep "
+                            + "the existing database, and verify the configured data directory "
+                            + "before retrying.";
+        };
+        return recovery + switch (phase) {
+            case STARTUP ->
+                    " KAOS did not delete, replace, or automatically repair the database.";
+            case CONVERSATION_CREATE ->
+                    " The new conversation was not saved; this command is ending to avoid "
+                            + "divergent state.";
+            case TURN_WRITE ->
+                    " The completed turn was not saved even though its answer was displayed; "
+                            + "this command is ending to avoid divergent state.";
+        };
     }
 
     private static int mergeSessionExitCode(int current, int next) {
@@ -663,6 +719,12 @@ public final class KaosApplication {
             SqliteConversationStore store,
             ConversationSession session,
             int restoredCount) {
+    }
+
+    enum ConversationStoragePhase {
+        STARTUP,
+        CONVERSATION_CREATE,
+        TURN_WRITE
     }
 
     private static final class OllamaPromptOutput {

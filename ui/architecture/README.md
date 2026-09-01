@@ -52,8 +52,8 @@ The landing page answers nine questions in order:
 2. Which concrete class and method handles each command branch?
 3. How do an AI request, repeated answer chunks, and one final result cross the
    Ollama boundary in both directions?
-4. How does the foreground conversation loop change state, and which
-   persistence API remains outside that loop?
+4. How does the foreground conversation loop restore and change state, and how
+   do persistence reads, writes, commits, and failures cross its boundary?
 5. What is the next approved integration but not yet implemented?
 6. What context was added or updated by the current feature?
 7. Which long-term capabilities preserve the vision without prescribing

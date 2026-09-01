@@ -9,8 +9,8 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), and [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9)
 - Active epic: [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
-- Active feature: [004.05 — Conversation Restore](https://github.com/karanbabu2110/KAOS/issues/863), with active Task [004.05.01 — Restore Persisted Conversations on Startup](https://github.com/karanbabu2110/KAOS/issues/1087)
-- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and a version-1 local SQLite database now wired into the conversation command for bounded restart restore and clean-turn persistence
+- Active feature: [004.06 — Persistence Failure Handling](https://github.com/karanbabu2110/KAOS/issues/862), with active Task [004.06.01 — Classify and Report Persistence Failures Safely](https://github.com/karanbabu2110/KAOS/issues/1088)
+- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and a version-1 local SQLite database wired into the conversation command with classified privacy-safe persistence failures
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -145,11 +145,16 @@ instead use `-Dkaos.conversation.data-directory=<directory>`, which takes
 precedence. KAOS fixes the filename, creates the directory when needed, validates
 schema version 1 on every conversation startup, and reports storage failures as
 `KAOS-CONVERSATION-002` without exposing paths, SQL, or conversation content.
+Locked, corrupt, read-only, capacity, unavailable, invalid-state, and unknown
+failures receive distinct recovery guidance. KAOS does not retry, repair,
+replace, or delete the database automatically. A write failure after an answer
+was displayed explicitly says that the completed turn was not saved.
 See [conversation creation and selection](docs/evolution/conversation-creation-selection.md)
 for the lifecycle and [conversation limits and validation](docs/evolution/conversation-limits-validation.md)
 for the exact bounds and recovery behavior. See
 [conversation restore](docs/evolution/conversation-restore.md) for the persistent
-startup and write flow.
+startup and write flow, and [persistence failure handling](docs/evolution/persistence-failure-handling.md)
+for safe operator recovery.
 
 The model remains your explicit choice. Current measurements recommend
 `qwen3:1.7b` only for a fast connectivity smoke test,
@@ -244,8 +249,11 @@ incremental check.
 Epics 000-003 are complete and form the cumulative `1.1.0` checkpoint. Local
 Persistence Epic #823 is active. Completed Features #859, #858, and #861
 selected SQLite and added durable conversation plus ordered-message storage.
-Feature #860 and Task #1086 initialize and validate schema version 1. Active
-Feature #863 and Task #1087 now resolve one local database path, restore the
+Feature #860 and Task #1086 initialize and validate schema version 1. Feature
+#863 and Task #1087 resolve one local database path, restore the
 newest bounded foreground working set, and persist new conversations plus clean
-turns. Complete recovery policy, paging, exact last-selection persistence,
-trimming, summarization, and provider-token estimation remain deferred.
+turns. Active Feature #862 and Task #1088 classify persistence failures, preserve
+transactional rollback, and provide phase-specific privacy-safe recovery without
+automatic retry or repair. Paging, exact last-selection persistence, trimming,
+summarization, and provider-token estimation remain deferred; Feature #864 owns
+the final persistence integration suite.

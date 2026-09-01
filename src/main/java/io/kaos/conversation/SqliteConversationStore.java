@@ -6,6 +6,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -61,7 +62,7 @@ public final class SqliteConversationStore {
             throw new IllegalArgumentException("identifier must be positive");
         }
 
-        try (Connection connection = DriverManager.getConnection(databaseUrl)) {
+        try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try (PreparedStatement statement = connection.prepareStatement(INSERT_CONVERSATION)) {
                 statement.setLong(1, identifier);
@@ -69,10 +70,10 @@ public final class SqliteConversationStore {
                 connection.commit();
             } catch (SQLException exception) {
                 rollback(connection);
-                throw storageFailure();
+                throw storageFailure(exception);
             }
         } catch (SQLException exception) {
-            throw storageFailure();
+            throw storageFailure(exception);
         }
     }
 
@@ -92,20 +93,20 @@ public final class SqliteConversationStore {
 
     /** Returns zero for an empty store or the greatest durable identifier otherwise. */
     public long greatestConversationIdentifier() {
-        try (Connection connection = DriverManager.getConnection(databaseUrl);
+        try (Connection connection = openConnection();
                 PreparedStatement statement = connection.prepareStatement(
                         SELECT_GREATEST_CONVERSATION_IDENTIFIER);
                 ResultSet resultSet = statement.executeQuery()) {
             resultSet.next();
             return resultSet.getLong(1);
         } catch (SQLException exception) {
-            throw storageFailure();
+            throw storageFailure(exception);
         }
     }
 
     private List<Long> conversationIdentifiers(String sql, int limit) {
         List<Long> identifiers = new ArrayList<>();
-        try (Connection connection = DriverManager.getConnection(databaseUrl);
+        try (Connection connection = openConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, limit);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -114,7 +115,7 @@ public final class SqliteConversationStore {
                 }
             }
         } catch (SQLException exception) {
-            throw storageFailure();
+            throw storageFailure(exception);
         }
         return List.copyOf(identifiers);
     }
@@ -139,7 +140,7 @@ public final class SqliteConversationStore {
         }
         List<ConversationMessage> messageBatch = List.copyOf(messages);
 
-        try (Connection connection = DriverManager.getConnection(databaseUrl)) {
+        try (Connection connection = openConnection()) {
             enableForeignKeys(connection);
             connection.setAutoCommit(false);
             try {
@@ -149,20 +150,20 @@ public final class SqliteConversationStore {
                 connection.commit();
             } catch (SQLException exception) {
                 rollback(connection);
-                throw storageFailure();
+                throw storageFailure(exception);
             } catch (ConversationStorageException exception) {
                 rollback(connection);
                 throw exception;
             }
         } catch (SQLException exception) {
-            throw storageFailure();
+            throw storageFailure(exception);
         }
     }
 
     public ConversationHistory conversationHistory(long conversationIdentifier) {
         validateConversationIdentifier(conversationIdentifier);
         List<ConversationMessage> messages = new ArrayList<>();
-        try (Connection connection = DriverManager.getConnection(databaseUrl)) {
+        try (Connection connection = openConnection()) {
             requireConversation(connection, conversationIdentifier);
             try (PreparedStatement statement = connection.prepareStatement(SELECT_MESSAGES)) {
                 statement.setLong(1, conversationIdentifier);
@@ -172,7 +173,7 @@ public final class SqliteConversationStore {
                         String role = resultSet.getString("role");
                         String content = resultSet.getString("content");
                         if (role == null || content == null) {
-                            throw storageFailure();
+                            throw invalidStateFailure();
                         }
                         messages.add(new ConversationMessage(
                                 ConversationRole.valueOf(role),
@@ -181,11 +182,13 @@ public final class SqliteConversationStore {
                 }
             }
             if (messages.size() > ConversationHistory.MAX_MESSAGES) {
-                throw storageFailure();
+                throw invalidStateFailure();
             }
             return new ConversationHistory(messages);
-        } catch (SQLException | IllegalArgumentException exception) {
-            throw storageFailure();
+        } catch (SQLException exception) {
+            throw storageFailure(exception);
+        } catch (IllegalArgumentException exception) {
+            throw invalidStateFailure();
         }
     }
 
@@ -208,7 +211,7 @@ public final class SqliteConversationStore {
             statement.setLong(1, conversationIdentifier);
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (!resultSet.next()) {
-                    throw storageFailure();
+                    throw invalidStateFailure();
                 }
             }
         }
@@ -225,7 +228,7 @@ public final class SqliteConversationStore {
                 long messageCount = resultSet.getLong(1);
                 if (messageCount
                         > ConversationHistory.MAX_MESSAGES - additionalMessages) {
-                    throw storageFailure();
+                    throw invalidStateFailure();
                 }
             }
         }
@@ -254,7 +257,25 @@ public final class SqliteConversationStore {
         }
     }
 
-    private static ConversationStorageException storageFailure() {
-        return new ConversationStorageException("Conversation storage operation failed.");
+    private Connection openConnection() throws SQLException {
+        Connection connection = DriverManager.getConnection(databaseUrl);
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA busy_timeout = 0");
+            return connection;
+        } catch (SQLException exception) {
+            connection.close();
+            throw exception;
+        }
+    }
+
+    private static ConversationStorageException invalidStateFailure() {
+        return new ConversationStorageException(
+                ConversationStorageException.Reason.INVALID_STATE,
+                "Conversation storage operation failed.");
+    }
+
+    private static ConversationStorageException storageFailure(SQLException exception) {
+        return ConversationStorageException.fromSql(
+                exception, "Conversation storage operation failed.");
     }
 }

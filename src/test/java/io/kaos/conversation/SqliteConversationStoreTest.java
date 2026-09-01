@@ -30,6 +30,26 @@ class SqliteConversationStoreTest {
     }
 
     @Test
+    void reportsAnExclusiveDatabaseLockWithoutWaitingOrMutating() throws SQLException {
+        Path database = initializedDatabase("locked.db");
+        SqliteConversationStore store = new SqliteConversationStore(database);
+        store.store(1);
+
+        try (Connection lock = DriverManager.getConnection(databaseUrl(database));
+                Statement statement = lock.createStatement()) {
+            statement.execute("BEGIN EXCLUSIVE");
+
+            ConversationStorageException failure = assertThrows(
+                    ConversationStorageException.class, () -> store.store(2));
+
+            assertEquals(ConversationStorageException.Reason.LOCKED, failure.reason());
+            assertEquals("Conversation storage operation failed.", failure.getMessage());
+        }
+
+        assertEquals(List.of(1L), store.conversationIdentifiers());
+    }
+
+    @Test
     void returnsConversationsInCreationOrderAndBeyondForegroundLimit() throws SQLException {
         Path database = initializedDatabase("ordered.db");
         SqliteConversationStore store = new SqliteConversationStore(database);

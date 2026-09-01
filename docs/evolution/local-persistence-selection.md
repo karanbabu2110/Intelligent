@@ -113,7 +113,8 @@ evidence-backed privacy feature defines more.
 - Feature 004.03 owns ordered message storage behavior.
 - Feature 004.04 owns tables, indexes, schema versions, and migrations.
 - Feature 004.05 owns restoring state into the application lifecycle.
-- Feature 004.06 owns observable database failure and recovery behavior.
+- Feature 004.06 implements observable, privacy-safe database failure and
+  offline-copy-first recovery behavior without automatic retry or repair.
 - Feature 004.07 owns complete persistence integration evidence.
 
 This task does not choose an exact path or driver version, define SQL, perform
