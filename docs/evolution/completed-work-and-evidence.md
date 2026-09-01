@@ -263,7 +263,7 @@ loopback HTTP. The clean merged-main checkpoint completed all 11 tasks and 148
 tests and is recorded by annotated tag
 [`v1.1.0`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/tree/v1.1.0).
 
-## Epic 004 — Local Persistence (in progress)
+## Epic 004 — Local Persistence (complete)
 
 ### Feature 004.01 — Local Persistence Selection
 
@@ -316,16 +316,23 @@ The application gives phase-specific, privacy-safe guidance while preserving
 rollback and the original database. KAOS does not retry, repair, replace, or
 delete persistence automatically.
 
-### Feature 004.07 — Persistence Integration Tests (in progress)
+### Feature 004.07 — Persistence Integration Tests
 
 - [Feature 004.07](https://github.com/karanbabu2110/KAOS/issues/864)
 - [Task 004.07.01 — Prove Persistence Across Application Restarts](https://github.com/karanbabu2110/KAOS/issues/1089)
+- Delivery: [PR #40](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/40)
 - Evidence: [Persistence integration testing](persistence-integration-testing.md)
 
 The deterministic integration suite now crosses the application, real Ollama
 client, loopback streamed NDJSON, and temporary SQLite boundaries across
 separate command runs. It proves exact clean-history restore and durable
 exclusion of a failed partial turn.
+
+Epic 004 is verified end to end through the real conversation command, local
+SQLite schema and store, real Ollama client, streamed loopback NDJSON, and
+separate application runs. The clean merged-main checkpoint completed all seven
+features and passed all 11 `verifyLocal` tasks with 187 tests. Epic 005 — First
+Knowledge and RAG Capability is the next approved stage and is not active yet.
 
 ## Maintenance rule
 

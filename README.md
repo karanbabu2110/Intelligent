@@ -7,9 +7,8 @@ inside the verified single application.
 ## Current development state
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
-- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), and [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9)
-- Active epic: [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
-- Active feature: [004.07 — Persistence Integration Tests](https://github.com/karanbabu2110/KAOS/issues/864), with active Task [004.07.01 — Prove Persistence Across Application Restarts](https://github.com/karanbabu2110/KAOS/issues/1089)
+- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), and [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
+- Next approved epic: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), beginning with [005.01 — Single Document-Type Ingestion](https://github.com/karanbabu2110/KAOS/issues/865); neither is active yet
 - Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and a version-1 local SQLite database wired into the conversation command with classified privacy-safe failures and deterministic restart-to-provider integration evidence
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
@@ -246,15 +245,12 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-003 are complete and form the cumulative `1.1.0` checkpoint. Local
-Persistence Epic #823 is active. Completed Features #859, #858, and #861
-selected SQLite and added durable conversation plus ordered-message storage.
-Feature #860 and Task #1086 initialize and validate schema version 1. Feature
-#863 and Task #1087 resolve one local database path, restore the
-newest bounded foreground working set, and persist new conversations plus clean
-turns. Feature #862 and Task #1088 classify persistence failures, preserve
-transactional rollback, and provide phase-specific privacy-safe recovery without
-automatic retry or repair. Active Feature #864 and Task #1089 prove clean restart
-restore and failed-partial-turn exclusion through the real application, Ollama
-client, loopback NDJSON, and SQLite boundaries. Paging, exact last-selection
-persistence, trimming, summarization, and provider-token estimation remain deferred.
+Epics 000-004 are complete. Local Persistence Epic #823 selected SQLite, added
+versioned transactional conversation and ordered-message storage, restored the
+newest bounded working set after restart, classified persistence failures, and
+proved clean restore plus failed-partial-turn exclusion through the real
+application, Ollama client, loopback NDJSON, and SQLite boundaries. The merged
+checkpoint passes 187 tests and all 11 `verifyLocal` tasks. Paging, exact
+last-selection persistence, trimming, summarization, and provider-token
+estimation remain deferred. Epic #11 and Feature #865 are next approved but not
+yet active.

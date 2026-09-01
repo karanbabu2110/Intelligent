@@ -3,7 +3,8 @@
 Feature [#864](https://github.com/karanbabu2110/KAOS/issues/864) and Task
 [#1089](https://github.com/karanbabu2110/KAOS/issues/1089) provide the final
 Epic 004 evidence that local conversation persistence works through the complete
-implemented application path.
+implemented application path. The feature was delivered by
+[PR #40](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/40).
 
 ## Verified boundary
 
@@ -64,7 +65,8 @@ Run the final repository checkpoint:
 
 Neither command needs an installed Ollama model, the fixed production port,
 external network access, operator conversation data, containers, PostgreSQL,
-Redis, a background worker, or another process.
+Redis, a background worker, or another process. The final clean merged-main
+checkpoint passed all 11 `verifyLocal` tasks and 187 tests.
 
 ## Limits retained after Epic 004
 
