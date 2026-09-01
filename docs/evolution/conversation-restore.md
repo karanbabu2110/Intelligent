@@ -52,8 +52,9 @@ deterministically; exact last-selection state is not stored in schema version 1.
 
 Feature 004.06 supplies locked, corrupt, read-only, capacity, unavailable,
 invalid-state, and unknown recovery categories. It deliberately performs no
-automatic retry, backup, repair, replacement, or deletion. Feature 004.07 owns
-the final epic-wide persistence integration suite. Naming, deletion, trimming,
+automatic retry, backup, repair, replacement, or deletion. Feature 004.07 now
+verifies the complete restart path through the real local integration boundary.
+Naming, deletion, trimming,
 summarization, automatic rollover, and provider-token estimation remain outside
 this task.
 

@@ -62,7 +62,8 @@ Feature 004.04 owns production schema versioning, initialization, indexes, and
 migrations. Feature 004.05 owns application wiring and restart restoration.
 Feature 004.06 now classifies locked, corrupt, read-only, capacity, unavailable,
 invalid-state, and unknown failures and gives phase-specific recovery without
-automatic retry or repair. Feature 004.07 owns complete persistence integration.
+automatic retry or repair. Feature 004.07 verifies complete persistence
+integration across application restarts.
 
 ## Validation
 

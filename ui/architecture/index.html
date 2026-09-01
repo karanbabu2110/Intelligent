@@ -32,7 +32,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-09-01</strong>
-        Version 1.1.0 · Feature 004.06 in progress<br>
+        Version 1.1.0 · Feature 004.07 in progress<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -41,9 +41,9 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 004.06 Task 004.06.01</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 004.07 Task 004.07.01</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify persistence failure handling added by Feature 004.06 Task 004.06.01. SQLite failures now cross the storage boundary as stable privacy-safe reasons, and the application reports whether startup, conversation creation, or a post-answer write failed without automatic retry or repair.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify persistence integration evidence added by Feature 004.07 Task 004.07.01. Deterministic tests now cross the real application, Ollama client, streamed loopback NDJSON, and temporary SQLite boundaries across separate command runs.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
@@ -74,7 +74,7 @@
           <text x="387" y="249" class="svg-copy">Ollama command routing</text>
           <rect x="580" y="166" width="190" height="93" class="box box-support"></rect>
           <text x="602" y="202" class="svg-title">Output</text>
-          <text x="602" y="229" class="svg-copy svg-change">phase-specific safe recovery</text>
+          <text x="602" y="229" class="svg-copy">phase-specific safe recovery</text>
           <rect x="365" y="284" width="190" height="93" class="box box-support"></rect>
           <text x="387" y="320" class="svg-title">App config</text>
           <text x="387" y="347" class="svg-copy">validated local name</text>
@@ -86,7 +86,7 @@
           <rect x="365" y="402" width="405" height="88" class="box box-implemented"></rect>
           <text x="387" y="432" class="svg-title">Conversation capability</text>
           <text x="387" y="456" class="svg-copy">messages · histories · active selection</text>
-          <text x="387" y="478" class="svg-copy svg-change">SQLite restore · writes · classified failures</text>
+          <text x="387" y="478" class="svg-copy">SQLite restore · writes · classified failures</text>
 
           <path d="M254 117 L330 117" class="flow"></path>
           <path d="M555 212 L580 212" class="flow"></path>
@@ -108,7 +108,7 @@
           <text x="358" y="582" class="svg-title">Build and verification boundary</text>
           <text x="358" y="609" class="svg-copy">Gradle application · Jackson JSON · SQLite JDBC · JUnit</text>
           <text x="358" y="634" class="svg-copy">clean verifyLocal → compile → test → package → smoke checks</text>
-          <text x="358" y="658" class="svg-copy">Jackson Databind 2.22.1 runtime JSON</text>
+          <text x="358" y="658" class="svg-copy svg-change">restart test · real client · loopback NDJSON · temp SQLite</text>
           <path d="M566 550 L566 520" class="support-flow"></path>
 
           <text x="875" y="240" class="svg-label">LOCAL PROVIDER BOUNDARY</text>
@@ -123,7 +123,7 @@
           <rect x="866" y="465" width="240" height="115" class="box box-implemented"></rect>
           <text x="890" y="500" class="svg-title">SQLite database</text>
           <text x="890" y="528" class="svg-copy">conversations.db · schema v1</text>
-          <text x="890" y="552" class="svg-copy svg-change">transactional I/O · failure reasons</text>
+          <text x="890" y="552" class="svg-copy">transactional I/O · failure reasons</text>
           <path d="M770 442 L835 442 L835 500 L866 500" class="flow"></path>
           <path d="M866 548 L820 548 L820 480 L770 480" class="support-flow"></path>
         </svg>
@@ -385,9 +385,9 @@
           <text x="410" y="497" class="svg-copy">continue unless interrupted</text>
 
           <rect x="750" y="410" width="360" height="112" class="box box-support"></rect>
-          <text x="770" y="445" class="svg-title svg-change">Command ends safely</text>
+          <text x="770" y="445" class="svg-title">Command ends safely</text>
           <text x="770" y="473" class="svg-copy">interruption or persistence failure</text>
-          <text x="770" y="497" class="svg-copy svg-change">phase guidance · failed turn not saved</text>
+          <text x="770" y="497" class="svg-copy">phase guidance · failed turn not saved</text>
 
           <path d="M1000 342 L1000 375 L170 375 L170 410" class="conversation-return"></path>
           <text x="185" y="368" class="svg-copy">successful PromptOutcome</text>
@@ -411,7 +411,7 @@
           <rect x="30" y="640" width="270" height="55" class="box box-implemented"></rect>
           <text x="50" y="674" class="svg-copy">Path resolver · fixed filename</text>
           <rect x="390" y="640" width="320" height="55" class="box box-implemented"></rect>
-          <text x="410" y="674" class="svg-copy svg-change">Schema + Store · classify SQLite failure</text>
+          <text x="410" y="674" class="svg-copy">Schema + Store · classify SQLite failure</text>
           <rect x="800" y="640" width="290" height="55" class="box box-implemented"></rect>
           <text x="820" y="674" class="svg-copy">SQLite JDBC · conversations.db · v1</text>
           <path d="M300 667 L390 667" class="conversation-call"></path>
@@ -427,7 +427,7 @@
           <path d="M390 690 L350 690 L350 510 L310 510" class="conversation-return"></path>
           <text x="315" y="704" class="svg-copy">commit before append</text>
           <path d="M710 680 L1125 680 L1125 466 L1110 466" class="conversation-failure"></path>
-          <text x="825" y="704" class="svg-copy svg-change">reason + failed phase</text>
+          <text x="825" y="704" class="svg-copy">reason + failed phase</text>
         </svg>
       </div>
 
@@ -532,11 +532,16 @@
           <h3>Conversation restore</h3>
           <p>The conversation command resolves a fixed local database filename, validates schema v1, restores its newest eight histories, continues identifiers above the durable maximum, and writes new identifiers plus complete clean turns.</p>
         </article>
-        <article class="card change-current">
-          <div class="change-label">New in Feature 004.06 Task 004.06.01</div>
+        <article class="card">
           <div class="status implemented">Implemented failure boundary</div>
           <h3>Persistence failure handling</h3>
           <p>Schema and store failures become stable locked, corrupt, read-only, capacity, unavailable, invalid-state, or unknown reasons. The application gives phase-specific recovery, preserves rollback, and performs no automatic retry or repair.</p>
+        </article>
+        <article class="card change-current">
+          <div class="change-label">New in Feature 004.07 Task 004.07.01</div>
+          <div class="status implemented">Verified integration boundary</div>
+          <h3>Persistence integration tests</h3>
+          <p>Separate application runs use the real Ollama client, streamed loopback NDJSON, and one temporary SQLite database to prove exact clean-history restore and durable exclusion of failed partial turns.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -601,7 +606,8 @@
           <tr><td>Atomic ordered SQLite message storage</td><td><a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/SqliteConversationStoreTest.java"><code>SqliteConversationStoreTest.java</code></a>, and <a href="../../docs/evolution/message-storage.md">Task 004.03.01 evidence</a></td><td>Implemented component; delivered by PR #35</td></tr>
           <tr><td>Versioned SQLite schema initialization</td><td><a href="../../src/main/java/io/kaos/conversation/SqliteConversationSchema.java"><code>SqliteConversationSchema.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/SqliteConversationSchemaTest.java"><code>SqliteConversationSchemaTest.java</code></a>, and <a href="../../docs/evolution/schema-management.md">Task 004.04.01 evidence</a></td><td>Implemented; delivered by PR #37 and now used by the conversation command</td></tr>
           <tr><td>Bounded conversation restart restore</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationDatabasePath.java"><code>ConversationDatabasePath.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-restore.md">Task 004.05.01 evidence</a></td><td>Implemented; delivered by PR #38</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 004.06 Task 004.06.01</span>Classified persistence failure recovery</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationStorageException.java"><code>ConversationStorageException.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationSchema.java"><code>SqliteConversationSchema.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationStorageExceptionTest.java"><code>ConversationStorageExceptionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/persistence-failure-handling.md">Task 004.06.01 evidence</a></td><td>Implemented on the feature branch</td></tr>
+          <tr><td>Classified persistence failure recovery</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationStorageException.java"><code>ConversationStorageException.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationSchema.java"><code>SqliteConversationSchema.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationStorageExceptionTest.java"><code>ConversationStorageExceptionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/persistence-failure-handling.md">Task 004.06.01 evidence</a></td><td>Implemented; delivered by PR #39</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 004.07 Task 004.07.01</span>Restart-to-provider persistence integration evidence</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, and <a href="../../docs/evolution/persistence-integration-testing.md">Task 004.07.01 evidence</a></td><td>Implemented on the feature branch</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>
