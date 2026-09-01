@@ -70,5 +70,5 @@ messages, and application rollback after a synthetic write rejection. Portable
 tests use synthetic result codes for disk-full and read-only conditions because
 forcing the host filesystem into those states would be unsafe and unreliable.
 
-Feature 004.07 owns the final epic-wide persistence integration suite. It does
-not change this task's no-retry and offline-copy-first recovery policy.
+Feature 004.07 now supplies the final epic-wide persistence integration suite.
+It does not change this task's no-retry and offline-copy-first recovery policy.

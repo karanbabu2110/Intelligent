@@ -115,7 +115,7 @@ evidence-backed privacy feature defines more.
 - Feature 004.05 owns restoring state into the application lifecycle.
 - Feature 004.06 implements observable, privacy-safe database failure and
   offline-copy-first recovery behavior without automatic retry or repair.
-- Feature 004.07 owns complete persistence integration evidence.
+- Feature 004.07 supplies complete deterministic persistence integration evidence.
 
 This task does not choose an exact path or driver version, define SQL, perform
 database I/O, remove the current runtime safety limits, or create a storage

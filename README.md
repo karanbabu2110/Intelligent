@@ -9,8 +9,8 @@ inside the verified single application.
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), and [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9)
 - Active epic: [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
-- Active feature: [004.06 — Persistence Failure Handling](https://github.com/karanbabu2110/KAOS/issues/862), with active Task [004.06.01 — Classify and Report Persistence Failures Safely](https://github.com/karanbabu2110/KAOS/issues/1088)
-- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and a version-1 local SQLite database wired into the conversation command with classified privacy-safe persistence failures
+- Active feature: [004.07 — Persistence Integration Tests](https://github.com/karanbabu2110/KAOS/issues/864), with active Task [004.07.01 — Prove Persistence Across Application Restarts](https://github.com/karanbabu2110/KAOS/issues/1089)
+- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and a version-1 local SQLite database wired into the conversation command with classified privacy-safe failures and deterministic restart-to-provider integration evidence
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -237,8 +237,8 @@ Run the complete from-clean-state checkpoint:
 ./gradlew.bat clean verifyLocal --no-daemon --warning-mode=all
 ```
 
-This compiles, runs all tests—including the application-to-Ollama loopback
-integration suite—packages the application, executes deterministic `status` and
+This compiles, runs all tests—including the application-to-Ollama-to-SQLite
+restart integration suite—packages the application, executes deterministic `status` and
 `help` smoke commands, and prints a final success checkpoint only when every
 prerequisite passes. The integration suite does not require a running Ollama
 installation or external network. Use `verifyLocal` without `clean` for an
@@ -252,8 +252,9 @@ selected SQLite and added durable conversation plus ordered-message storage.
 Feature #860 and Task #1086 initialize and validate schema version 1. Feature
 #863 and Task #1087 resolve one local database path, restore the
 newest bounded foreground working set, and persist new conversations plus clean
-turns. Active Feature #862 and Task #1088 classify persistence failures, preserve
+turns. Feature #862 and Task #1088 classify persistence failures, preserve
 transactional rollback, and provide phase-specific privacy-safe recovery without
-automatic retry or repair. Paging, exact last-selection persistence, trimming,
-summarization, and provider-token estimation remain deferred; Feature #864 owns
-the final persistence integration suite.
+automatic retry or repair. Active Feature #864 and Task #1089 prove clean restart
+restore and failed-partial-turn exclusion through the real application, Ollama
+client, loopback NDJSON, and SQLite boundaries. Paging, exact last-selection
+persistence, trimming, summarization, and provider-token estimation remain deferred.

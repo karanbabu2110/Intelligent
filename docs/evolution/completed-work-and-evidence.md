@@ -304,16 +304,28 @@ The conversation command now invokes the versioned schema and concrete store,
 restores its newest bounded working set after restart, and persists new
 identifiers plus complete clean turns.
 
-### Feature 004.06 — Persistence Failure Handling (in progress)
+### Feature 004.06 — Persistence Failure Handling
 
 - [Feature 004.06](https://github.com/karanbabu2110/KAOS/issues/862)
 - [Task 004.06.01 — Classify and Report Persistence Failures Safely](https://github.com/karanbabu2110/KAOS/issues/1088)
+- Delivery: [PR #39](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/39)
 - Evidence: [Persistence failure handling](persistence-failure-handling.md)
 
 SQLite failures now cross the schema/store boundary as stable recovery reasons.
 The application gives phase-specific, privacy-safe guidance while preserving
 rollback and the original database. KAOS does not retry, repair, replace, or
 delete persistence automatically.
+
+### Feature 004.07 — Persistence Integration Tests (in progress)
+
+- [Feature 004.07](https://github.com/karanbabu2110/KAOS/issues/864)
+- [Task 004.07.01 — Prove Persistence Across Application Restarts](https://github.com/karanbabu2110/KAOS/issues/1089)
+- Evidence: [Persistence integration testing](persistence-integration-testing.md)
+
+The deterministic integration suite now crosses the application, real Ollama
+client, loopback streamed NDJSON, and temporary SQLite boundaries across
+separate command runs. It proves exact clean-history restore and durable
+exclusion of a failed partial turn.
 
 ## Maintenance rule
 

@@ -14,6 +14,9 @@ import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.ai.ollama.OllamaPromptClientTestSupport;
 import io.kaos.ai.ollama.OllamaThinkingMode;
 import io.kaos.app.config.ApplicationConfiguration;
+import io.kaos.conversation.ConversationMessage;
+import io.kaos.conversation.ConversationRole;
+import io.kaos.conversation.SqliteConversationStore;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -173,6 +176,94 @@ class KaosOllamaIntegrationTest {
             JsonNode recoveryMessages = requestMessages(requests.get(1));
             assertEquals(1, recoveryMessages.size());
             assertMessage(recoveryMessages.get(0), "user", "Clean recovery prompt");
+        }
+    }
+
+    @Test
+    void restoresPersistedHistoryAcrossSeparateCompleteLocalAiRuns() throws Exception {
+        try (LocalOllamaServer server = LocalOllamaServer.responding(
+                200,
+                record("First persisted answer") + TERMINAL,
+                record("Restarted answer") + TERMINAL)) {
+            KaosApplicationHarness.Result firstRun = runConversation(
+                    server.endpoint(), "Remember this durable fact\n/exit\n");
+            KaosApplicationHarness.Result secondRun = runConversation(
+                    server.endpoint(), "What did I ask before?\n/exit\n");
+
+            assertEquals(KaosApplication.SUCCESS, firstRun.exitCode());
+            assertEquals(KaosApplication.SUCCESS, secondRun.exitCode());
+            assertEquals("", firstRun.errorOutput());
+            assertEquals("", secondRun.errorOutput());
+            assertTrue(secondRun.standardOutput().contains(
+                    "Restored 1 conversation. Conversation 1 selected."));
+
+            List<String> requests = server.requestBodies();
+            assertEquals(2, requests.size());
+            JsonNode restartedMessages = requestMessages(requests.get(1));
+            assertEquals(3, restartedMessages.size());
+            assertMessage(restartedMessages.get(0), "user", "Remember this durable fact");
+            assertMessage(restartedMessages.get(1), "assistant", "First persisted answer");
+            assertMessage(restartedMessages.get(2), "user", "What did I ask before?");
+
+            SqliteConversationStore store = new SqliteConversationStore(
+                    temporaryDirectory.resolve("conversations.db"));
+            assertEquals(List.of(
+                    new ConversationMessage(
+                            ConversationRole.USER, "Remember this durable fact"),
+                    new ConversationMessage(
+                            ConversationRole.ASSISTANT, "First persisted answer"),
+                    new ConversationMessage(
+                            ConversationRole.USER, "What did I ask before?"),
+                    new ConversationMessage(
+                            ConversationRole.ASSISTANT, "Restarted answer")),
+                    store.conversationHistory(1).messages());
+        }
+    }
+
+    @Test
+    void excludesAFailedPartialTurnFromDurableHistoryAfterAnotherRestart()
+            throws Exception {
+        String privateProviderContent = "private-malformed-persistence-content";
+        try (LocalOllamaServer server = LocalOllamaServer.responding(
+                200,
+                record("Durable answer") + TERMINAL,
+                record("visible partial") + privateProviderContent + "\n",
+                record("Recovery answer") + TERMINAL)) {
+            KaosApplicationHarness.Result committedRun = runConversation(
+                    server.endpoint(), "Committed prompt\n/exit\n");
+            KaosApplicationHarness.Result failedRun = runConversation(
+                    server.endpoint(), "private failed persistence prompt\n");
+
+            assertEquals(KaosApplication.SUCCESS, committedRun.exitCode());
+            assertEquals(KaosApplication.APPLICATION_ERROR, failedRun.exitCode());
+            assertTrue(failedRun.standardOutput().contains("visible partial"));
+            assertFalse(failedRun.standardOutput().contains(privateProviderContent));
+            assertTrue(failedRun.errorOutput().contains("ERROR [KAOS-AI-002]"));
+            assertFalse(failedRun.errorOutput().contains("private failed persistence prompt"));
+            assertFalse(failedRun.errorOutput().contains(privateProviderContent));
+
+            SqliteConversationStore store = new SqliteConversationStore(
+                    temporaryDirectory.resolve("conversations.db"));
+            assertEquals(List.of(
+                    new ConversationMessage(ConversationRole.USER, "Committed prompt"),
+                    new ConversationMessage(ConversationRole.ASSISTANT, "Durable answer")),
+                    store.conversationHistory(1).messages());
+
+            KaosApplicationHarness.Result recoveryRun = runConversation(
+                    server.endpoint(), "Recovery prompt\n/exit\n");
+
+            assertEquals(KaosApplication.SUCCESS, recoveryRun.exitCode());
+            assertEquals("", recoveryRun.errorOutput());
+            List<String> requests = server.requestBodies();
+            assertEquals(3, requests.size());
+            JsonNode recoveryMessages = requestMessages(requests.get(2));
+            assertEquals(3, recoveryMessages.size());
+            assertMessage(recoveryMessages.get(0), "user", "Committed prompt");
+            assertMessage(recoveryMessages.get(1), "assistant", "Durable answer");
+            assertMessage(recoveryMessages.get(2), "user", "Recovery prompt");
+            assertFalse(requests.get(2).contains("private failed persistence prompt"));
+            assertFalse(requests.get(2).contains("visible partial"));
+            assertFalse(requests.get(2).contains(privateProviderContent));
         }
     }
 

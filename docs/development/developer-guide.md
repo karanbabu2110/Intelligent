@@ -402,10 +402,13 @@ Run only the deterministic application-to-Ollama integration suite:
 This suite enters through both the `ollama-prompt` and `conversation`
 application routes, uses the real `OllamaPromptClient`, sends HTTP only to an
 ephemeral loopback server, and consumes streamed NDJSON. It verifies exact
-one-shot behavior plus selected-conversation isolation, restored history, and
-exclusion of a failed partial turn from the next request. It does not contact
-the fixed production port, require an installed model, or use external network
-access.
+one-shot behavior, selected-conversation isolation, and multiple application
+runs against one temporary SQLite database. A clean turn is restored in exact
+order into the next real HTTP request; a malformed partial turn remains absent
+from both durable history and a later restarted request. The suite does not
+contact the fixed production port, require an installed model, use operator
+data, or use external network access. See
+[persistence integration testing](../evolution/persistence-integration-testing.md).
 
 Run only the real child-process and timeout scenarios:
 
@@ -603,6 +606,7 @@ requiring rollback. KAOS does not start or own the local Ollama process.
 - [Capability boundary evolution](../evolution/capability-boundary-evolution.md)
 - [Completed work and verified evidence](../evolution/completed-work-and-evidence.md)
 - [Persistence failure handling](../evolution/persistence-failure-handling.md)
+- [Persistence integration testing](../evolution/persistence-integration-testing.md)
 - [Architecture website structure and maintenance](../../ui/architecture/README.md)
 - [Ollama connectivity](../evolution/ollama-connectivity.md)
 - [Ollama model configuration](../evolution/ollama-model-configuration.md)
