@@ -42,7 +42,7 @@ public final class SqliteConversationSchema {
         Objects.requireNonNull(databasePath, "databasePath");
         String databaseUrl = "jdbc:sqlite:" + databasePath.toAbsolutePath().normalize();
 
-        try (Connection connection = DriverManager.getConnection(databaseUrl)) {
+        try (Connection connection = openConnection(databaseUrl)) {
             connection.setAutoCommit(false);
             try {
                 int version = schemaVersion(connection);
@@ -53,12 +53,15 @@ public final class SqliteConversationSchema {
                 }
                 validateVersionOne(connection);
                 connection.commit();
-            } catch (SQLException | ConversationStorageException exception) {
+            } catch (SQLException exception) {
                 rollback(connection);
-                throw schemaFailure();
+                throw schemaFailure(exception);
+            } catch (ConversationStorageException exception) {
+                rollback(connection);
+                throw exception;
             }
         } catch (SQLException exception) {
-            throw schemaFailure();
+            throw schemaFailure(exception);
         }
     }
 
@@ -200,8 +203,26 @@ public final class SqliteConversationSchema {
         }
     }
 
+    private static Connection openConnection(String databaseUrl) throws SQLException {
+        Connection connection = DriverManager.getConnection(databaseUrl);
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA busy_timeout = 0");
+            return connection;
+        } catch (SQLException exception) {
+            connection.close();
+            throw exception;
+        }
+    }
+
     private static ConversationStorageException schemaFailure() {
-        return new ConversationStorageException("Conversation schema operation failed.");
+        return new ConversationStorageException(
+                ConversationStorageException.Reason.INVALID_STATE,
+                "Conversation schema operation failed.");
+    }
+
+    private static ConversationStorageException schemaFailure(SQLException exception) {
+        return ConversationStorageException.fromSql(
+                exception, "Conversation schema operation failed.");
     }
 
     private record ColumnDefinition(

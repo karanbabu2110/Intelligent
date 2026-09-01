@@ -9,7 +9,9 @@
  * package also contains a SQLite schema initializer, a fixed local database-path resolver,
  * and a store for durable conversation identifiers and bounded ordered message histories.
  * The application restores the newest bounded working set at conversation startup and writes
- * new identifiers plus complete clean turns directly. The package does not page older durable
- * conversations, preserve exact last selection, trim, summarize, or estimate provider tokens.</p>
+ * new identifiers plus complete clean turns directly. SQLite failures are classified into stable,
+ * content-free recovery reasons without automatic retry, repair, replacement, or deletion. The
+ * package does not page older durable conversations, preserve exact last selection, trim,
+ * summarize, or estimate provider tokens.</p>
  */
 package io.kaos.conversation;

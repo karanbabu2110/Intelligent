@@ -214,7 +214,8 @@ with capacity. These initial limits are not configurable. The durable collection
 can exceed 8 conversations, but the CLI restores only the newest 8 and does not
 yet page older entries. Exact last selection, naming, deletion, trimming,
 summarization, automatic rollover, and provider-token estimation are not stored.
-See [conversation restore](../evolution/conversation-restore.md) and
+See [conversation restore](../evolution/conversation-restore.md),
+[persistence failure handling](../evolution/persistence-failure-handling.md), and
 [conversation limits and validation](../evolution/conversation-limits-validation.md).
 
 The default database is `.kaos/conversations.db` below the Java user-home
@@ -224,6 +225,10 @@ directory, or use the higher-precedence JVM property
 the fixed `conversations.db` filename. Startup creates the directory if needed,
 initializes or validates schema version 1, and returns
 `KAOS-CONVERSATION-002` without private database detail if storage cannot be used.
+The message distinguishes locked, corrupt, read-only, capacity, unavailable,
+invalid-state, and unknown failures and says whether startup, `/new`, or a
+completed-turn write failed. KAOS never retries, repairs, replaces, or deletes
+the database automatically.
 
 ## Local configuration
 
@@ -366,13 +371,15 @@ Run every test:
 Run only the deterministic temporary-SQLite schema and storage tests:
 
 ```powershell
-./gradlew.bat test --tests 'io.kaos.conversation.SqliteConversationSchemaTest' --tests 'io.kaos.conversation.SqliteConversationStoreTest' --no-daemon --warning-mode=all
+./gradlew.bat test --tests 'io.kaos.conversation.*Test' --tests 'io.kaos.app.KaosApplicationTest' --no-daemon --warning-mode=all
 ```
 
 These tests create temporary database files, initialize and validate schema
 version 1, exercise conversation and message storage, resolve the application
-path, and prove bounded session reconstruction. Application tests additionally
-prove that a clean turn from one command run becomes history in the next run.
+path, and prove bounded session reconstruction. They also classify synthetic
+SQLite result codes, hold a real exclusive database lock, preserve a real
+corrupt file byte-for-byte, and prove that a failed post-answer write rolls back
+without claiming the displayed turn was saved.
 
 Run the current application package tests for focused feedback:
 
@@ -488,6 +495,30 @@ success message. Correct the source, test, configuration, toolchain, cache, or
 dependency problem, then rerun the focused command. Finish with the clean
 `verifyLocal` checkpoint.
 
+### Conversation persistence fails
+
+`KAOS-CONVERSATION-002` identifies a safe recovery category without printing
+the database path, SQL, driver message, prompt, or answer. Follow its category:
+
+| Category | Operator action |
+| --- | --- |
+| Locked | Stop other processes using `conversations.db`, then retry deliberately |
+| Corrupt | Stop KAOS and make an offline copy before attempting diagnosis or repair |
+| Read-only | Grant write access or choose a writable data directory |
+| Capacity | Free local disk space before retrying |
+| Unavailable | Verify the configured directory exists and is accessible |
+| Invalid state | Preserve an offline copy and verify the database/schema state |
+| Unknown | Stop, keep the database unchanged, and inspect the local environment |
+
+For an offline copy, first stop KAOS and every process using the database. Copy
+`conversations.db` and any adjacent `conversations.db-wal` or
+`conversations.db-shm` files together, keep the original untouched, and perform
+any repair experiment only on the copy. A startup failure means no session was
+opened. A `/new` failure means that identifier was not saved. A failure after
+an answer was displayed means that complete turn was not saved and the command
+ends. KAOS performs no automatic retry, lock wait, backup, repair, replacement,
+or deletion.
+
 ### Local configuration changes the run output
 
 Inspect `KAOS_APP_NAME`, `KAOS_OLLAMA_MODEL`, `KAOS_OLLAMA_CONTEXT_WINDOW`,
@@ -571,6 +602,7 @@ requiring rollback. KAOS does not start or own the local Ollama process.
 - [Package-first application structure](../evolution/package-first-application-structure.md)
 - [Capability boundary evolution](../evolution/capability-boundary-evolution.md)
 - [Completed work and verified evidence](../evolution/completed-work-and-evidence.md)
+- [Persistence failure handling](../evolution/persistence-failure-handling.md)
 - [Architecture website structure and maintenance](../../ui/architecture/README.md)
 - [Ollama connectivity](../evolution/ollama-connectivity.md)
 - [Ollama model configuration](../evolution/ollama-model-configuration.md)

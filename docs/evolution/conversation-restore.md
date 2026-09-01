@@ -36,8 +36,10 @@ filename. Tests inject JUnit temporary paths and never use the operator's data.
 The database contains exact local prompt and answer content, so filesystem
 access to the chosen directory controls privacy. KAOS sends conversation content
 only to the already-fixed loopback Ollama endpoint. Storage startup or write
-failure ends the command with `KAOS-CONVERSATION-002`; the diagnostic contains no
-path, SQL, driver detail, or conversation content.
+failure ends the command with `KAOS-CONVERSATION-002`; the diagnostic contains
+no path, SQL, driver detail, or conversation content. Feature 004.06 now
+classifies the failure and explains whether startup, `/new`, or a post-answer
+turn write failed. See [persistence failure handling](persistence-failure-handling.md).
 
 ## Bounds and deferred behavior
 
@@ -48,10 +50,12 @@ not yet pageable from the CLI. If eight restored conversations are loaded,
 `/new` remains unavailable. The newest restored conversation is selected
 deterministically; exact last-selection state is not stored in schema version 1.
 
-Feature 004.06 owns complete locked, corrupt, disk-full, backup, repair, and
-recovery policy. Feature 004.07 owns the final epic-wide persistence integration
-suite. Naming, deletion, trimming, summarization, automatic rollover, and
-provider-token estimation remain outside this task.
+Feature 004.06 supplies locked, corrupt, read-only, capacity, unavailable,
+invalid-state, and unknown recovery categories. It deliberately performs no
+automatic retry, backup, repair, replacement, or deletion. Feature 004.07 owns
+the final epic-wide persistence integration suite. Naming, deletion, trimming,
+summarization, automatic rollover, and provider-token estimation remain outside
+this task.
 
 ## Deterministic verification
 

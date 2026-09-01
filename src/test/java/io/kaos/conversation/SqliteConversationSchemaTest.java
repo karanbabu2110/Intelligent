@@ -1,10 +1,13 @@
 package io.kaos.conversation;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -19,6 +22,23 @@ class SqliteConversationSchemaTest {
 
     @TempDir
     Path temporaryDirectory;
+
+    @Test
+    void rejectsCorruptDatabaseWithoutReplacingItsBytes() throws IOException {
+        Path database = temporaryDirectory.resolve("private-corrupt.db");
+        byte[] original = "not a sqlite database\nprivate content".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Files.write(database, original);
+
+        ConversationStorageException failure = assertThrows(
+                ConversationStorageException.class,
+                () -> SqliteConversationSchema.initialize(database));
+
+        assertEquals(ConversationStorageException.Reason.CORRUPT, failure.reason());
+        assertEquals("Conversation schema operation failed.", failure.getMessage());
+        assertArrayEquals(original, Files.readAllBytes(database));
+        assertFalse(failure.getMessage().contains(database.toString()));
+        assertFalse(failure.getMessage().contains("private content"));
+    }
 
     @Test
     void initializesVersionOneAndSupportsStoreAfterReopen() throws SQLException {
@@ -55,6 +75,7 @@ class SqliteConversationSchemaTest {
                 () -> SqliteConversationSchema.initialize(database));
 
         assertEquals("Conversation schema operation failed.", failure.getMessage());
+        assertEquals(ConversationStorageException.Reason.INVALID_STATE, failure.reason());
         assertEquals(2, schemaVersion(database));
         assertFalse(hasObject(database, "conversations"));
         assertFalse(hasObject(database, "messages"));

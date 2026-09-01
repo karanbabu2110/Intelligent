@@ -293,16 +293,27 @@ tests and is recorded by annotated tag
 - Delivery: [PR #37](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/37)
 - Evidence: [Schema management](schema-management.md)
 
-### Feature 004.05 — Conversation Restore (in progress)
+### Feature 004.05 — Conversation Restore
 
 - [Feature 004.05](https://github.com/karanbabu2110/KAOS/issues/863)
 - [Task 004.05.01 — Restore Persisted Conversations on Startup](https://github.com/karanbabu2110/KAOS/issues/1087)
+- Delivery: [PR #38](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/38)
 - Evidence: [Conversation restore](conversation-restore.md)
 
 The conversation command now invokes the versioned schema and concrete store,
 restores its newest bounded working set after restart, and persists new
-identifiers plus complete clean turns. Feature 004.06 owns complete persistence
-failure and recovery behavior.
+identifiers plus complete clean turns.
+
+### Feature 004.06 — Persistence Failure Handling (in progress)
+
+- [Feature 004.06](https://github.com/karanbabu2110/KAOS/issues/862)
+- [Task 004.06.01 — Classify and Report Persistence Failures Safely](https://github.com/karanbabu2110/KAOS/issues/1088)
+- Evidence: [Persistence failure handling](persistence-failure-handling.md)
+
+SQLite failures now cross the schema/store boundary as stable recovery reasons.
+The application gives phase-specific, privacy-safe guidance while preserving
+rollback and the original database. KAOS does not retry, repair, replace, or
+delete persistence automatically.
 
 ## Maintenance rule
 
