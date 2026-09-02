@@ -17,6 +17,9 @@ import io.kaos.conversation.SqliteConversationSchema;
 import io.kaos.conversation.SqliteConversationStore;
 import io.kaos.knowledge.IngestedDocument;
 import io.kaos.knowledge.KnowledgeIngestionException;
+import io.kaos.knowledge.ExtractedText;
+import io.kaos.knowledge.PlainTextExtractor;
+import io.kaos.knowledge.TextExtractionException;
 import io.kaos.knowledge.TextDocumentIngestor;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -60,6 +63,7 @@ public final class KaosApplication {
     static final String INVALID_KNOWLEDGE_DOCUMENT_CODE = "KAOS-KNOWLEDGE-001";
     static final String UNAVAILABLE_KNOWLEDGE_DOCUMENT_CODE = "KAOS-KNOWLEDGE-002";
     static final String KNOWLEDGE_DOCUMENT_LIMIT_CODE = "KAOS-KNOWLEDGE-003";
+    static final String KNOWLEDGE_TEXT_EXTRACTION_CODE = "KAOS-KNOWLEDGE-004";
 
     private KaosApplication() {
     }
@@ -342,9 +346,11 @@ public final class KaosApplication {
             String pathText, PrintStream output, PrintStream errorOutput) {
         try {
             IngestedDocument document = new TextDocumentIngestor().ingest(Path.of(pathText));
+            ExtractedText extractedText = new PlainTextExtractor().extract(document);
             output.println("Ingested document: " + document.name()
                     + " (type: " + document.mediaType()
-                    + ", bytes: " + document.byteCount() + ").");
+                    + ", bytes: " + document.byteCount()
+                    + ", characters: " + extractedText.codePointCount() + ").");
             return SUCCESS;
         } catch (java.nio.file.InvalidPathException exception) {
             logError(errorOutput, INVALID_KNOWLEDGE_DOCUMENT_CODE,
@@ -372,6 +378,11 @@ public final class KaosApplication {
                 default -> throw new IllegalStateException("Unknown ingestion reason.");
             }
             logError(errorOutput, code, recovery);
+            return APPLICATION_ERROR;
+        } catch (TextExtractionException exception) {
+            logError(errorOutput, KNOWLEDGE_TEXT_EXTRACTION_CODE,
+                    "The admitted document could not be extracted as bounded UTF-8 text. "
+                            + "Check the file content and retry.");
             return APPLICATION_ERROR;
         }
     }

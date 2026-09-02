@@ -8,8 +8,8 @@ inside the verified single application.
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), and [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
-- Active work: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), [Feature 005.01 — Single Document-Type Ingestion](https://github.com/karanbabu2110/KAOS/issues/865), and [Task 005.01.01 — Admit One Bounded Local Text Document](https://github.com/karanbabu2110/KAOS/issues/1090)
-- Repository state: one root Gradle/Java 21 application with one production entry point, a bounded in-memory UTF-8 text-document admission package, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and a version-1 local SQLite database wired into the conversation command with classified privacy-safe failures and deterministic restart-to-provider integration evidence
+- Active work: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11) and [Feature 005.02 — Text Extraction](https://github.com/karanbabu2110/KAOS/issues/866); [Feature 005.01 — Single Document-Type Ingestion](https://github.com/karanbabu2110/KAOS/issues/865) is complete
+- Repository state: one root Gradle/Java 21 application with one production entry point, bounded in-memory UTF-8 text-document admission and exact immutable text extraction, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and a version-1 local SQLite database wired into the conversation command with classified privacy-safe failures and deterministic restart-to-provider integration evidence
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -63,12 +63,14 @@ Admit one local UTF-8 plain-text document into a bounded in-memory snapshot:
 ```
 
 The command accepts one non-empty regular `.txt` file, rejects symbolic links,
-and enforces a 1 MiB limit. It prints only the file name, media type, and exact
-byte count; errors do not expose the path or content. The bytes are discarded
-when the command exits. Text extraction, persistence, chunking, embeddings,
-vector storage, retrieval, grounded prompts, and citations are not implemented
-by this feature. See [single document ingestion](docs/evolution/single-document-ingestion.md)
-for exact behavior and limitations.
+and enforces a 1 MiB limit. It strictly extracts the admitted UTF-8 bytes without
+normalizing their decoded content, then prints only the file name, media type,
+exact byte count, and Unicode code-point count. Errors do not expose the path or
+content. Both snapshots are discarded when the command exits. Persistence,
+chunking, embeddings, vector storage, retrieval, grounded prompts, and citations
+are not implemented yet. See [single document ingestion](docs/evolution/single-document-ingestion.md)
+and [text extraction](docs/evolution/text-extraction.md) for exact behavior and
+limitations.
 
 Check whether Ollama is reachable on the fixed local endpoint
 `http://127.0.0.1:11434/api/version`:
@@ -261,10 +263,9 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-004 are complete. Epic #11 and Feature #865 are active through Task
-#1090. The current branch admits one bounded local UTF-8 `.txt` file into an
-immutable in-memory snapshot with safe metadata and content-free failures.
-Nothing is persisted or sent to Ollama. Text extraction remains the next
-ordered feature boundary at #866; chunking, embeddings, vector storage,
-retrieval, grounded prompts, source attribution, and RAG evaluation remain
-later features in Epic 005.
+Epics 000-004 and Feature #865 are complete. Epic #11 and Feature #866 are
+active. The current branch extracts one admitted UTF-8 document into an exact,
+bounded, immutable Unicode text snapshot and reports only safe counts. Nothing
+is persisted or sent to Ollama. Document chunking is the next ordered feature
+boundary at #867; embeddings, vector storage, retrieval, grounded prompts,
+source attribution, and RAG evaluation remain later features in Epic 005.
