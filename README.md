@@ -33,14 +33,16 @@ build outputs, troubleshooting, and the feature delivery workflow.
 
 ## Version
 
-The current cumulative release is **1.1.0**, identified by annotated tag
-[`v1.1.0`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/tree/v1.1.0).
+The current cumulative release is **1.2.0**, identified by annotated tag and
+[GitHub Release `v1.2.0`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v1.2.0).
 
-This release represents all verified work through Epic 003: the evolutionary
+This release represents all verified work through Epic 004: the evolutionary
 development model, minimal runnable application, complete first local AI
-integration, and bounded selectable in-memory conversations with deterministic
+integration, bounded selectable conversations, and versioned local SQLite
+persistence with restart restoration, classified failures, and deterministic
 end-to-end coverage. It is a capability milestone, not a production-readiness
-claim. Persistent conversations are not included in `1.1.0`.
+or permanent database-compatibility claim. See the
+[1.2.0 release notes](docs/releases/v1.2.0.md).
 
 ## Run the application
 

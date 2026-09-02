@@ -334,6 +334,9 @@ separate application runs. The clean merged-main checkpoint completed all seven
 features and passed all 11 `verifyLocal` tasks with 187 tests. Epic 005 — First
 Knowledge and RAG Capability is the next approved stage and is not active yet.
 
+Release checkpoint: [KAOS 1.2.0 release notes](../releases/v1.2.0.md) and
+[validation and publication procedure](../releases/v1.2.0-validation.md).
+
 ## Maintenance rule
 
 After each feature merge, add its feature, story/task, delivery, and evidence
