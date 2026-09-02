@@ -87,6 +87,73 @@ class KaosApplicationTest {
     }
 
     @Test
+    void ingestsOneLocalTextDocumentThroughTheCommandBoundary() throws Exception {
+        Path documentPath = temporaryDirectory.resolve("knowledge.txt");
+        Files.writeString(documentPath, "grounded café", java.nio.charset.StandardCharsets.UTF_8);
+
+        KaosApplicationHarness.Result result =
+                KaosApplicationHarness.run("knowledge-ingest", documentPath.toString());
+
+        assertEquals(KaosApplication.SUCCESS, result.exitCode());
+        assertEquals(
+                "Ingested document: knowledge.txt (type: text/plain; charset=utf-8, bytes: 14)."
+                        + System.lineSeparator(),
+                result.standardOutput());
+        assertEquals("", result.errorOutput());
+    }
+
+    @Test
+    void reportsAnInvalidKnowledgeDocumentWithoutEchoingItsPath() throws Exception {
+        Path documentPath = temporaryDirectory.resolve("private-notes.md");
+        Files.writeString(documentPath, "private content");
+
+        KaosApplicationHarness.Result result =
+                KaosApplicationHarness.run("knowledge-ingest", documentPath.toString());
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-KNOWLEDGE-001] Expected one readable, non-empty UTF-8 .txt file. "
+                        + "Check the file and retry." + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains(documentPath.toString()));
+        assertFalse(result.errorOutput().contains("private content"));
+    }
+
+    @Test
+    void reportsAnUnavailableKnowledgeDocumentWithoutEchoingItsPath() {
+        Path documentPath = temporaryDirectory.resolve("private-missing.txt");
+
+        KaosApplicationHarness.Result result =
+                KaosApplicationHarness.run("knowledge-ingest", documentPath.toString());
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "ERROR [KAOS-KNOWLEDGE-002] The local text document could not be read. "
+                        + "Check that it exists and is accessible, then retry."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains(documentPath.toString()));
+    }
+
+    @Test
+    void rejectsInvalidKnowledgeIngestionArgumentsWithoutEchoingThem() {
+        String privateArgument = "private-extra-value";
+
+        KaosApplicationHarness.Result result = KaosApplicationHarness.run(
+                "knowledge-ingest", "document.txt", privateArgument);
+
+        assertEquals(KaosApplication.USAGE_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "Expected one local .txt path. Run 'kaos help' for usage."
+                        + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains(privateArgument));
+    }
+
+    @Test
     void reportsAReachableLocalOllamaVersion() {
         KaosApplicationHarness.Result result = runOllamaStatus(
                 new OllamaConnectivity.Result(
