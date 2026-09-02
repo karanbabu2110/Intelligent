@@ -46,7 +46,7 @@ must not be bound to a public network interface for ordinary development.
 
 ## Information architecture
 
-The landing page answers nine questions in order:
+The landing page answers ten questions in order:
 
 1. What architecture is implemented and verified now?
 2. Which concrete class and method handles each command branch?
@@ -54,13 +54,15 @@ The landing page answers nine questions in order:
    Ollama boundary in both directions?
 4. How does the foreground conversation loop restore and change state, and how
    do persistence reads, writes, commits, and failures cross its boundary?
-5. What is the next approved integration but not yet implemented?
-6. What context was added or updated by the current feature?
-7. Which long-term capabilities preserve the vision without prescribing
+5. How does one local document path become a bounded immutable byte snapshot,
+   and how do success and failure return?
+6. What is the next approved integration but not yet implemented?
+7. What context was added or updated by the current feature?
+8. Which long-term capabilities preserve the vision without prescribing
    topology?
-8. What evidence would justify a stronger module, repository, or service
+9. What evidence would justify a stronger module, repository, or service
    boundary?
-9. Which repository artifacts prove each architectural claim?
+10. Which repository artifacts prove each architectural claim?
 
 Use these status meanings consistently:
 

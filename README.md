@@ -8,8 +8,8 @@ inside the verified single application.
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), and [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
-- Next approved epic: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), beginning with [005.01 — Single Document-Type Ingestion](https://github.com/karanbabu2110/KAOS/issues/865); neither is active yet
-- Repository state: one root Gradle/Java 21 application with one production entry point, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and a version-1 local SQLite database wired into the conversation command with classified privacy-safe failures and deterministic restart-to-provider integration evidence
+- Active work: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), [Feature 005.01 — Single Document-Type Ingestion](https://github.com/karanbabu2110/KAOS/issues/865), and [Task 005.01.01 — Admit One Bounded Local Text Document](https://github.com/karanbabu2110/KAOS/issues/1090)
+- Repository state: one root Gradle/Java 21 application with one production entry point, a bounded in-memory UTF-8 text-document admission package, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and a version-1 local SQLite database wired into the conversation command with classified privacy-safe failures and deterministic restart-to-provider integration evidence
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -55,6 +55,20 @@ The no-argument form remains supported. Both forms print
 `./gradlew.bat run --args=help` for the exact supported syntax. Unknown
 commands or extra arguments produce safe guidance and a nonzero result without
 echoing the supplied values.
+
+Admit one local UTF-8 plain-text document into a bounded in-memory snapshot:
+
+```powershell
+./gradlew.bat --% run --args="knowledge-ingest \"D:\documents\notes.txt\""
+```
+
+The command accepts one non-empty regular `.txt` file, rejects symbolic links,
+and enforces a 1 MiB limit. It prints only the file name, media type, and exact
+byte count; errors do not expose the path or content. The bytes are discarded
+when the command exits. Text extraction, persistence, chunking, embeddings,
+vector storage, retrieval, grounded prompts, and citations are not implemented
+by this feature. See [single document ingestion](docs/evolution/single-document-ingestion.md)
+for exact behavior and limitations.
 
 Check whether Ollama is reachable on the fixed local endpoint
 `http://127.0.0.1:11434/api/version`:
@@ -247,12 +261,10 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-004 are complete. Local Persistence Epic #823 selected SQLite, added
-versioned transactional conversation and ordered-message storage, restored the
-newest bounded working set after restart, classified persistence failures, and
-proved clean restore plus failed-partial-turn exclusion through the real
-application, Ollama client, loopback NDJSON, and SQLite boundaries. The merged
-checkpoint passes 187 tests and all 11 `verifyLocal` tasks. Paging, exact
-last-selection persistence, trimming, summarization, and provider-token
-estimation remain deferred. Epic #11 and Feature #865 are next approved but not
-yet active.
+Epics 000-004 are complete. Epic #11 and Feature #865 are active through Task
+#1090. The current branch admits one bounded local UTF-8 `.txt` file into an
+immutable in-memory snapshot with safe metadata and content-free failures.
+Nothing is persisted or sent to Ollama. Text extraction remains the next
+ordered feature boundary at #866; chunking, embeddings, vector storage,
+retrieval, grounded prompts, source attribution, and RAG evaluation remain
+later features in Epic 005.

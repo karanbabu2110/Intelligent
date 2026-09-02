@@ -15,6 +15,9 @@ import io.kaos.conversation.ConversationStorageException;
 import io.kaos.conversation.ConversationStorageException.Reason;
 import io.kaos.conversation.SqliteConversationSchema;
 import io.kaos.conversation.SqliteConversationStore;
+import io.kaos.knowledge.IngestedDocument;
+import io.kaos.knowledge.KnowledgeIngestionException;
+import io.kaos.knowledge.TextDocumentIngestor;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,6 +57,9 @@ public final class KaosApplication {
     static final String OLLAMA_CANCELLATION_CODE = "KAOS-AI-006";
     static final String CONVERSATION_INPUT_CODE = "KAOS-CONVERSATION-001";
     static final String CONVERSATION_STORAGE_CODE = "KAOS-CONVERSATION-002";
+    static final String INVALID_KNOWLEDGE_DOCUMENT_CODE = "KAOS-KNOWLEDGE-001";
+    static final String UNAVAILABLE_KNOWLEDGE_DOCUMENT_CODE = "KAOS-KNOWLEDGE-002";
+    static final String KNOWLEDGE_DOCUMENT_LIMIT_CODE = "KAOS-KNOWLEDGE-003";
 
     private KaosApplication() {
     }
@@ -270,6 +276,10 @@ public final class KaosApplication {
             return SUCCESS;
         }
 
+        if (arguments.length == 2 && "knowledge-ingest".equals(arguments[0])) {
+            return reportKnowledgeIngestion(arguments[1], output, errorOutput);
+        }
+
         if (isCommand(arguments, "ollama-status")) {
             return reportOllamaStatus(ollamaConnectivityCheck.get(), output, errorOutput);
         }
@@ -299,6 +309,11 @@ public final class KaosApplication {
             return USAGE_ERROR;
         }
 
+        if (arguments.length > 0 && "knowledge-ingest".equals(arguments[0])) {
+            errorOutput.println("Expected one local .txt path. Run 'kaos help' for usage.");
+            return USAGE_ERROR;
+        }
+
         errorOutput.println(invalidArgumentsMessage(arguments));
         return USAGE_ERROR;
     }
@@ -310,16 +325,55 @@ public final class KaosApplication {
 
     static String helpText() {
         return """
-                Usage: kaos [status|help|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
+                Usage: kaos [status|help|knowledge-ingest <path>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
 
                 Commands:
                   status         Show local application status (default).
                   help           Show this help. The --help alias is also supported.
+                  knowledge-ingest  Admit one local UTF-8 .txt document up to 1 MiB.
                   ollama-status  Check connectivity to the local Ollama server.
                   ollama-model   Show the explicitly configured local Ollama model.
                   ollama-prompt  Submit one quoted prompt and stream the answer.
                   conversation   Start selectable persistent local conversations.
                 """;
+    }
+
+    private static int reportKnowledgeIngestion(
+            String pathText, PrintStream output, PrintStream errorOutput) {
+        try {
+            IngestedDocument document = new TextDocumentIngestor().ingest(Path.of(pathText));
+            output.println("Ingested document: " + document.name()
+                    + " (type: " + document.mediaType()
+                    + ", bytes: " + document.byteCount() + ").");
+            return SUCCESS;
+        } catch (java.nio.file.InvalidPathException exception) {
+            logError(errorOutput, INVALID_KNOWLEDGE_DOCUMENT_CODE,
+                    "Expected one readable, non-empty UTF-8 .txt file. Check the file and retry.");
+            return APPLICATION_ERROR;
+        } catch (KnowledgeIngestionException exception) {
+            String code;
+            String recovery;
+            switch (exception.reason()) {
+                case INVALID_DOCUMENT -> {
+                    code = INVALID_KNOWLEDGE_DOCUMENT_CODE;
+                    recovery = "Expected one readable, non-empty UTF-8 .txt file. "
+                            + "Check the file and retry.";
+                }
+                case UNAVAILABLE -> {
+                    code = UNAVAILABLE_KNOWLEDGE_DOCUMENT_CODE;
+                    recovery = "The local text document could not be read. "
+                            + "Check that it exists and is accessible, then retry.";
+                }
+                case TOO_LARGE -> {
+                    code = KNOWLEDGE_DOCUMENT_LIMIT_CODE;
+                    recovery = "The local text document exceeds the 1 MiB ingestion limit. "
+                            + "Choose a smaller file and retry.";
+                }
+                default -> throw new IllegalStateException("Unknown ingestion reason.");
+            }
+            logError(errorOutput, code, recovery);
+            return APPLICATION_ERROR;
+        }
     }
 
     private static int runConversation(

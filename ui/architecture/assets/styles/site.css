@@ -364,7 +364,10 @@ svg text {
 .conversation-call,
 .conversation-return,
 .conversation-failure,
-.conversation-unwired {
+.conversation-unwired,
+.knowledge-call,
+.knowledge-return,
+.knowledge-failure {
   fill: none;
   stroke-width: 2.2;
 }
@@ -409,6 +412,22 @@ svg text {
   stroke: var(--next);
   stroke-dasharray: 8 7;
   marker-end: url("#conversation-arrow-gold");
+}
+
+.knowledge-call {
+  stroke: var(--implemented);
+  marker-end: url("#knowledge-arrow-green");
+}
+
+.knowledge-return {
+  stroke: var(--accent);
+  marker-end: url("#knowledge-arrow-blue");
+}
+
+.knowledge-failure {
+  stroke: var(--change);
+  stroke-dasharray: 8 7;
+  marker-end: url("#knowledge-arrow-pink");
 }
 
 .grid {

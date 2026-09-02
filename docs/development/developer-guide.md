@@ -73,6 +73,20 @@ Show supported commands:
 ./gradlew.bat run --args=help
 ```
 
+Admit one local UTF-8 `.txt` file, up to 1 MiB, for later knowledge processing:
+
+```powershell
+./gradlew.bat --% run --args="knowledge-ingest \"D:\documents\notes.txt\""
+```
+
+The command requires one readable, non-empty regular file and rejects symbolic
+links, invalid UTF-8, other extensions, and oversized input. Success prints the
+safe file name, `text/plain; charset=utf-8`, and exact byte count. The immutable
+byte snapshot remains in memory only until the foreground command exits. The
+path may remain in shell history or process arguments, but KAOS does not print
+the path or content. See
+[single document ingestion](../evolution/single-document-ingestion.md).
+
 The no-argument form is equivalent to `status`:
 
 ```powershell
@@ -368,6 +382,16 @@ Run every test:
 ./gradlew.bat test --no-daemon
 ```
 
+Run the document-ingestion package and its command-boundary tests:
+
+```powershell
+./gradlew.bat test --tests 'io.kaos.knowledge.*' --tests 'io.kaos.app.KaosApplicationTest' --no-daemon --warning-mode=all
+```
+
+These tests use temporary local files only. They exercise exact UTF-8 bytes,
+the one MiB boundary, invalid types and content, non-regular and unavailable
+inputs, immutable output, safe CLI metadata, and privacy-safe error mapping.
+
 Run only the deterministic temporary-SQLite schema and storage tests:
 
 ```powershell
@@ -607,6 +631,7 @@ requiring rollback. KAOS does not start or own the local Ollama process.
 - [Completed work and verified evidence](../evolution/completed-work-and-evidence.md)
 - [Persistence failure handling](../evolution/persistence-failure-handling.md)
 - [Persistence integration testing](../evolution/persistence-integration-testing.md)
+- [Single document-type ingestion](../evolution/single-document-ingestion.md)
 - [Architecture website structure and maintenance](../../ui/architecture/README.md)
 - [Ollama connectivity](../evolution/ollama-connectivity.md)
 - [Ollama model configuration](../evolution/ollama-model-configuration.md)
