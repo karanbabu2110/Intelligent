@@ -36,6 +36,18 @@ For new-or-updated emphasis, remove it from the previous feature and apply it
 only to content changed by the current feature. Name the feature visibly and do
 not rely on color alone.
 
+Recency is temporary presentation, never temporary architecture content. When
+rotating the emphasis, remove only the previous feature's recency class, label,
+accent, and current-update pointer. Preserve every verified diagram element,
+explanation, status card, flow, and evidence link introduced by that feature,
+and present it as ordinary **Implemented and verified** content. Never delete,
+replace, or compress away a previous feature fact merely to make room for the
+new highlight; add space or restructure the view instead. A rotating summary
+note may be replaced only when every fact it summarized already has a permanent
+implemented representation elsewhere on the page. Compare the previous and
+updated page before completion and confirm that no implemented fact disappeared
+during highlight rotation.
+
 Keep semantic content, diagrams, links, and accessibility labels in HTML;
 presentation and responsive behavior in CSS; and operating guidance in the
 website README. Avoid duplicated claims, placeholders, speculative schemas,
@@ -54,6 +66,9 @@ keyboard-focusable containers.
 ## Validate proportionally
 
 Always run `git diff --check` and verify newly added or changed local links.
+When recency highlighting changes, diff the previous and current architecture
+content and verify that the earlier feature lost only its temporary emphasis,
+not its implemented content or evidence.
 Then use the smallest applicable level:
 
 1. **Text, evidence, or status wording:** inspect the affected rendered text or
