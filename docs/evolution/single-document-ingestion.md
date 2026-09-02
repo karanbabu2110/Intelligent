@@ -67,9 +67,10 @@ safe metadata, and content-free errors.
 
 ## Deliberately deferred
 
-This feature does not expose decoded text to a consumer, extract another file
-format, persist source documents, chunk text, generate embeddings, select a
-vector store, retrieve context, build a grounded prompt, cite sources, or call
-Ollama. Those outcomes remain with Features 005.02 through 005.09. The next
-approved checkpoint after this feature is
-[Feature 005.02 — Text Extraction](https://github.com/karanbabu2110/KAOS/issues/866).
+This feature itself does not expose decoded text to a consumer, extract another
+file format, persist source documents, chunk text, generate embeddings, select
+a vector store, retrieve context, build a grounded prompt, cite sources, or call
+Ollama. Feature
+[005.02 — Text Extraction](https://github.com/karanbabu2110/KAOS/issues/866)
+subsequently consumes its immutable byte snapshot. Feature 005.03 owns the next
+approved document-chunking checkpoint.

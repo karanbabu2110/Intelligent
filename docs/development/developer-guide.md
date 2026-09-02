@@ -80,12 +80,14 @@ Admit one local UTF-8 `.txt` file, up to 1 MiB, for later knowledge processing:
 ```
 
 The command requires one readable, non-empty regular file and rejects symbolic
-links, invalid UTF-8, other extensions, and oversized input. Success prints the
-safe file name, `text/plain; charset=utf-8`, and exact byte count. The immutable
-byte snapshot remains in memory only until the foreground command exits. The
-path may remain in shell history or process arguments, but KAOS does not print
-the path or content. See
-[single document ingestion](../evolution/single-document-ingestion.md).
+links, invalid UTF-8, other extensions, and oversized input. It extracts the
+admitted bytes exactly without whitespace or line-ending normalization. Success
+prints the safe file name, `text/plain; charset=utf-8`, exact byte count, and
+Unicode code-point count without printing the text. Both immutable snapshots
+remain in memory only until the foreground command exits. The path may remain in
+shell history or process arguments, but KAOS does not print the path or content.
+See [single document ingestion](../evolution/single-document-ingestion.md) and
+[text extraction](../evolution/text-extraction.md).
 
 The no-argument form is equivalent to `status`:
 
@@ -632,6 +634,7 @@ requiring rollback. KAOS does not start or own the local Ollama process.
 - [Persistence failure handling](../evolution/persistence-failure-handling.md)
 - [Persistence integration testing](../evolution/persistence-integration-testing.md)
 - [Single document-type ingestion](../evolution/single-document-ingestion.md)
+- [Text extraction](../evolution/text-extraction.md)
 - [Architecture website structure and maintenance](../../ui/architecture/README.md)
 - [Ollama connectivity](../evolution/ollama-connectivity.md)
 - [Ollama model configuration](../evolution/ollama-model-configuration.md)
