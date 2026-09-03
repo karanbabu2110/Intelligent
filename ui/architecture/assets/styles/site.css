@@ -611,7 +611,21 @@ footer {
   }
 
   .nav-links {
-    gap: 0.75rem;
+    width: 100%;
+    column-gap: 0.9rem;
+    row-gap: 0.55rem;
+  }
+
+  .legend {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pill {
+    width: fit-content;
+    max-width: 100%;
+    border-radius: 1rem;
+    line-height: 1.35;
   }
 
   .hero {

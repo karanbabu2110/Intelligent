@@ -31,7 +31,7 @@
         <p class="lede">This website records what exists, what is approved next, and which boundaries remain only candidates. It is updated alongside implementation—not designed years ahead of it.</p>
       </div>
       <div class="stamp">
-        <strong>Verified 2026-09-02</strong>
+        <strong>Verified 2026-09-03</strong>
         Version 1.2.0 · Epic 005 active<br>
         Java 21 · one Gradle project · one process
       </div>
@@ -41,16 +41,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 005.03</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in application responsibility refactor</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels and accents identify deterministic document chunking added by Feature 005.03. The existing exact <code>ExtractedText</code> snapshot now passes directly to <code>DocumentChunker</code>, which returns immutable ordered retrieval units without persistence, Ollama, or a distributed boundary. Feature 005.02 extraction remains implemented and visible as the preceding step.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> magenta labels identify the application responsibility refactor. <code>KaosApplication</code> now owns only the JVM and configuration boundary; <code>ApplicationRuntime</code> composes explicit dependencies, <code>CommandRouter</code> selects one CLI branch, and named command coordinators own knowledge, Ollama, and conversation workflows. Product behavior, deployment, data flow, and external contracts are unchanged.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 720" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes the implemented packaged KAOS application. The application validates local configuration and routes status, help, knowledge ingestion, Ollama status, model, one-shot prompt, and interactive conversation commands. The knowledge package admits one regular non-link UTF-8 text file up to one MiB into an immutable in-memory byte snapshot, returns safe metadata, and classifies invalid, unavailable, or oversized input without exposing paths or content. It directly extracts that snapshot into exact bounded immutable Unicode text without normalization, then splits it into immutable ordered chunks of at most 1,000 code points with 200 code points of overlap. The command reports only byte, code-point, and chunk counts and performs no persistence or Ollama call. The conversation package owns bounded immutable user and assistant messages, ordered histories, one bounded foreground session, a local database-path resolver, SQLite schema version 1, and a concrete transactional store. At conversation startup the application creates the local data directory, validates the schema, loads only the newest eight conversation histories, selects the newest restored conversation, and continues identifiers above the complete durable collection. New conversations and complete clean user and assistant turns are written to SQLite; the same clean turns remain in the foreground session. SQLite failures are classified at the schema and store boundary, preserved as stable content-free reasons, and mapped by the application to startup, conversation-create, or turn-write recovery guidance. KAOS does not automatically wait, retry, repair, replace, or delete the database. The durable collection can exceed eight conversations and 512 messages, although older conversations are not yet pageable from the CLI. The conversation command supplies selected history to the Ollama client, which maps it in order and appends the current prompt as the final user message. The one-shot command supplies empty history. Exact last selection, trimming, summarization, and provider-token estimation are not implemented. The Ollama package owns local reachability, explicit model, context, off/on thinking, bounded response-token selection, and one bounded streaming chat request to the fixed local provider. A backpressured JDK publisher supplies UTF-8 newline-delimited JSON. KAOS enforces request, total, inactivity, response-byte, answer, and thinking bounds; cancels the subscription on interruption or hard limits; keeps reasoning hidden; streams validated answer chunks; validates clean completion; distinguishes failure before and after response acceptance plus total and inactivity timeouts; and maps each outcome to privacy-safe recovery guidance. The standard JUnit suite verifies the application and its current capability packages. Gradle, Jackson, and SQLite JDBC support the application.</desc>
+          <desc id="diagram-description">A terminal invokes one packaged Java process. KaosApplication owns process lifecycle, configuration loading, and the top-level safe failure boundary. ApplicationRuntime constructs explicit local dependencies and command coordinators. CommandRouter selects exactly one status, help, knowledge ingestion, Ollama status, model, prompt, or conversation branch. KnowledgeIngestCommand coordinates bounded admission, exact text extraction, and deterministic chunking without persistence or Ollama. OllamaStatusCommand, OllamaModelCommand, and OllamaPromptCommand coordinate provider-facing workflows through a narrow OllamaPromptSubmission port. ConversationCommand owns the foreground UTF-8 loop, bounded session coordination, SQLite restore and writes, and phase-specific recovery. ErrorReporter owns the stable coded-error format. Capability packages retain product and infrastructure behavior. The application remains one Gradle project and process with unchanged CLI, local Ollama, SQLite, and verification boundaries.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -66,15 +66,15 @@
 
           <text x="340" y="40" class="svg-label">SINGLE JAVA 21 PROCESS</text>
           <rect x="330" y="65" width="474" height="455" class="box box-implemented"></rect>
-          <text x="358" y="105" class="svg-title">io.kaos.app.KaosApplication</text>
-          <text x="358" y="132" class="svg-copy">Entry point · composition root · safe error boundary</text>
+          <text x="358" y="105" class="svg-title svg-change">io.kaos.app application layer</text>
+          <text x="358" y="132" class="svg-copy">KaosApplication · lifecycle and configuration boundary</text>
           <rect x="365" y="166" width="190" height="93" class="box box-support"></rect>
-          <text x="387" y="202" class="svg-title">Command routing</text>
-          <text x="387" y="227" class="svg-copy">status · help</text>
-          <text x="387" y="249" class="svg-copy">Ollama command routing</text>
+          <text x="387" y="202" class="svg-title svg-change">Runtime · routing</text>
+          <text x="387" y="227" class="svg-copy">ApplicationRuntime · compose</text>
+          <text x="387" y="249" class="svg-copy">CommandRouter · route</text>
           <rect x="580" y="166" width="190" height="93" class="box box-support"></rect>
-          <text x="602" y="202" class="svg-title">Output</text>
-          <text x="602" y="229" class="svg-copy">phase-specific safe recovery</text>
+          <text x="602" y="202" class="svg-title svg-change">Command coordinators</text>
+          <text x="602" y="229" class="svg-copy">one workflow · safe errors</text>
           <rect x="365" y="284" width="190" height="93" class="box box-support"></rect>
           <text x="387" y="320" class="svg-title">App config</text>
           <text x="387" y="347" class="svg-copy">validated local name</text>
@@ -92,7 +92,7 @@
           <text x="602" y="432" class="svg-title">Knowledge pipeline</text>
           <text x="602" y="456" class="svg-copy">UTF-8 .txt · 1 MiB · safe failures</text>
           <text x="602" y="478" class="svg-copy">safe metadata · exact text · code points</text>
-          <text x="602" y="500" class="svg-copy svg-change">fixed chunks · overlap · safe count</text>
+          <text x="602" y="500" class="svg-copy">fixed chunks · overlap · safe count</text>
 
           <path d="M254 117 L330 117" class="flow"></path>
           <path d="M555 212 L580 212" class="flow"></path>
@@ -117,7 +117,7 @@
           <text x="358" y="605" class="svg-copy">clean verifyLocal → compile → test → package → smoke checks</text>
           <text x="358" y="629" class="svg-copy">temporary-file ingestion tests · no external dependency</text>
           <text x="358" y="653" class="svg-copy">exact extraction · Unicode counts · safe failures</text>
-          <text x="358" y="677" class="svg-copy svg-change">chunk boundaries · overlap · immutable list · safe count</text>
+          <text x="358" y="677" class="svg-copy">chunk boundaries · overlap · immutable list · safe count</text>
           <path d="M566 525 L566 520" class="support-flow"></path>
 
           <text x="875" y="240" class="svg-label">LOCAL PROVIDER BOUNDARY</text>
@@ -148,7 +148,7 @@
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable command routing map">
         <svg viewBox="0 0 1140 535" role="img" aria-labelledby="command-title command-description">
           <title id="command-title">KAOS command routing map</title>
-          <desc id="command-description">Terminal arguments enter KaosApplication main, which installs cancellation cleanup and invokes launch. Launch loads ApplicationConfiguration and calls run. Run selects exactly one command branch. Status and help print directly. Knowledge ingest passes one path to the bounded local admission path in view 4. Ollama status calls OllamaConnectivity check. Ollama model loads OllamaModelConfiguration. Ollama prompt passes empty history to the shared AI path. Conversation enters runConversation, opens and restores local persistence as shown in view 3, and then calls the same AI path for prompts. Invalid configuration, arguments, document input, and storage startup return coded safe errors.</desc>
+          <desc id="command-description">Terminal arguments enter KaosApplication main, which installs cancellation cleanup and invokes launch. Launch loads ApplicationConfiguration and calls the local ApplicationRuntime. ApplicationRuntime composes explicit command dependencies, and CommandRouter selects exactly one branch. Status and help print directly from the router. KnowledgeIngestCommand coordinates the bounded local admission path in view 4. OllamaStatusCommand checks connectivity, OllamaModelCommand loads configuration, and OllamaPromptCommand passes empty history to the AI path. ConversationCommand restores local persistence as shown in view 3 and calls the same prompt command with selected history. Invalid configuration, arguments, document input, provider results, and storage failures return content-safe errors.</desc>
           <defs>
             <marker id="command-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="command-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
@@ -172,9 +172,9 @@
           <text x="540" y="142" class="svg-copy">top-level error boundary</text>
 
           <rect x="810" y="55" width="300" height="105" class="box box-implemented"></rect>
-          <text x="830" y="90" class="svg-title">KaosApplication.run</text>
-          <text x="830" y="118" class="svg-copy">select exactly one command</text>
-          <text x="830" y="142" class="svg-copy">reject invalid arguments</text>
+          <text x="830" y="90" class="svg-title svg-change">ApplicationRuntime + CommandRouter</text>
+          <text x="830" y="118" class="svg-copy">compose explicit dependencies</text>
+          <text x="830" y="142" class="svg-copy">select exactly one command</text>
 
           <path d="M220 107 L260 107" class="command-call"></path>
           <path d="M480 107 L520 107" class="command-call"></path>
@@ -184,33 +184,33 @@
           <path d="M960 160 L960 195 L130 195" class="command-branch"></path>
 
           <rect x="20" y="225" width="160" height="118" class="box box-support"></rect>
-          <text x="40" y="260" class="svg-title">status · help</text>
+          <text x="40" y="260" class="svg-title">CommandRouter</text>
           <text x="40" y="288" class="svg-copy">format and print</text>
           <text x="40" y="312" class="svg-copy">return success</text>
 
           <rect x="205" y="225" width="170" height="118" class="box box-implemented"></rect>
-          <text x="225" y="260" class="svg-title">knowledge-ingest</text>
+          <text x="225" y="260" class="svg-title">Knowledge command</text>
           <text x="225" y="288" class="svg-copy">one local path</text>
           <text x="225" y="312" class="svg-copy">admit → extract → view 4</text>
-          <text x="225" y="333" class="svg-copy svg-change">chunk → safe counts</text>
+          <text x="225" y="333" class="svg-copy">chunk → safe counts</text>
 
           <rect x="400" y="225" width="160" height="118" class="box box-support"></rect>
-          <text x="420" y="260" class="svg-title">ollama-status</text>
+          <text x="420" y="260" class="svg-title">Status command</text>
           <text x="420" y="288" class="svg-copy">connectivity check</text>
           <text x="420" y="312" class="svg-copy">GET /api/version</text>
 
           <rect x="585" y="225" width="160" height="118" class="box box-support"></rect>
-          <text x="605" y="260" class="svg-title">ollama-model</text>
+          <text x="605" y="260" class="svg-title">Model command</text>
           <text x="605" y="288" class="svg-copy">load · validate</text>
           <text x="605" y="312" class="svg-copy">display selection</text>
 
           <rect x="770" y="225" width="160" height="118" class="box box-implemented"></rect>
-          <text x="790" y="260" class="svg-title">ollama-prompt</text>
+          <text x="790" y="260" class="svg-title">Prompt command</text>
           <text x="790" y="288" class="svg-copy">empty history</text>
           <text x="790" y="312" class="svg-copy">prompt → view 2</text>
 
           <rect x="955" y="225" width="165" height="118" class="box box-implemented"></rect>
-          <text x="975" y="260" class="svg-title">conversation</text>
+          <text x="975" y="260" class="svg-title">Conversation command</text>
           <text x="975" y="288" class="svg-copy">restore SQLite</text>
           <text x="975" y="312" class="svg-copy">view 3 ↔ view 2</text>
 
@@ -231,7 +231,7 @@
 
           <rect x="710" y="405" width="400" height="82" class="box box-implemented"></rect>
           <text x="730" y="438" class="svg-title">Shared AI execution · continue to view 2</text>
-          <text x="730" y="464" class="svg-copy">submitOllamaPrompt(prompt, selected history, callbacks)</text>
+          <text x="730" y="464" class="svg-copy">OllamaPromptCommand.submit(prompt, selected history)</text>
           <path d="M850 343 L850 405" class="command-call"></path>
           <path d="M1037 343 L1037 380 L980 380 L980 405" class="command-call"></path>
 
@@ -245,7 +245,7 @@
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable AI chat request flow diagram">
         <svg class="sequence-map" viewBox="0 0 1140 535" role="img" aria-labelledby="flow-title flow-description">
           <title id="flow-title">KAOS AI streaming sequence</title>
-          <desc id="flow-description">KaosApplication submitOllamaPrompt validates the prompt and model, then calls OllamaPromptClient submit with selected or empty history. The client encodes the request and posts it to local Ollama. The response returns through PublisherInputStream and decodeStream. Each validated answer chunk invokes the output callback immediately and exactly once. After the terminal record, one classified Result returns to KaosApplication. Success becomes a PromptOutcome and failure becomes coded recovery without history mutation.</desc>
+          <desc id="flow-description">OllamaPromptCommand validates the prompt and model, then calls the OllamaPromptSubmission port backed locally by OllamaPromptClient with selected or empty history. The client encodes the request and posts it to local Ollama. The response returns through PublisherInputStream and decodeStream. Each validated answer chunk invokes the output callback immediately and exactly once. After the terminal record, one classified Result returns to OllamaPromptCommand. Success becomes a PromptOutcome and failure becomes coded recovery without history mutation.</desc>
           <defs>
             <marker id="sequence-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="sequence-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
@@ -256,12 +256,12 @@
 
           <rect x="30" y="60" width="180" height="118" class="box box-implemented"></rect>
           <text x="50" y="96" class="svg-title">1 · Calling command</text>
-          <text x="50" y="124" class="svg-copy">KaosApplication</text>
+          <text x="50" y="124" class="svg-copy">OllamaPromptCommand</text>
           <text x="50" y="148" class="svg-copy">history + current prompt</text>
 
           <rect x="255" y="60" width="180" height="118" class="box box-support"></rect>
           <text x="275" y="96" class="svg-title">2 · App preparation</text>
-          <text x="275" y="124" class="svg-copy">submitOllamaPrompt</text>
+          <text x="275" y="124" class="svg-copy">OllamaPromptSubmission</text>
           <text x="275" y="148" class="svg-copy">prompt · model · callbacks</text>
 
           <rect x="480" y="60" width="180" height="118" class="box box-implemented"></rect>
@@ -336,7 +336,7 @@
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable conversation state map">
         <svg viewBox="0 0 1140 720" role="img" aria-labelledby="conversation-title conversation-description">
           <title id="conversation-title">KAOS foreground conversation state flow</title>
-          <desc id="conversation-description">KaosApplication runConversation resolves the local conversation database path, creates its directory, initializes or validates schema version 1, and asks SqliteConversationStore for the newest bounded identifier set, each ordered history, and the greatest durable identifier. ConversationSession restore validates clean turn order, selects the newest restored conversation, and continues identifier allocation above the complete durable collection. If storage is empty, conversation 1 is created and stored. The foreground loop reads UTF-8 lines. New conversation controls create an identifier and store it; selection, listing, and help remain in memory. Exit ends the process while durable state remains. A prompt checks capacity and calls the AI sequence in view 2. A clean PromptOutcome writes the user and assistant pair as one SQLite batch before appending the same turn to ConversationSession. A non-clean result performs no persistence write. A SQLite failure returns from the schema or store as a classified content-free reason, ends the command with phase-specific recovery, and never causes automatic retry or repair. If a turn write fails after answer display, the pair is rolled back and reported as not saved.</desc>
+          <desc id="conversation-description">ConversationCommand resolves the local conversation database path, creates its directory, initializes or validates schema version 1, and asks SqliteConversationStore for the newest bounded identifier set, each ordered history, and the greatest durable identifier. ConversationSession restore validates clean turn order, selects the newest restored conversation, and continues identifier allocation above the complete durable collection. If storage is empty, conversation 1 is created and stored. The foreground loop reads UTF-8 lines. New conversation controls create an identifier and store it; selection, listing, and help remain in memory. Exit ends the process while durable state remains. A prompt checks capacity and calls OllamaPromptCommand in view 2. A clean PromptOutcome writes the user and assistant pair as one SQLite batch before appending the same turn to ConversationSession. A non-clean result performs no persistence write. A SQLite failure is mapped to phase-specific recovery through ErrorReporter and never causes automatic retry or repair.</desc>
           <defs>
             <marker id="conversation-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="conversation-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
@@ -346,8 +346,8 @@
 
           <text x="30" y="32" class="svg-label">FOREGROUND LOOP · RESTORED WORKING SET</text>
           <rect x="30" y="55" width="250" height="105" class="box box-implemented"></rect>
-          <text x="50" y="90" class="svg-title">KaosApplication</text>
-          <text x="50" y="118" class="svg-copy">runConversation · restore runtime</text>
+          <text x="50" y="90" class="svg-title svg-change">ConversationCommand</text>
+          <text x="50" y="118" class="svg-copy">execute · restore runtime</text>
           <text x="50" y="142" class="svg-copy">select newest · or create ID 1</text>
 
           <rect x="340" y="55" width="220" height="105" class="box box-implemented"></rect>
@@ -448,7 +448,7 @@
         </svg>
       </div>
 
-      <p class="rule">Code evidence: <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/main/java/io/kaos/app/config/ApplicationConfiguration.java"><code>ApplicationConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaConnectivity.java"><code>OllamaConnectivity.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationDatabasePath.java"><code>ConversationDatabasePath.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationSchema.java"><code>SqliteConversationSchema.java</code></a>, and <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>.</p>
+      <p class="rule">Code evidence: <a href="../../src/main/java/io/kaos/app/ApplicationRuntime.java"><code>ApplicationRuntime.java</code></a>, <a href="../../src/main/java/io/kaos/app/ConversationCommand.java"><code>ConversationCommand.java</code></a>, <a href="../../src/main/java/io/kaos/app/OllamaPromptCommand.java"><code>OllamaPromptCommand.java</code></a>, <a href="../../src/main/java/io/kaos/app/config/ApplicationConfiguration.java"><code>ApplicationConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaConnectivity.java"><code>OllamaConnectivity.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationDatabasePath.java"><code>ConversationDatabasePath.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationSchema.java"><code>SqliteConversationSchema.java</code></a>, and <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>.</p>
     </section>
 
     <section id="knowledge-flow" class="panel" aria-labelledby="knowledge-flow-heading">
@@ -457,7 +457,7 @@
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable document ingestion, text-extraction, and chunking code-flow diagram">
         <svg viewBox="0 0 1140 920" role="img" aria-labelledby="knowledge-title knowledge-description">
           <title id="knowledge-title">KAOS bounded text-document ingestion, extraction, and chunking sequence</title>
-          <desc id="knowledge-description">The terminal passes knowledge-ingest and one path to KaosApplication run. The selected branch calls reportKnowledgeIngestion, which converts the path text to a Path and directly invokes TextDocumentIngestor ingest. The ingestor validates a safe dot-txt file name and no-follow regular-file attributes, reads no more than one MiB into memory while probing for file growth, and strictly validates UTF-8. It creates an IngestedDocument with a defensive byte copy. KaosApplication passes that immutable document directly to PlainTextExtractor. The extractor rechecks media type and byte bounds, strictly decodes the exact UTF-8 content without normalization, and returns an immutable ExtractedText with a Unicode code-point count. KaosApplication then passes that snapshot directly to DocumentChunker. The chunker walks Unicode code-point offsets in 800-code-point advances, returns immutable chunks of at most 1,000 code points with 200 code points of overlap, and never splits a supplementary character. The application prints only name, media type, byte count, character count, and chunk count. Admission failures remain content-free KnowledgeIngestionException reasons; extraction failures become content-free TextExtractionException reasons. No arrow reaches SQLite or Ollama.</desc>
+          <desc id="knowledge-description">The terminal passes knowledge-ingest and one path through CommandRouter to KnowledgeIngestCommand. The command converts path text to a Path and coordinates TextDocumentIngestor, PlainTextExtractor, and DocumentChunker directly in process. Admission validates a safe dot-txt file name, no-follow regular-file attributes, the one MiB limit, and strict UTF-8 before returning an immutable byte snapshot. Extraction preserves exact Unicode text without normalization. Chunking returns immutable ordered units of at most 1,000 code points with 200 code points of overlap. The command prints only safe name, media type, byte count, character count, and chunk count. Content-safe capability failures return through ErrorReporter. No arrow reaches SQLite or Ollama.</desc>
           <defs>
             <marker id="knowledge-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="knowledge-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
@@ -471,12 +471,12 @@
           <text x="50" y="140" class="svg-copy">one local path</text>
 
           <rect x="250" y="55" width="200" height="100" class="box box-implemented"></rect>
-          <text x="270" y="90" class="svg-title">run</text>
+          <text x="270" y="90" class="svg-title">CommandRouter</text>
           <text x="270" y="118" class="svg-copy">match exact command</text>
           <text x="270" y="140" class="svg-copy">reject wrong arity</text>
 
           <rect x="490" y="55" width="270" height="100" class="box box-support"></rect>
-          <text x="510" y="90" class="svg-title">reportKnowledgeIngestion</text>
+          <text x="510" y="90" class="svg-title svg-change">KnowledgeIngestCommand</text>
           <text x="510" y="118" class="svg-copy">Path.of(pathText)</text>
           <text x="510" y="140" class="svg-copy">map result or safe error</text>
 
@@ -535,19 +535,19 @@
           <path d="M370 465 L420 465" class="knowledge-call"></path>
           <path d="M720 465 L770 465" class="knowledge-call"></path>
 
-          <text x="30" y="560" class="svg-label svg-change">FEATURE 005.03 · CHUNKING CALL ORDER ↓</text>
+          <text x="30" y="560" class="svg-label">FEATURE 005.03 · CHUNKING CALL ORDER ↓</text>
           <rect x="70" y="585" width="300" height="100" class="box box-implemented"></rect>
-          <text x="90" y="620" class="svg-title svg-change">DocumentChunker</text>
+          <text x="90" y="620" class="svg-title">DocumentChunker</text>
           <text x="90" y="648" class="svg-copy">direct in-process call</text>
           <text x="90" y="670" class="svg-copy">foreground · deterministic</text>
 
           <rect x="420" y="585" width="300" height="100" class="box box-support"></rect>
-          <text x="440" y="620" class="svg-title svg-change">Fixed overlap policy</text>
+          <text x="440" y="620" class="svg-title">Fixed overlap policy</text>
           <text x="440" y="648" class="svg-copy">max 1,000 code points</text>
           <text x="440" y="670" class="svg-copy">200 overlap · advance 800</text>
 
           <rect x="770" y="585" width="300" height="100" class="box box-implemented"></rect>
-          <text x="790" y="620" class="svg-title svg-change">List&lt;DocumentChunk&gt;</text>
+          <text x="790" y="620" class="svg-title">List&lt;DocumentChunk&gt;</text>
           <text x="790" y="648" class="svg-copy">index · source · start / end</text>
           <text x="790" y="670" class="svg-copy">exact text · immutable · ≤ 1,311</text>
 
@@ -573,7 +573,7 @@
           <text x="410" y="895" class="svg-label">NO PERSISTENCE · NO OLLAMA · NO BACKGROUND WORK</text>
         </svg>
       </div>
-      <p class="rule">Code evidence: <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/TextDocumentIngestor.java"><code>TextDocumentIngestor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/IngestedDocument.java"><code>IngestedDocument.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/KnowledgeIngestionException.java"><code>KnowledgeIngestionException.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/PlainTextExtractor.java"><code>PlainTextExtractor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/ExtractedText.java"><code>ExtractedText.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/TextExtractionException.java"><code>TextExtractionException.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/DocumentChunker.java"><code>DocumentChunker.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/DocumentChunk.java"><code>DocumentChunk.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/TextDocumentIngestorTest.java"><code>TextDocumentIngestorTest.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/PlainTextExtractorTest.java"><code>PlainTextExtractorTest.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/DocumentChunkerTest.java"><code>DocumentChunkerTest.java</code></a>, <a href="../../docs/evolution/single-document-ingestion.md">Feature 005.01 evidence</a>, <a href="../../docs/evolution/text-extraction.md">Feature 005.02 evidence</a>, and <a href="../../docs/evolution/document-chunking.md">Feature 005.03 evidence</a>.</p>
+      <p class="rule">Code evidence: <a href="../../src/main/java/io/kaos/app/KnowledgeIngestCommand.java"><code>KnowledgeIngestCommand.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/TextDocumentIngestor.java"><code>TextDocumentIngestor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/IngestedDocument.java"><code>IngestedDocument.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/KnowledgeIngestionException.java"><code>KnowledgeIngestionException.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/PlainTextExtractor.java"><code>PlainTextExtractor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/ExtractedText.java"><code>ExtractedText.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/TextExtractionException.java"><code>TextExtractionException.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/DocumentChunker.java"><code>DocumentChunker.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/DocumentChunk.java"><code>DocumentChunk.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/TextDocumentIngestorTest.java"><code>TextDocumentIngestorTest.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/PlainTextExtractorTest.java"><code>PlainTextExtractorTest.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/DocumentChunkerTest.java"><code>DocumentChunkerTest.java</code></a>, <a href="../../docs/evolution/single-document-ingestion.md">Feature 005.01 evidence</a>, <a href="../../docs/evolution/text-extraction.md">Feature 005.02 evidence</a>, and <a href="../../docs/evolution/document-chunking.md">Feature 005.03 evidence</a>.</p>
     </section>
 
     <section class="panel" aria-labelledby="status-heading">
@@ -694,8 +694,7 @@
           <h3>Text extraction</h3>
           <p>One direct in-process extractor converts the admitted bytes into exact bounded immutable Unicode text, preserves BOM, whitespace, and line endings, and reports only a code-point count to the CLI.</p>
         </article>
-        <article class="card change-current">
-          <div class="change-label">New in Feature 005.03</div>
+        <article class="card">
           <div class="status implemented">Implemented chunking boundary</div>
           <h3>Document chunking</h3>
           <p>One direct in-process chunker splits exact text into immutable ordered units of at most 1,000 Unicode code points with 200 code points of overlap. The CLI reports only the bounded chunk count.</p>
@@ -744,6 +743,7 @@
         <tbody>
           <tr><td>One build and application</td><td><a href="../../settings.gradle.kts"><code>settings.gradle.kts</code></a> and <a href="../../build.gradle.kts"><code>build.gradle.kts</code></a></td><td>Implemented</td></tr>
           <tr><td>Single process entry point</td><td><a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a></td><td>Implemented</td></tr>
+          <tr class="change-current"><td><span class="change-label">Updated in application responsibility refactor</span>Explicit application composition and command responsibilities</td><td><a href="../../src/main/java/io/kaos/app/ApplicationRuntime.java"><code>ApplicationRuntime.java</code></a>, <a href="../../src/main/java/io/kaos/app/CommandRouter.java"><code>CommandRouter.java</code></a>, <a href="../../src/main/java/io/kaos/app/ConversationCommand.java"><code>ConversationCommand.java</code></a>, <a href="../../src/main/java/io/kaos/app/OllamaPromptCommand.java"><code>OllamaPromptCommand.java</code></a>, and <a href="../../docs/development/developer-guide.md#application-code-organization">coding responsibility rules</a></td><td>Implemented and verified on the refactor branch</td></tr>
           <tr><td>Local validated configuration</td><td><a href="../../src/main/java/io/kaos/app/config/ApplicationConfiguration.java"><code>ApplicationConfiguration.java</code></a></td><td>Implemented</td></tr>
           <tr><td>Package-first growth</td><td><a href="../../docs/evolution/package-first-application-structure.md">Package-first structure</a></td><td>Active rule</td></tr>
           <tr><td>Evidence-gated extraction</td><td><a href="../../docs/evolution/capability-boundary-evolution.md">Boundary evolution decision</a></td><td>Active rule</td></tr>
@@ -752,27 +752,27 @@
           <tr><td>Prompt submission</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-prompt-submission.md">validation evidence</a></td><td>Implemented</td></tr>
           <tr><td>Bounded response generation and completion handling</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaModelConfiguration.java"><code>OllamaModelConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, and <a href="../../docs/evolution/ollama-response-generation-limit-benchmark.md">response-limit benchmark</a></td><td>Implemented</td></tr>
           <tr><td>Incremental answer streaming</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.01 evidence</a></td><td>Implemented</td></tr>
-          <tr><td>Thinking progress and answer isolation</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.02 evidence</a></td><td>Implemented</td></tr>
+          <tr><td>Thinking progress and answer isolation</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/OllamaPromptCommand.java"><code>OllamaPromptCommand.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.02 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Cancellable bounded stream lifecycle</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/ollama-response-streaming.md">Task 002.04.03 evidence</a></td><td>Implemented</td></tr>
-          <tr><td>Phase-specific AI failure boundary</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/ollama-error-and-timeout-handling.md">Task 002.05.01 evidence</a></td><td>Implemented</td></tr>
+          <tr><td>Phase-specific AI failure boundary</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/app/OllamaPromptCommand.java"><code>OllamaPromptCommand.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/ollama-error-and-timeout-handling.md">Task 002.05.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Deterministic application-to-provider integration tests</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTestSupport.java"><code>OllamaPromptClientTestSupport.java</code></a>, and <a href="../../docs/evolution/ollama-ai-integration-testing.md">Task 002.06.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Packaged installed-model demonstration</td><td><a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, and <a href="../../docs/evolution/first-end-to-end-ai-demonstration.md">Task 002.07.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Conversation message vocabulary</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationRole.java"><code>ConversationRole.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationMessageTest.java"><code>ConversationMessageTest.java</code></a>, and <a href="../../docs/evolution/conversation-domain-model.md">Task 003.01.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Ordered in-memory message history</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationHistoryTest.java"><code>ConversationHistoryTest.java</code></a>, and <a href="../../docs/evolution/conversation-message-history.md">Task 003.02.01 evidence</a></td><td>Implemented</td></tr>
           <tr><td>Bounded ordered Ollama chat context</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaPromptClientTest.java"><code>OllamaPromptClientTest.java</code></a>, and <a href="../../docs/evolution/conversation-multi-turn-ai-context.md">Task 003.03.01 evidence</a></td><td>Implemented</td></tr>
-          <tr><td>Selectable foreground conversation session</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-creation-selection.md">Task 003.04.01 evidence</a></td><td>Implemented; Feature 003.04 delivered by PR #30</td></tr>
-          <tr><td>Bounded conversation admission and storage</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-limits-validation.md">Task 003.05.01 evidence</a></td><td>Implemented; Feature 003.05 delivered by PR #31</td></tr>
+          <tr><td>Selectable foreground conversation session</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/ConversationCommand.java"><code>ConversationCommand.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-creation-selection.md">Task 003.04.01 evidence</a></td><td>Implemented; Feature 003.04 delivered by PR #30</td></tr>
+          <tr><td>Bounded conversation admission and storage</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/app/ConversationCommand.java"><code>ConversationCommand.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationSessionTest.java"><code>ConversationSessionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-limits-validation.md">Task 003.05.01 evidence</a></td><td>Implemented; Feature 003.05 delivered by PR #31</td></tr>
           <tr><td>End-to-end conversation integration evidence</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a> and <a href="../../docs/evolution/conversation-tests.md">Task 003.06.01 evidence</a></td><td>Implemented; Feature 003.06 delivered by PR #32</td></tr>
           <tr><td>Scalable local SQLite persistence selection</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, and <a href="../../docs/evolution/local-persistence-selection.md">Task 004.01.01 decision evidence</a></td><td>Selected; delivered by PR #33</td></tr>
           <tr><td>Bounded transactional SQLite conversation records</td><td><a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationStorageException.java"><code>ConversationStorageException.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/SqliteConversationStoreTest.java"><code>SqliteConversationStoreTest.java</code></a>, <a href="../../build.gradle.kts"><code>build.gradle.kts</code></a>, and <a href="../../docs/evolution/conversation-storage.md">Task 004.02.01 evidence</a></td><td>Implemented component; delivered by PR #34</td></tr>
           <tr><td>Atomic ordered SQLite message storage</td><td><a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationMessage.java"><code>ConversationMessage.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationHistory.java"><code>ConversationHistory.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/SqliteConversationStoreTest.java"><code>SqliteConversationStoreTest.java</code></a>, and <a href="../../docs/evolution/message-storage.md">Task 004.03.01 evidence</a></td><td>Implemented component; delivered by PR #35</td></tr>
           <tr><td>Versioned SQLite schema initialization</td><td><a href="../../src/main/java/io/kaos/conversation/SqliteConversationSchema.java"><code>SqliteConversationSchema.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/SqliteConversationSchemaTest.java"><code>SqliteConversationSchemaTest.java</code></a>, and <a href="../../docs/evolution/schema-management.md">Task 004.04.01 evidence</a></td><td>Implemented; delivered by PR #37 and now used by the conversation command</td></tr>
-          <tr><td>Bounded conversation restart restore</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationDatabasePath.java"><code>ConversationDatabasePath.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-restore.md">Task 004.05.01 evidence</a></td><td>Implemented; delivered by PR #38</td></tr>
-          <tr><td>Classified persistence failure recovery</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationStorageException.java"><code>ConversationStorageException.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationSchema.java"><code>SqliteConversationSchema.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationStorageExceptionTest.java"><code>ConversationStorageExceptionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/persistence-failure-handling.md">Task 004.06.01 evidence</a></td><td>Implemented; delivered by PR #39</td></tr>
-          <tr><td>Restart-to-provider persistence integration evidence</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, and <a href="../../docs/evolution/persistence-integration-testing.md">Task 004.07.01 evidence</a></td><td>Implemented; delivered by PR #40</td></tr>
-          <tr><td>Bounded local text-document admission</td><td><a href="../../src/main/java/io/kaos/knowledge/TextDocumentIngestor.java"><code>TextDocumentIngestor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/IngestedDocument.java"><code>IngestedDocument.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/KnowledgeIngestionException.java"><code>KnowledgeIngestionException.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/TextDocumentIngestorTest.java"><code>TextDocumentIngestorTest.java</code></a>, and <a href="../../docs/evolution/single-document-ingestion.md">Feature 005.01 evidence</a></td><td>Implemented; delivered by PR #43</td></tr>
-          <tr><td>Exact bounded text extraction</td><td><a href="../../src/main/java/io/kaos/knowledge/PlainTextExtractor.java"><code>PlainTextExtractor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/ExtractedText.java"><code>ExtractedText.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/TextExtractionException.java"><code>TextExtractionException.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/PlainTextExtractorTest.java"><code>PlainTextExtractorTest.java</code></a>, and <a href="../../docs/evolution/text-extraction.md">Feature 005.02 evidence</a></td><td>Implemented; delivered by PR #44</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 005.03</span>Deterministic bounded document chunking</td><td><a href="../../src/main/java/io/kaos/knowledge/DocumentChunker.java"><code>DocumentChunker.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/DocumentChunk.java"><code>DocumentChunk.java</code></a>, <a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/DocumentChunkerTest.java"><code>DocumentChunkerTest.java</code></a>, and <a href="../../docs/evolution/document-chunking.md">Feature 005.03 evidence</a></td><td>Implemented on the active feature branch; not yet merged</td></tr>
+          <tr><td>Bounded conversation restart restore</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationDatabasePath.java"><code>ConversationDatabasePath.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/ConversationSession.java"><code>ConversationSession.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/app/ConversationCommand.java"><code>ConversationCommand.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/conversation-restore.md">Task 004.05.01 evidence</a></td><td>Implemented; delivered by PR #38</td></tr>
+          <tr><td>Classified persistence failure recovery</td><td><a href="../../src/main/java/io/kaos/conversation/ConversationStorageException.java"><code>ConversationStorageException.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationSchema.java"><code>SqliteConversationSchema.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, <a href="../../src/main/java/io/kaos/app/ConversationCommand.java"><code>ConversationCommand.java</code></a> and <a href="../../src/main/java/io/kaos/app/ErrorReporter.java"><code>ErrorReporter.java</code></a>, <a href="../../src/test/java/io/kaos/conversation/ConversationStorageExceptionTest.java"><code>ConversationStorageExceptionTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/persistence-failure-handling.md">Task 004.06.01 evidence</a></td><td>Implemented; delivered by PR #39</td></tr>
+          <tr><td>Restart-to-provider persistence integration evidence</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a>, <a href="../../src/main/java/io/kaos/app/ApplicationRuntime.java"><code>ApplicationRuntime.java</code></a> and <a href="../../src/main/java/io/kaos/app/ConversationCommand.java"><code>ConversationCommand.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/main/java/io/kaos/conversation/SqliteConversationStore.java"><code>SqliteConversationStore.java</code></a>, and <a href="../../docs/evolution/persistence-integration-testing.md">Task 004.07.01 evidence</a></td><td>Implemented; delivered by PR #40</td></tr>
+          <tr><td>Bounded local text-document admission</td><td><a href="../../src/main/java/io/kaos/knowledge/TextDocumentIngestor.java"><code>TextDocumentIngestor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/IngestedDocument.java"><code>IngestedDocument.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/KnowledgeIngestionException.java"><code>KnowledgeIngestionException.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeIngestCommand.java"><code>KnowledgeIngestCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/TextDocumentIngestorTest.java"><code>TextDocumentIngestorTest.java</code></a>, and <a href="../../docs/evolution/single-document-ingestion.md">Feature 005.01 evidence</a></td><td>Implemented; delivered by PR #43</td></tr>
+          <tr><td>Exact bounded text extraction</td><td><a href="../../src/main/java/io/kaos/knowledge/PlainTextExtractor.java"><code>PlainTextExtractor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/ExtractedText.java"><code>ExtractedText.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/TextExtractionException.java"><code>TextExtractionException.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeIngestCommand.java"><code>KnowledgeIngestCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/PlainTextExtractorTest.java"><code>PlainTextExtractorTest.java</code></a>, and <a href="../../docs/evolution/text-extraction.md">Feature 005.02 evidence</a></td><td>Implemented; delivered by PR #44</td></tr>
+          <tr><td>Deterministic bounded document chunking</td><td><a href="../../src/main/java/io/kaos/knowledge/DocumentChunker.java"><code>DocumentChunker.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/DocumentChunk.java"><code>DocumentChunk.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeIngestCommand.java"><code>KnowledgeIngestCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/DocumentChunkerTest.java"><code>DocumentChunkerTest.java</code></a>, and <a href="../../docs/evolution/document-chunking.md">Feature 005.03 evidence</a></td><td>Implemented; delivered by PR #45</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>
@@ -781,7 +781,7 @@
     <footer>
       <a href="../../README.md">Back to the KAOS README</a> ·
       <a href="README.md">Website maintenance guide</a> ·
-      Roadmap source: <a href="https://github.com/karanbabu2110/KAOS/issues/814">KAOS Evolutionary Development Roadmap #814</a>
+      Roadmap source: <a href="https://github.com/Knowledge-Autonomous-Operating-System/KAOS">KAOS repository</a>
     </footer>
   </main>
 </body>
