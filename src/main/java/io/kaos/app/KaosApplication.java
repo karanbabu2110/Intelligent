@@ -15,14 +15,6 @@ import io.kaos.conversation.ConversationStorageException;
 import io.kaos.conversation.ConversationStorageException.Reason;
 import io.kaos.conversation.SqliteConversationSchema;
 import io.kaos.conversation.SqliteConversationStore;
-import io.kaos.knowledge.DocumentChunk;
-import io.kaos.knowledge.DocumentChunker;
-import io.kaos.knowledge.IngestedDocument;
-import io.kaos.knowledge.KnowledgeIngestionException;
-import io.kaos.knowledge.ExtractedText;
-import io.kaos.knowledge.PlainTextExtractor;
-import io.kaos.knowledge.TextExtractionException;
-import io.kaos.knowledge.TextDocumentIngestor;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -272,56 +264,23 @@ public final class KaosApplication {
         Objects.requireNonNull(output, "output");
         Objects.requireNonNull(errorOutput, "errorOutput");
 
-        if (arguments.length == 0 || isCommand(arguments, "status")) {
-            output.println(startupMessage(configuration));
-            return SUCCESS;
-        }
-
-        if (isCommand(arguments, "help") || isCommand(arguments, "--help")) {
-            output.print(helpText());
-            return SUCCESS;
-        }
-
-        if (arguments.length == 2 && "knowledge-ingest".equals(arguments[0])) {
-            return reportKnowledgeIngestion(arguments[1], output, errorOutput);
-        }
-
-        if (isCommand(arguments, "ollama-status")) {
-            return reportOllamaStatus(ollamaConnectivityCheck.get(), output, errorOutput);
-        }
-
-        if (isCommand(arguments, "ollama-model")) {
-            return reportOllamaModel(ollamaModelConfigurationLoader, output, errorOutput);
-        }
-
-        if (arguments.length == 2 && "ollama-prompt".equals(arguments[0])) {
-            return reportOllamaPrompt(
-                    arguments[1],
-                    ConversationHistory.empty(),
-                    ollamaModelConfigurationLoader,
-                    ollamaPromptSubmission,
-                    output,
-                    errorOutput);
-        }
-
-        if (isCommand(arguments, "conversation")) {
-            return runConversation(input, ollamaModelConfigurationLoader,
-                    ollamaPromptSubmission, conversationDatabasePathLoader,
-                    output, errorOutput);
-        }
-
-        if (arguments.length > 0 && "ollama-prompt".equals(arguments[0])) {
-            errorOutput.println("Expected one quoted prompt. Run 'kaos help' for usage.");
-            return USAGE_ERROR;
-        }
-
-        if (arguments.length > 0 && "knowledge-ingest".equals(arguments[0])) {
-            errorOutput.println("Expected one local .txt path. Run 'kaos help' for usage.");
-            return USAGE_ERROR;
-        }
-
-        errorOutput.println(invalidArgumentsMessage(arguments));
-        return USAGE_ERROR;
+        CommandContext context = new CommandContext(configuration, input, output, errorOutput);
+        return new CommandRouter(
+                context,
+                new KnowledgeIngestCommand(context)::execute,
+                () -> reportOllamaStatus(ollamaConnectivityCheck.get(), output, errorOutput),
+                () -> reportOllamaModel(ollamaModelConfigurationLoader, output, errorOutput),
+                prompt -> reportOllamaPrompt(
+                        prompt,
+                        ConversationHistory.empty(),
+                        ollamaModelConfigurationLoader,
+                        ollamaPromptSubmission,
+                        output,
+                        errorOutput),
+                () -> runConversation(input, ollamaModelConfigurationLoader,
+                        ollamaPromptSubmission, conversationDatabasePathLoader,
+                        output, errorOutput))
+                .route(arguments);
     }
 
     static String startupMessage(ApplicationConfiguration configuration) {
@@ -342,53 +301,6 @@ public final class KaosApplication {
                   ollama-prompt  Submit one quoted prompt and stream the answer.
                   conversation   Start selectable persistent local conversations.
                 """;
-    }
-
-    private static int reportKnowledgeIngestion(
-            String pathText, PrintStream output, PrintStream errorOutput) {
-        try {
-            IngestedDocument document = new TextDocumentIngestor().ingest(Path.of(pathText));
-            ExtractedText extractedText = new PlainTextExtractor().extract(document);
-            List<DocumentChunk> chunks = new DocumentChunker().chunk(extractedText);
-            output.println("Ingested document: " + document.name()
-                    + " (type: " + document.mediaType()
-                    + ", bytes: " + document.byteCount()
-                    + ", characters: " + extractedText.codePointCount()
-                    + ", chunks: " + chunks.size() + ").");
-            return SUCCESS;
-        } catch (java.nio.file.InvalidPathException exception) {
-            logError(errorOutput, INVALID_KNOWLEDGE_DOCUMENT_CODE,
-                    "Expected one readable, non-empty UTF-8 .txt file. Check the file and retry.");
-            return APPLICATION_ERROR;
-        } catch (KnowledgeIngestionException exception) {
-            String code;
-            String recovery;
-            switch (exception.reason()) {
-                case INVALID_DOCUMENT -> {
-                    code = INVALID_KNOWLEDGE_DOCUMENT_CODE;
-                    recovery = "Expected one readable, non-empty UTF-8 .txt file. "
-                            + "Check the file and retry.";
-                }
-                case UNAVAILABLE -> {
-                    code = UNAVAILABLE_KNOWLEDGE_DOCUMENT_CODE;
-                    recovery = "The local text document could not be read. "
-                            + "Check that it exists and is accessible, then retry.";
-                }
-                case TOO_LARGE -> {
-                    code = KNOWLEDGE_DOCUMENT_LIMIT_CODE;
-                    recovery = "The local text document exceeds the 1 MiB ingestion limit. "
-                            + "Choose a smaller file and retry.";
-                }
-                default -> throw new IllegalStateException("Unknown ingestion reason.");
-            }
-            logError(errorOutput, code, recovery);
-            return APPLICATION_ERROR;
-        } catch (TextExtractionException exception) {
-            logError(errorOutput, KNOWLEDGE_TEXT_EXTRACTION_CODE,
-                    "The admitted document could not be extracted as bounded UTF-8 text. "
-                            + "Check the file content and retry.");
-            return APPLICATION_ERROR;
-        }
     }
 
     private static int runConversation(
@@ -894,17 +806,6 @@ public final class KaosApplication {
         };
         logError(errorOutput, OLLAMA_CONNECTIVITY_CODE, recovery);
         return APPLICATION_ERROR;
-    }
-
-    private static boolean isCommand(String[] arguments, String command) {
-        return arguments.length == 1 && command.equals(arguments[0]);
-    }
-
-    private static String invalidArgumentsMessage(String[] arguments) {
-        if (arguments.length > 1) {
-            return "Expected at most one command. Run 'kaos help' for usage.";
-        }
-        return "Unknown command. Run 'kaos help' for usage.";
     }
 
     private static void logError(PrintStream errorOutput, String code, String message) {
