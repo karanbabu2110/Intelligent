@@ -16,7 +16,7 @@ Success now proves both admission and extraction without printing private file
 content:
 
 ```text
-Ingested document: notes.txt (type: text/plain; charset=utf-8, bytes: 42, characters: 39).
+Ingested document: notes.txt (type: text/plain; charset=utf-8, bytes: 42, characters: 39, chunks: 1).
 ```
 
 `bytes` describes the admitted source. `characters` is the Unicode code-point
@@ -65,8 +65,9 @@ metadata output.
 
 ## Deliberately deferred
 
-Extraction produces one complete bounded text snapshot. It does not normalize,
-split, overlap, label, or persist segments. Feature
+Feature 005.02 itself produces one complete bounded text snapshot without
+normalizing or persisting it. Feature
 [#867 — Document Chunking](https://github.com/karanbabu2110/KAOS/issues/867)
-owns the next transformation. Embeddings, vector storage, retrieval, grounded
-prompts, source attribution, and RAG evaluation remain later Epic 005 features.
+now consumes that snapshot and owns the separate segmentation policy. Embeddings,
+vector storage, retrieval, grounded prompts, source attribution, and RAG
+evaluation remain later Epic 005 features.
