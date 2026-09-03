@@ -390,12 +390,14 @@ every command in the public entry point:
 - `ApplicationRuntime` constructs the command graph from explicit dependencies.
 - `CommandContext` carries validated configuration and process input/output.
 - `CommandRouter` parses the supported CLI shape and selects one command.
-- `KnowledgeIngestCommand`, `OllamaCommands`, and `ConversationCommand`
-  coordinate their application workflows; domain and infrastructure behavior
+- `KnowledgeIngestCommand`, `OllamaStatusCommand`, `OllamaModelCommand`,
+  `OllamaPromptCommand`, and `ConversationCommand` coordinate one application
+  workflow each; domain and infrastructure behavior
   remains in `io.kaos.knowledge`, `io.kaos.ai.ollama`, and
   `io.kaos.conversation`.
 - `OllamaPromptSubmission` is the narrow application port used to substitute a
   deterministic prompt implementation in tests.
+- `ErrorReporter` owns the stable coded-error format shared by commands.
 
 When adding a command, keep its parsing in `CommandRouter`, put its workflow in
 a named command coordinator, supply external behavior through its constructor,

@@ -49,16 +49,20 @@ final class ApplicationRuntime {
             PrintStream errorOutput) {
         Objects.requireNonNull(arguments, "arguments");
         CommandContext context = new CommandContext(configuration, input, output, errorOutput);
-        OllamaCommands ollamaCommands = new OllamaCommands(
-                context, connectivityCheck, modelConfigurationLoader, promptSubmission);
+        OllamaStatusCommand ollamaStatusCommand = new OllamaStatusCommand(
+                context, connectivityCheck);
+        OllamaModelCommand ollamaModelCommand = new OllamaModelCommand(
+                context, modelConfigurationLoader);
+        OllamaPromptCommand ollamaPromptCommand = new OllamaPromptCommand(
+                context, modelConfigurationLoader, promptSubmission);
         ConversationCommand conversationCommand = new ConversationCommand(
-                context, ollamaCommands, conversationDatabasePathLoader);
+                context, ollamaPromptCommand, conversationDatabasePathLoader);
         return new CommandRouter(
                 context,
                 new KnowledgeIngestCommand(context)::execute,
-                ollamaCommands::reportStatus,
-                ollamaCommands::reportModel,
-                ollamaCommands::reportPrompt,
+                ollamaStatusCommand::execute,
+                ollamaModelCommand::execute,
+                ollamaPromptCommand::execute,
                 conversationCommand::execute)
                 .route(arguments);
     }

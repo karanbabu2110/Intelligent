@@ -165,7 +165,7 @@ public final class KaosApplication {
     }
 
     private static void logError(PrintStream errorOutput, String code, String message) {
-        errorOutput.println("ERROR [" + code + "] " + message);
+        ErrorReporter.report(errorOutput, code, message);
     }
 
     private static int logUnexpectedApplicationFailure(PrintStream errorOutput) {

@@ -70,6 +70,6 @@ final class KnowledgeIngestCommand {
     }
 
     private void logError(String code, String message) {
-        context.errorOutput().println("ERROR [" + code + "] " + message);
+        ErrorReporter.report(context.errorOutput(), code, message);
     }
 }

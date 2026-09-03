@@ -24,13 +24,14 @@ import java.util.function.Supplier;
 /** Runs the interactive conversation and coordinates its durable local state. */
 final class ConversationCommand {
     private final CommandContext context;
-    private final OllamaCommands ollamaCommands;
+    private final OllamaPromptCommand ollamaPromptCommand;
     private final Supplier<Path> databasePathLoader;
 
-    ConversationCommand(CommandContext context, OllamaCommands ollamaCommands,
+    ConversationCommand(CommandContext context, OllamaPromptCommand ollamaPromptCommand,
             Supplier<Path> databasePathLoader) {
         this.context = Objects.requireNonNull(context, "context");
-        this.ollamaCommands = Objects.requireNonNull(ollamaCommands, "ollamaCommands");
+        this.ollamaPromptCommand = Objects.requireNonNull(
+                ollamaPromptCommand, "ollamaPromptCommand");
         this.databasePathLoader = Objects.requireNonNull(databasePathLoader, "databasePathLoader");
     }
 
@@ -129,7 +130,7 @@ final class ConversationCommand {
                         + "). Select another conversation with capacity or exit and restart.");
                 continue;
             }
-            OllamaCommands.PromptOutcome outcome = ollamaCommands.submitPrompt(
+            OllamaPromptCommand.PromptOutcome outcome = ollamaPromptCommand.submit(
                     line, session.activeHistory());
             if (outcome.exitCode() != KaosApplication.SUCCESS) {
                 sessionExitCode = mergeExitCode(sessionExitCode, outcome.exitCode());
@@ -210,7 +211,7 @@ final class ConversationCommand {
     }
 
     private void logError(String code, String message) {
-        context.errorOutput().println("ERROR [" + code + "] " + message);
+        ErrorReporter.report(context.errorOutput(), code, message);
     }
 
     private static int mergeExitCode(int current, int next) {
