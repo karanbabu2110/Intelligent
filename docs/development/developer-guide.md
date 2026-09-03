@@ -81,13 +81,16 @@ Admit one local UTF-8 `.txt` file, up to 1 MiB, for later knowledge processing:
 
 The command requires one readable, non-empty regular file and rejects symbolic
 links, invalid UTF-8, other extensions, and oversized input. It extracts the
-admitted bytes exactly without whitespace or line-ending normalization. Success
-prints the safe file name, `text/plain; charset=utf-8`, exact byte count, and
-Unicode code-point count without printing the text. Both immutable snapshots
-remain in memory only until the foreground command exits. The path may remain in
-shell history or process arguments, but KAOS does not print the path or content.
+admitted bytes exactly without whitespace or line-ending normalization, then
+splits the text into immutable chunks of at most 1,000 Unicode code points with
+200 code points of overlap. Success prints the safe file name,
+`text/plain; charset=utf-8`, byte count, Unicode code-point count, and chunk
+count without printing the text. All immutable snapshots remain in memory only
+until the foreground command exits. The path may remain in shell history or
+process arguments, but KAOS does not print the path or content.
 See [single document ingestion](../evolution/single-document-ingestion.md) and
-[text extraction](../evolution/text-extraction.md).
+[text extraction](../evolution/text-extraction.md), then
+[document chunking](../evolution/document-chunking.md).
 
 The no-argument form is equivalent to `status`:
 
@@ -392,7 +395,8 @@ Run the document-ingestion package and its command-boundary tests:
 
 These tests use temporary local files only. They exercise exact UTF-8 bytes,
 the one MiB boundary, invalid types and content, non-regular and unavailable
-inputs, immutable output, safe CLI metadata, and privacy-safe error mapping.
+inputs, exact Unicode chunk boundaries and overlap, bounded immutable output,
+safe CLI metadata, and privacy-safe error mapping.
 
 Run only the deterministic temporary-SQLite schema and storage tests:
 

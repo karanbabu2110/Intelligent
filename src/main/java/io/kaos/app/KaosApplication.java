@@ -15,6 +15,8 @@ import io.kaos.conversation.ConversationStorageException;
 import io.kaos.conversation.ConversationStorageException.Reason;
 import io.kaos.conversation.SqliteConversationSchema;
 import io.kaos.conversation.SqliteConversationStore;
+import io.kaos.knowledge.DocumentChunk;
+import io.kaos.knowledge.DocumentChunker;
 import io.kaos.knowledge.IngestedDocument;
 import io.kaos.knowledge.KnowledgeIngestionException;
 import io.kaos.knowledge.ExtractedText;
@@ -347,10 +349,12 @@ public final class KaosApplication {
         try {
             IngestedDocument document = new TextDocumentIngestor().ingest(Path.of(pathText));
             ExtractedText extractedText = new PlainTextExtractor().extract(document);
+            List<DocumentChunk> chunks = new DocumentChunker().chunk(extractedText);
             output.println("Ingested document: " + document.name()
                     + " (type: " + document.mediaType()
                     + ", bytes: " + document.byteCount()
-                    + ", characters: " + extractedText.codePointCount() + ").");
+                    + ", characters: " + extractedText.codePointCount()
+                    + ", chunks: " + chunks.size() + ").");
             return SUCCESS;
         } catch (java.nio.file.InvalidPathException exception) {
             logError(errorOutput, INVALID_KNOWLEDGE_DOCUMENT_CODE,

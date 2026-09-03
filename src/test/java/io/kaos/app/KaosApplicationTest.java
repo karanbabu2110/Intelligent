@@ -96,7 +96,7 @@ class KaosApplicationTest {
 
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(
-                "Ingested document: knowledge.txt (type: text/plain; charset=utf-8, bytes: 14, characters: 13)."
+                "Ingested document: knowledge.txt (type: text/plain; charset=utf-8, bytes: 14, characters: 13, chunks: 1)."
                         + System.lineSeparator(),
                 result.standardOutput());
         assertEquals("", result.errorOutput());
