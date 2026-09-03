@@ -518,9 +518,9 @@ class KaosApplicationTest {
         assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
         assertEquals("", result.standardOutput());
         assertEquals("ERROR [KAOS-CONVERSATION-002] "
-                + KaosApplication.conversationStorageRecovery(
+                + ConversationCommand.storageRecovery(
                         ConversationStorageException.Reason.INVALID_STATE,
-                        KaosApplication.ConversationStoragePhase.STARTUP)
+                        ConversationCommand.StoragePhase.STARTUP)
                 + System.lineSeparator(), result.errorOutput());
         assertFalse(result.errorOutput().contains(privateTarget.toString()));
     }
@@ -587,9 +587,9 @@ class KaosApplicationTest {
     void suppliesRecoveryGuidanceForEveryStorageReasonAndPhase() {
         for (ConversationStorageException.Reason reason
                 : ConversationStorageException.Reason.values()) {
-            for (KaosApplication.ConversationStoragePhase phase
-                    : KaosApplication.ConversationStoragePhase.values()) {
-                String recovery = KaosApplication.conversationStorageRecovery(reason, phase);
+            for (ConversationCommand.StoragePhase phase
+                    : ConversationCommand.StoragePhase.values()) {
+                String recovery = ConversationCommand.storageRecovery(reason, phase);
 
                 assertFalse(recovery.isBlank());
                 assertFalse(recovery.contains("private"));

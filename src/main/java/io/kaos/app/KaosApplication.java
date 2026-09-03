@@ -7,25 +7,9 @@ import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.app.config.ApplicationConfiguration;
 import io.kaos.conversation.ConversationDatabasePath;
 import io.kaos.conversation.ConversationHistory;
-import io.kaos.conversation.ConversationMessage;
-import io.kaos.conversation.ConversationRole;
-import io.kaos.conversation.ConversationSession;
-import io.kaos.conversation.ConversationStorageException;
-import io.kaos.conversation.ConversationStorageException.Reason;
-import io.kaos.conversation.SqliteConversationSchema;
-import io.kaos.conversation.SqliteConversationStore;
-import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -269,14 +253,15 @@ public final class KaosApplication {
                 ollamaConnectivityCheck,
                 ollamaModelConfigurationLoader,
                 ollamaPromptSubmission);
+        ConversationCommand conversationCommand = new ConversationCommand(
+                context, ollamaCommands, conversationDatabasePathLoader);
         return new CommandRouter(
                 context,
                 new KnowledgeIngestCommand(context)::execute,
                 ollamaCommands::reportStatus,
                 ollamaCommands::reportModel,
                 ollamaCommands::reportPrompt,
-                () -> runConversation(input, ollamaCommands, conversationDatabasePathLoader,
-                        output, errorOutput))
+                conversationCommand::execute)
                 .route(arguments);
     }
 
@@ -300,274 +285,6 @@ public final class KaosApplication {
                 """;
     }
 
-    private static int runConversation(
-            InputStream input,
-            OllamaCommands ollamaCommands,
-            Supplier<Path> databasePathLoader,
-            PrintStream output,
-            PrintStream errorOutput) {
-        ConversationRuntime conversationRuntime;
-        try {
-            conversationRuntime = restoreConversationRuntime(databasePathLoader.get());
-        } catch (ConversationStorageException exception) {
-            logConversationStorageFailure(
-                    errorOutput, exception.reason(), ConversationStoragePhase.STARTUP);
-            return APPLICATION_ERROR;
-        } catch (IOException | IllegalStateException | SecurityException exception) {
-            logConversationStorageFailure(
-                    errorOutput, Reason.UNAVAILABLE, ConversationStoragePhase.STARTUP);
-            return APPLICATION_ERROR;
-        } catch (IllegalArgumentException exception) {
-            logConversationStorageFailure(
-                    errorOutput, Reason.INVALID_STATE, ConversationStoragePhase.STARTUP);
-            return APPLICATION_ERROR;
-        }
-        ConversationSession session = conversationRuntime.session();
-        SqliteConversationStore store = conversationRuntime.store();
-        if (conversationRuntime.restoredCount() == 0) {
-            output.println("Conversation " + session.activeIdentifier()
-                    + " created and selected.");
-        } else {
-            output.println("Restored " + conversationRuntime.restoredCount()
-                    + (conversationRuntime.restoredCount() == 1
-                            ? " conversation. "
-                            : " conversations. ")
-                    + "Conversation " + session.activeIdentifier() + " selected.");
-        }
-        output.println("Type /help for conversation controls.");
-        int sessionExitCode = SUCCESS;
-
-        BufferedReader reader = new BufferedReader(new InputStreamReader(
-                input,
-                StandardCharsets.UTF_8.newDecoder()
-                        .onMalformedInput(CodingErrorAction.REPORT)
-                        .onUnmappableCharacter(CodingErrorAction.REPORT)));
-        while (true) {
-            output.print("kaos[" + session.activeIdentifier() + "]> ");
-            output.flush();
-
-            String line;
-            try {
-                line = reader.readLine();
-            } catch (IOException exception) {
-                output.println();
-                logError(errorOutput, CONVERSATION_INPUT_CODE,
-                        "Conversation input could not be read. Exit and retry.");
-                return APPLICATION_ERROR;
-            }
-
-            if (line == null) {
-                output.println();
-                output.println("Conversation session ended.");
-                return sessionExitCode;
-            }
-
-            String command = line.strip();
-            if (command.isEmpty()) {
-                errorOutput.println("Enter a prompt or conversation control. Type /help.");
-                continue;
-            }
-            if ("/exit".equals(command)) {
-                output.println("Conversation session ended.");
-                return sessionExitCode;
-            }
-            if ("/help".equals(command)) {
-                output.print(conversationHelpText());
-                continue;
-            }
-            if ("/new".equals(command)) {
-                if (!session.canCreate()) {
-                    errorOutput.println("Conversation limit reached ("
-                            + ConversationSession.MAX_CONVERSATIONS
-                            + "). Select an existing conversation or exit and restart.");
-                    continue;
-                }
-                long identifier = session.create();
-                try {
-                    store.store(identifier);
-                } catch (ConversationStorageException exception) {
-                    logConversationStorageFailure(errorOutput, exception.reason(),
-                            ConversationStoragePhase.CONVERSATION_CREATE);
-                    return APPLICATION_ERROR;
-                }
-                output.println("Conversation " + identifier + " created and selected.");
-                continue;
-            }
-            if ("/list".equals(command)) {
-                output.println(conversationList(session));
-                continue;
-            }
-            if (command.startsWith("/select")) {
-                selectConversation(command, session, output, errorOutput);
-                continue;
-            }
-            if (command.startsWith("/")) {
-                errorOutput.println("Unknown conversation control. Type /help.");
-                continue;
-            }
-            if (!session.canAppendTurn()) {
-                errorOutput.println("Conversation turn limit reached ("
-                        + ConversationSession.MAX_TURNS_PER_CONVERSATION
-                        + "). Select another conversation with capacity or exit and restart.");
-                continue;
-            }
-
-            OllamaCommands.PromptOutcome outcome = ollamaCommands.submitPrompt(
-                    line, session.activeHistory());
-            if (outcome.exitCode() != SUCCESS) {
-                sessionExitCode = mergeSessionExitCode(
-                        sessionExitCode, outcome.exitCode());
-                if (Thread.currentThread().isInterrupted()) {
-                    return sessionExitCode;
-                }
-                continue;
-            }
-            try {
-                store.appendMessages(session.activeIdentifier(), List.of(
-                        new ConversationMessage(ConversationRole.USER, outcome.prompt()),
-                        new ConversationMessage(ConversationRole.ASSISTANT, outcome.response())));
-            } catch (ConversationStorageException exception) {
-                logConversationStorageFailure(errorOutput, exception.reason(),
-                        ConversationStoragePhase.TURN_WRITE);
-                return APPLICATION_ERROR;
-            }
-            session.appendTurn(outcome.prompt(), outcome.response());
-        }
-    }
-
-    private static ConversationRuntime restoreConversationRuntime(Path databasePath)
-            throws IOException {
-        Objects.requireNonNull(databasePath, "databasePath");
-        Path parent = databasePath.toAbsolutePath().normalize().getParent();
-        if (parent == null) {
-            throw new IllegalArgumentException("conversation database parent is unavailable");
-        }
-        Files.createDirectories(parent);
-        if (Files.exists(databasePath) && !Files.isRegularFile(databasePath)) {
-            throw new IllegalArgumentException("conversation database target is not a regular file");
-        }
-
-        SqliteConversationSchema.initialize(databasePath);
-        SqliteConversationStore store = new SqliteConversationStore(databasePath);
-        Map<Long, ConversationHistory> restoredHistories = new LinkedHashMap<>();
-        for (long identifier : store.recentConversationIdentifiers(
-                ConversationSession.MAX_CONVERSATIONS)) {
-            restoredHistories.put(identifier, store.conversationHistory(identifier));
-        }
-        ConversationSession session = ConversationSession.restore(
-                restoredHistories, store.greatestConversationIdentifier());
-        if (restoredHistories.isEmpty()) {
-            long identifier = session.create();
-            store.store(identifier);
-        }
-        return new ConversationRuntime(store, session, restoredHistories.size());
-    }
-
-    private static void logConversationStorageFailure(
-            PrintStream errorOutput,
-            Reason reason,
-            ConversationStoragePhase phase) {
-        logError(errorOutput, CONVERSATION_STORAGE_CODE,
-                conversationStorageRecovery(reason, phase));
-    }
-
-    static String conversationStorageRecovery(
-            Reason reason,
-            ConversationStoragePhase phase) {
-        Objects.requireNonNull(reason, "reason");
-        Objects.requireNonNull(phase, "phase");
-        String recovery = switch (reason) {
-            case LOCKED ->
-                    "Local conversation storage is locked. Close other processes using "
-                            + "conversations.db and retry.";
-            case CORRUPT ->
-                    "Local conversation storage is corrupt or is not a SQLite database. "
-                            + "Stop KAOS and make an offline copy of conversations.db before "
-                            + "attempting repair.";
-            case READ_ONLY ->
-                    "Local conversation storage is read-only. Grant the current account write "
-                            + "access or select a writable KAOS data directory, then retry.";
-            case CAPACITY ->
-                    "Local conversation storage has insufficient capacity. Free local disk "
-                            + "space and retry.";
-            case UNAVAILABLE ->
-                    "Local conversation storage is unavailable. Check the configured KAOS data "
-                            + "directory and process permissions, then retry.";
-            case INVALID_STATE ->
-                    "Local conversation storage contains an unsupported or inconsistent state. "
-                            + "Make an offline copy, verify the configured KAOS data directory, "
-                            + "and retry without replacing the original.";
-            case UNKNOWN ->
-                    "Local conversation storage failed for an unknown reason. Stop KAOS, keep "
-                            + "the existing database, and verify the configured data directory "
-                            + "before retrying.";
-        };
-        return recovery + switch (phase) {
-            case STARTUP ->
-                    " KAOS did not delete, replace, or automatically repair the database.";
-            case CONVERSATION_CREATE ->
-                    " The new conversation was not saved; this command is ending to avoid "
-                            + "divergent state.";
-            case TURN_WRITE ->
-                    " The completed turn was not saved even though its answer was displayed; "
-                            + "this command is ending to avoid divergent state.";
-        };
-    }
-
-    private static int mergeSessionExitCode(int current, int next) {
-        if (current == APPLICATION_ERROR || next == APPLICATION_ERROR) {
-            return APPLICATION_ERROR;
-        }
-        return current == USAGE_ERROR || next == USAGE_ERROR ? USAGE_ERROR : SUCCESS;
-    }
-
-    private static void selectConversation(
-            String command,
-            ConversationSession session,
-            PrintStream output,
-            PrintStream errorOutput) {
-        String[] parts = command.split("\\s+");
-        long identifier;
-        try {
-            if (parts.length != 2) {
-                throw new NumberFormatException();
-            }
-            identifier = Long.parseLong(parts[1]);
-        } catch (NumberFormatException exception) {
-            errorOutput.println("Expected /select <existing-id>. Type /list to see conversations.");
-            return;
-        }
-
-        if (!session.select(identifier)) {
-            errorOutput.println("Conversation does not exist. Type /list to see conversations.");
-            return;
-        }
-        output.println("Conversation " + identifier + " selected.");
-    }
-
-    private static String conversationList(ConversationSession session) {
-        StringBuilder list = new StringBuilder("Conversations:");
-        long activeIdentifier = session.activeIdentifier();
-        for (long identifier : session.conversationIdentifiers()) {
-            list.append(identifier == activeIdentifier ? " *" : " ").append(identifier);
-        }
-        return list.toString();
-    }
-
-    private static String conversationHelpText() {
-        return """
-                Conversation controls:
-                  /new          Create and select a new conversation.
-                  /select <id>  Select an existing conversation.
-                  /list         List conversations; * marks the selected one.
-                  /help         Show these controls.
-                  /exit         End the session; clean turns remain stored locally.
-                Any other nonblank line is sent as a prompt.
-                Limits: %d conversations and %d clean turns per conversation.
-                """.formatted(ConversationSession.MAX_CONVERSATIONS,
-                        ConversationSession.MAX_TURNS_PER_CONVERSATION);
-    }
-
     @FunctionalInterface
     interface OllamaPromptSubmission {
         OllamaPromptClient.Result submit(
@@ -576,18 +293,6 @@ public final class KaosApplication {
                 OllamaPrompt prompt,
                 Runnable thinkingStarted,
                 Consumer<String> answerChunkConsumer);
-    }
-
-    private record ConversationRuntime(
-            SqliteConversationStore store,
-            ConversationSession session,
-            int restoredCount) {
-    }
-
-    enum ConversationStoragePhase {
-        STARTUP,
-        CONVERSATION_CREATE,
-        TURN_WRITE
     }
 
     private static void logError(PrintStream errorOutput, String code, String message) {
