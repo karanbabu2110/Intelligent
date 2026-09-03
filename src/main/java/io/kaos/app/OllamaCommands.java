@@ -17,13 +17,13 @@ final class OllamaCommands {
     private final CommandContext context;
     private final Supplier<OllamaConnectivity.Result> connectivityCheck;
     private final Supplier<OllamaModelConfiguration> modelConfigurationLoader;
-    private final KaosApplication.OllamaPromptSubmission promptSubmission;
+    private final OllamaPromptSubmission promptSubmission;
 
     OllamaCommands(
             CommandContext context,
             Supplier<OllamaConnectivity.Result> connectivityCheck,
             Supplier<OllamaModelConfiguration> modelConfigurationLoader,
-            KaosApplication.OllamaPromptSubmission promptSubmission) {
+            OllamaPromptSubmission promptSubmission) {
         this.context = Objects.requireNonNull(context, "context");
         this.connectivityCheck = Objects.requireNonNull(connectivityCheck, "connectivityCheck");
         this.modelConfigurationLoader = Objects.requireNonNull(

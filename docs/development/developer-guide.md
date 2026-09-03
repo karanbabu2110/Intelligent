@@ -379,6 +379,36 @@ Do not commit credentials or other secrets. The Ollama endpoint remains fixed
 to loopback. No secret, remote endpoint, prompt-file, or persistent
 configuration is currently implemented.
 
+## Application code organization
+
+The application remains one Java process and one Gradle project. Its internal
+application layer uses small package-private collaborators instead of placing
+every command in the public entry point:
+
+- `KaosApplication` owns JVM startup, shutdown, configuration loading, and the
+  stable process exit boundary.
+- `ApplicationRuntime` constructs the command graph from explicit dependencies.
+- `CommandContext` carries validated configuration and process input/output.
+- `CommandRouter` parses the supported CLI shape and selects one command.
+- `KnowledgeIngestCommand`, `OllamaCommands`, and `ConversationCommand`
+  coordinate their application workflows; domain and infrastructure behavior
+  remains in `io.kaos.knowledge`, `io.kaos.ai.ollama`, and
+  `io.kaos.conversation`.
+- `OllamaPromptSubmission` is the narrow application port used to substitute a
+  deterministic prompt implementation in tests.
+
+When adding a command, keep its parsing in `CommandRouter`, put its workflow in
+a named command coordinator, supply external behavior through its constructor,
+and test the coordinator directly plus the public CLI contract. Use
+package-private visibility unless another package is a demonstrated consumer.
+Do not add a framework, module, repository, or service merely to organize the
+code; follow the capability-boundary evidence rules before promoting the
+boundary.
+
+These are responsibility rules, not line-count quotas. A growing class should
+be split when it gains another reason to change, mixes parsing/presentation with
+domain behavior, or needs an expanding set of test-only overloads.
+
 ## Run tests
 
 Run every test:

@@ -1,8 +1,11 @@
 /**
- * Owns the KAOS process entry point and composes implemented capability
- * packages into the single application.
+ * Owns the KAOS process boundary and composes implemented capability packages
+ * into the single application.
  *
- * <p>Product behavior belongs in direct capability packages such as
- * {@code io.kaos.ai}; it does not accumulate in this package.</p>
+ * <p>{@code KaosApplication} owns JVM lifecycle, {@code ApplicationRuntime}
+ * owns composition, {@code CommandRouter} owns CLI dispatch, and one command
+ * coordinator owns each application workflow. Product rules and infrastructure
+ * behavior remain in direct capability packages such as {@code io.kaos.ai};
+ * they do not accumulate in this package.</p>
  */
 package io.kaos.app;

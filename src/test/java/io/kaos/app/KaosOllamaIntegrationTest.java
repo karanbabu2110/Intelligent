@@ -14,10 +14,12 @@ import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.ai.ollama.OllamaPromptClientTestSupport;
 import io.kaos.ai.ollama.OllamaThinkingMode;
 import io.kaos.app.config.ApplicationConfiguration;
+import io.kaos.conversation.ConversationDatabasePath;
 import io.kaos.conversation.ConversationMessage;
 import io.kaos.conversation.ConversationRole;
 import io.kaos.conversation.SqliteConversationStore;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -269,32 +271,33 @@ class KaosOllamaIntegrationTest {
 
     private static KaosApplicationHarness.Result runPrompt(URI endpoint, String prompt) {
         OllamaPromptClient client = OllamaPromptClientTestSupport.client(endpoint);
-        return KaosApplicationHarness.capture((output, errorOutput) -> KaosApplication.run(
-                new String[] {"ollama-prompt", prompt},
-                new ApplicationConfiguration(ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+        return KaosApplicationHarness.capture((output, errorOutput) -> new ApplicationRuntime(
                 () -> new OllamaConnectivity.Result(
                         OllamaConnectivity.Status.REACHABLE, "test-version"),
                 () -> MODEL,
                 client::submit,
-                output,
-                errorOutput));
+                ConversationDatabasePath::load)
+                .execute(
+                        new String[] {"ollama-prompt", prompt},
+                        new ApplicationConfiguration(
+                                ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                        InputStream.nullInputStream(), output, errorOutput));
     }
 
     private KaosApplicationHarness.Result runConversation(URI endpoint, String input) {
         OllamaPromptClient client = OllamaPromptClientTestSupport.client(endpoint);
         return KaosApplicationHarness.captureInput(input,
-                (testInput, output, errorOutput) -> KaosApplication.run(
-                        new String[] {"conversation"},
-                        new ApplicationConfiguration(
-                                ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                (testInput, output, errorOutput) -> new ApplicationRuntime(
                         () -> new OllamaConnectivity.Result(
                                 OllamaConnectivity.Status.REACHABLE, "test-version"),
                         () -> MODEL,
                         client::submit,
-                        () -> temporaryDirectory.resolve("conversations.db"),
-                        testInput,
-                        output,
-                        errorOutput));
+                        () -> temporaryDirectory.resolve("conversations.db"))
+                        .execute(
+                                new String[] {"conversation"},
+                                new ApplicationConfiguration(
+                                        ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                                testInput, output, errorOutput));
     }
 
     private static JsonNode requestMessages(String requestBody) throws IOException {

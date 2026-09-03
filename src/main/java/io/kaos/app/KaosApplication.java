@@ -1,19 +1,11 @@
 package io.kaos.app;
 
-import io.kaos.ai.ollama.OllamaConnectivity;
-import io.kaos.ai.ollama.OllamaModelConfiguration;
-import io.kaos.ai.ollama.OllamaPrompt;
-import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.app.config.ApplicationConfiguration;
-import io.kaos.conversation.ConversationDatabasePath;
-import io.kaos.conversation.ConversationHistory;
 import java.io.InputStream;
 import java.io.PrintStream;
-import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -148,121 +140,8 @@ public final class KaosApplication {
             InputStream input,
             PrintStream output,
             PrintStream errorOutput) {
-        return run(
-                arguments,
-                configuration,
-                () -> new OllamaConnectivity().check(),
-                OllamaModelConfiguration::load,
-                (model, history, prompt, thinking, chunks) ->
-                        new OllamaPromptClient().submit(
-                                model, history, prompt, thinking, chunks),
-                input,
-                output,
-                errorOutput);
-    }
-
-    static int run(
-            String[] arguments,
-            ApplicationConfiguration configuration,
-            Supplier<OllamaConnectivity.Result> ollamaConnectivityCheck,
-            PrintStream output,
-            PrintStream errorOutput) {
-        return run(
-                arguments,
-                configuration,
-                ollamaConnectivityCheck,
-                OllamaModelConfiguration::load,
-                (model, history, prompt, thinking, chunks) ->
-                        new OllamaPromptClient().submit(
-                                model, history, prompt, thinking, chunks),
-                InputStream.nullInputStream(),
-                output,
-                errorOutput);
-    }
-
-    static int run(
-            String[] arguments,
-            ApplicationConfiguration configuration,
-            Supplier<OllamaConnectivity.Result> ollamaConnectivityCheck,
-            Supplier<OllamaModelConfiguration> ollamaModelConfigurationLoader,
-            PrintStream output,
-            PrintStream errorOutput) {
-        return run(
-                arguments,
-                configuration,
-                ollamaConnectivityCheck,
-                ollamaModelConfigurationLoader,
-                (model, history, prompt, thinking, chunks) ->
-                        new OllamaPromptClient().submit(
-                                model, history, prompt, thinking, chunks),
-                InputStream.nullInputStream(),
-                output,
-                errorOutput);
-    }
-
-    static int run(
-            String[] arguments,
-            ApplicationConfiguration configuration,
-            Supplier<OllamaConnectivity.Result> ollamaConnectivityCheck,
-            Supplier<OllamaModelConfiguration> ollamaModelConfigurationLoader,
-            OllamaPromptSubmission ollamaPromptSubmission,
-            PrintStream output,
-            PrintStream errorOutput) {
-        return run(arguments, configuration, ollamaConnectivityCheck,
-                ollamaModelConfigurationLoader, ollamaPromptSubmission,
-                InputStream.nullInputStream(), output, errorOutput);
-    }
-
-    static int run(
-            String[] arguments,
-            ApplicationConfiguration configuration,
-            Supplier<OllamaConnectivity.Result> ollamaConnectivityCheck,
-            Supplier<OllamaModelConfiguration> ollamaModelConfigurationLoader,
-            OllamaPromptSubmission ollamaPromptSubmission,
-            InputStream input,
-            PrintStream output,
-            PrintStream errorOutput) {
-        return run(arguments, configuration, ollamaConnectivityCheck,
-                ollamaModelConfigurationLoader, ollamaPromptSubmission,
-                ConversationDatabasePath::load, input, output, errorOutput);
-    }
-
-    static int run(
-            String[] arguments,
-            ApplicationConfiguration configuration,
-            Supplier<OllamaConnectivity.Result> ollamaConnectivityCheck,
-            Supplier<OllamaModelConfiguration> ollamaModelConfigurationLoader,
-            OllamaPromptSubmission ollamaPromptSubmission,
-            Supplier<Path> conversationDatabasePathLoader,
-            InputStream input,
-            PrintStream output,
-            PrintStream errorOutput) {
-        Objects.requireNonNull(arguments, "arguments");
-        Objects.requireNonNull(configuration, "configuration");
-        Objects.requireNonNull(ollamaConnectivityCheck, "ollamaConnectivityCheck");
-        Objects.requireNonNull(ollamaModelConfigurationLoader, "ollamaModelConfigurationLoader");
-        Objects.requireNonNull(ollamaPromptSubmission, "ollamaPromptSubmission");
-        Objects.requireNonNull(conversationDatabasePathLoader, "conversationDatabasePathLoader");
-        Objects.requireNonNull(input, "input");
-        Objects.requireNonNull(output, "output");
-        Objects.requireNonNull(errorOutput, "errorOutput");
-
-        CommandContext context = new CommandContext(configuration, input, output, errorOutput);
-        OllamaCommands ollamaCommands = new OllamaCommands(
-                context,
-                ollamaConnectivityCheck,
-                ollamaModelConfigurationLoader,
-                ollamaPromptSubmission);
-        ConversationCommand conversationCommand = new ConversationCommand(
-                context, ollamaCommands, conversationDatabasePathLoader);
-        return new CommandRouter(
-                context,
-                new KnowledgeIngestCommand(context)::execute,
-                ollamaCommands::reportStatus,
-                ollamaCommands::reportModel,
-                ollamaCommands::reportPrompt,
-                conversationCommand::execute)
-                .route(arguments);
+        return ApplicationRuntime.local()
+                .execute(arguments, configuration, input, output, errorOutput);
     }
 
     static String startupMessage(ApplicationConfiguration configuration) {
@@ -283,16 +162,6 @@ public final class KaosApplication {
                   ollama-prompt  Submit one quoted prompt and stream the answer.
                   conversation   Start selectable persistent local conversations.
                 """;
-    }
-
-    @FunctionalInterface
-    interface OllamaPromptSubmission {
-        OllamaPromptClient.Result submit(
-                OllamaModelConfiguration model,
-                ConversationHistory history,
-                OllamaPrompt prompt,
-                Runnable thinkingStarted,
-                Consumer<String> answerChunkConsumer);
     }
 
     private static void logError(PrintStream errorOutput, String code, String message) {

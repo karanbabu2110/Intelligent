@@ -12,12 +12,14 @@ import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.ai.ollama.OllamaThinkingMode;
 import io.kaos.app.config.ApplicationConfiguration;
+import io.kaos.conversation.ConversationDatabasePath;
 import io.kaos.conversation.ConversationHistory;
 import io.kaos.conversation.ConversationSession;
 import io.kaos.conversation.ConversationStorageException;
 import io.kaos.conversation.SqliteConversationSchema;
 import io.kaos.conversation.SqliteConversationStore;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.file.Files;
@@ -1089,13 +1091,16 @@ class KaosApplicationTest {
     private static KaosApplicationHarness.Result runOllamaStatus(
             OllamaConnectivity.Result ollamaResult) {
         return KaosApplicationHarness.capture(
-                (output, errorOutput) -> KaosApplication.run(
-                        new String[] {"ollama-status"},
-                        new ApplicationConfiguration(
-                                ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                (output, errorOutput) -> new ApplicationRuntime(
                         () -> ollamaResult,
-                        output,
-                        errorOutput));
+                        OllamaModelConfiguration::load,
+                        unexpectedPromptSubmission(),
+                        ConversationDatabasePath::load)
+                        .execute(
+                                new String[] {"ollama-status"},
+                                new ApplicationConfiguration(
+                                        ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                                InputStream.nullInputStream(), output, errorOutput));
     }
 
     private static KaosApplicationHarness.Result runOllamaModel(
@@ -1107,65 +1112,73 @@ class KaosApplicationTest {
             String[] arguments,
             Supplier<OllamaModelConfiguration> modelLoader) {
         return KaosApplicationHarness.capture(
-                (output, errorOutput) -> KaosApplication.run(
-                        arguments,
-                        new ApplicationConfiguration(
-                                ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                (output, errorOutput) -> new ApplicationRuntime(
                         () -> new OllamaConnectivity.Result(
                                 OllamaConnectivity.Status.REACHABLE, "test-version"),
                         modelLoader,
-                        output,
-                        errorOutput));
+                        unexpectedPromptSubmission(),
+                        ConversationDatabasePath::load)
+                        .execute(
+                                arguments,
+                                new ApplicationConfiguration(
+                                        ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                                InputStream.nullInputStream(), output, errorOutput));
     }
 
     private static KaosApplicationHarness.Result runOllamaPrompt(
             String prompt,
             Supplier<OllamaModelConfiguration> modelLoader,
-            KaosApplication.OllamaPromptSubmission submission) {
+            OllamaPromptSubmission submission) {
         return runWithPromptSubmission(
                 new String[] {"ollama-prompt", prompt}, modelLoader, submission);
     }
 
     private KaosApplicationHarness.Result runConversation(
             String input,
-            KaosApplication.OllamaPromptSubmission submission) {
+            OllamaPromptSubmission submission) {
         return runConversation(
                 input, submission, temporaryDirectory.resolve("conversations.db"));
     }
 
     private static KaosApplicationHarness.Result runConversation(
             String input,
-            KaosApplication.OllamaPromptSubmission submission,
+            OllamaPromptSubmission submission,
             Path databasePath) {
         return KaosApplicationHarness.captureInput(input,
-                (testInput, output, errorOutput) -> KaosApplication.run(
-                        new String[] {"conversation"},
-                        new ApplicationConfiguration(
-                                ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                (testInput, output, errorOutput) -> new ApplicationRuntime(
                         () -> new OllamaConnectivity.Result(
                                 OllamaConnectivity.Status.REACHABLE, "test-version"),
                         () -> new OllamaModelConfiguration("qwen3"),
                         submission,
-                        () -> databasePath,
-                        testInput,
-                        output,
-                        errorOutput));
+                        () -> databasePath)
+                        .execute(
+                                new String[] {"conversation"},
+                                new ApplicationConfiguration(
+                                        ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                                testInput, output, errorOutput));
     }
 
     private static KaosApplicationHarness.Result runWithPromptSubmission(
             String[] arguments,
             Supplier<OllamaModelConfiguration> modelLoader,
-            KaosApplication.OllamaPromptSubmission submission) {
+            OllamaPromptSubmission submission) {
         return KaosApplicationHarness.capture(
-                (output, errorOutput) -> KaosApplication.run(
-                        arguments,
-                        new ApplicationConfiguration(
-                                ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                (output, errorOutput) -> new ApplicationRuntime(
                         () -> new OllamaConnectivity.Result(
                                 OllamaConnectivity.Status.REACHABLE, "test-version"),
                         modelLoader,
                         submission,
-                        output,
-                        errorOutput));
+                        ConversationDatabasePath::load)
+                        .execute(
+                                arguments,
+                                new ApplicationConfiguration(
+                                        ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                                InputStream.nullInputStream(), output, errorOutput));
+    }
+
+    private static OllamaPromptSubmission unexpectedPromptSubmission() {
+        return (model, history, prompt, thinking, chunks) -> {
+            throw new AssertionError("prompt submission was not expected");
+        };
     }
 }
