@@ -1,6 +1,8 @@
 package io.kaos.app;
 
 import io.kaos.ai.ollama.OllamaConnectivity;
+import io.kaos.ai.ollama.OllamaEmbeddingClient;
+import io.kaos.ai.ollama.OllamaEmbeddingConfiguration;
 import io.kaos.ai.ollama.OllamaModelConfiguration;
 import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.app.config.ApplicationConfiguration;
@@ -17,18 +19,37 @@ final class ApplicationRuntime {
     private final Supplier<OllamaModelConfiguration> modelConfigurationLoader;
     private final OllamaPromptSubmission promptSubmission;
     private final Supplier<Path> conversationDatabasePathLoader;
+    private final Supplier<OllamaEmbeddingConfiguration> embeddingConfigurationLoader;
+    private final EmbeddingSubmission embeddingSubmission;
 
     ApplicationRuntime(
             Supplier<OllamaConnectivity.Result> connectivityCheck,
             Supplier<OllamaModelConfiguration> modelConfigurationLoader,
             OllamaPromptSubmission promptSubmission,
             Supplier<Path> conversationDatabasePathLoader) {
+        this(connectivityCheck, modelConfigurationLoader, promptSubmission,
+                conversationDatabasePathLoader, OllamaEmbeddingConfiguration::load,
+                (configuration, chunks) ->
+                        new OllamaEmbeddingClient().embed(configuration, chunks));
+    }
+
+    ApplicationRuntime(
+            Supplier<OllamaConnectivity.Result> connectivityCheck,
+            Supplier<OllamaModelConfiguration> modelConfigurationLoader,
+            OllamaPromptSubmission promptSubmission,
+            Supplier<Path> conversationDatabasePathLoader,
+            Supplier<OllamaEmbeddingConfiguration> embeddingConfigurationLoader,
+            EmbeddingSubmission embeddingSubmission) {
         this.connectivityCheck = Objects.requireNonNull(connectivityCheck, "connectivityCheck");
         this.modelConfigurationLoader = Objects.requireNonNull(
                 modelConfigurationLoader, "modelConfigurationLoader");
         this.promptSubmission = Objects.requireNonNull(promptSubmission, "promptSubmission");
         this.conversationDatabasePathLoader = Objects.requireNonNull(
                 conversationDatabasePathLoader, "conversationDatabasePathLoader");
+        this.embeddingConfigurationLoader = Objects.requireNonNull(
+                embeddingConfigurationLoader, "embeddingConfigurationLoader");
+        this.embeddingSubmission = Objects.requireNonNull(
+                embeddingSubmission, "embeddingSubmission");
     }
 
     static ApplicationRuntime local() {
@@ -59,7 +80,8 @@ final class ApplicationRuntime {
                 context, ollamaPromptCommand, conversationDatabasePathLoader);
         return new CommandRouter(
                 context,
-                new KnowledgeIngestCommand(context)::execute,
+                new KnowledgeIngestCommand(
+                        context, embeddingConfigurationLoader, embeddingSubmission)::execute,
                 ollamaStatusCommand::execute,
                 ollamaModelCommand::execute,
                 ollamaPromptCommand::execute,

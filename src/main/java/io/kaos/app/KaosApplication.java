@@ -33,6 +33,11 @@ public final class KaosApplication {
     static final String UNAVAILABLE_KNOWLEDGE_DOCUMENT_CODE = "KAOS-KNOWLEDGE-002";
     static final String KNOWLEDGE_DOCUMENT_LIMIT_CODE = "KAOS-KNOWLEDGE-003";
     static final String KNOWLEDGE_TEXT_EXTRACTION_CODE = "KAOS-KNOWLEDGE-004";
+    static final String INVALID_OLLAMA_EMBEDDING_MODEL_CODE = "KAOS-KNOWLEDGE-CONFIG-001";
+    static final String UNREADABLE_OLLAMA_EMBEDDING_MODEL_CODE = "KAOS-KNOWLEDGE-CONFIG-002";
+    static final String OLLAMA_EMBEDDING_CODE = "KAOS-KNOWLEDGE-005";
+    static final String OLLAMA_EMBEDDING_RESPONSE_CODE = "KAOS-KNOWLEDGE-006";
+    static final String OLLAMA_EMBEDDING_TIMEOUT_CODE = "KAOS-KNOWLEDGE-007";
 
     private KaosApplication() {
     }
@@ -156,7 +161,7 @@ public final class KaosApplication {
                 Commands:
                   status         Show local application status (default).
                   help           Show this help. The --help alias is also supported.
-                  knowledge-ingest  Admit one local UTF-8 .txt document up to 1 MiB.
+                  knowledge-ingest  Ingest and embed one local UTF-8 .txt document up to 1 MiB.
                   ollama-status  Check connectivity to the local Ollama server.
                   ollama-model   Show the explicitly configured local Ollama model.
                   ollama-prompt  Submit one quoted prompt and stream the answer.

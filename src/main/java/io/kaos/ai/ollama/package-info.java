@@ -13,7 +13,9 @@
  * interrupted or a hard local limit is reached. Failures distinguish
  * pre-response unavailability, request rejection, invalid data, accepted-stream
  * transport loss, total timeout, inactivity timeout, generation boundaries,
- * local limits, and cancellation without retaining provider details. The
+ * local limits, and cancellation without retaining provider details. It also owns an explicit
+ * embedding-model selection and bounded calls to the fixed loopback {@code /api/embed} endpoint.
+ * The
  * package does not define a provider-neutral abstraction or a separate runtime
  * boundary.</p>
  */
