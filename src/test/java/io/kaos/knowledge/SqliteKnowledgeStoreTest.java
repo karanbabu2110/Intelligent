@@ -33,6 +33,21 @@ class SqliteKnowledgeStoreTest {
     }
 
     @Test
+    void loadsAllDocumentsInInsertionOrderForBoundedRetrieval() {
+        Path database = temporaryDirectory.resolve("all.db");
+        SqliteKnowledgeStore store = new SqliteKnowledgeStore(database);
+        store.store("model", List.of(embedded(0, 0, 4, "text", 1, 0)));
+        store.store("model", List.of(embedded(0, 0, 4, "more", 0, 1)));
+
+        List<StoredKnowledgeDocument> documents = new SqliteKnowledgeStore(database).loadAll();
+
+        assertEquals(List.of(1L, 2L), documents.stream()
+                .map(StoredKnowledgeDocument::identifier).toList());
+        assertEquals(List.of("text", "more"), documents.stream()
+                .map(document -> document.embeddedChunks().getFirst().chunk().content()).toList());
+    }
+
+    @Test
     void rejectsAnUnsupportedSchemaWithoutReplacingIt() throws Exception {
         Path database = temporaryDirectory.resolve("future.db");
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database);

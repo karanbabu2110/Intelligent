@@ -103,6 +103,7 @@ final class ApplicationRuntime {
                 new KnowledgeIngestCommand(
                         context, embeddingConfigurationLoader, embeddingSubmission,
                         knowledgeStorageSubmission)::execute,
+                new KnowledgeRetrieveCommand(context)::execute,
                 ollamaStatusCommand::execute,
                 ollamaModelCommand::execute,
                 ollamaPromptCommand::execute,

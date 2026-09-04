@@ -39,6 +39,7 @@ public final class KaosApplication {
     static final String OLLAMA_EMBEDDING_RESPONSE_CODE = "KAOS-KNOWLEDGE-006";
     static final String OLLAMA_EMBEDDING_TIMEOUT_CODE = "KAOS-KNOWLEDGE-007";
     static final String KNOWLEDGE_STORAGE_CODE = "KAOS-KNOWLEDGE-008";
+    static final String KNOWLEDGE_RETRIEVAL_CODE = "KAOS-KNOWLEDGE-009";
 
     private KaosApplication() {
     }
@@ -157,12 +158,13 @@ public final class KaosApplication {
 
     static String helpText() {
         return """
-                Usage: kaos [status|help|knowledge-ingest <path>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
+                Usage: kaos [status|help|knowledge-ingest <path>|knowledge-retrieve <query>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
 
                 Commands:
                   status         Show local application status (default).
                   help           Show this help. The --help alias is also supported.
                   knowledge-ingest  Ingest and embed one local UTF-8 .txt document up to 1 MiB.
+                  knowledge-retrieve  Rank stored chunks for one quoted query.
                   ollama-status  Check connectivity to the local Ollama server.
                   ollama-model   Show the explicitly configured local Ollama model.
                   ollama-prompt  Submit one quoted prompt and stream the answer.

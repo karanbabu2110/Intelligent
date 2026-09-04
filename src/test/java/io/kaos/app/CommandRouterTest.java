@@ -48,6 +48,25 @@ class CommandRouterTest {
                 errorBytes.toString(StandardCharsets.UTF_8));
     }
 
+    @Test
+    void dispatchesOneQuotedKnowledgeQueryOnlyToRetrieval() {
+        AtomicInteger retrievalCalls = new AtomicInteger();
+        CommandRouter.Command command = () -> KaosApplication.SUCCESS;
+        CommandRouter router = new CommandRouter(
+                context(new ByteArrayOutputStream(), new ByteArrayOutputStream()),
+                argument -> command.execute(),
+                argument -> {
+                    assertEquals("semantic query", argument);
+                    retrievalCalls.incrementAndGet();
+                    return KaosApplication.SUCCESS;
+                },
+                command, command, argument -> command.execute(), command);
+
+        assertEquals(KaosApplication.SUCCESS,
+                router.route(new String[] {"knowledge-retrieve", "semantic query"}));
+        assertEquals(1, retrievalCalls.get());
+    }
+
     private static CommandRouter router(
             ByteArrayOutputStream standardBytes,
             AtomicInteger commandCalls) {

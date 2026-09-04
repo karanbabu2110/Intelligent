@@ -8,8 +8,8 @@ inside the verified single application.
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), and [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
-- Active work: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11) and [Feature 005.05 — Vector Storage](https://github.com/karanbabu2110/KAOS/issues/869); Features 005.01 through 005.04 are complete
-- Repository state: one root Gradle/Java 21 application with one production entry point, bounded UTF-8 text-document admission, exact immutable text extraction, deterministic overlapping chunks, explicit local Ollama embeddings, atomic version-1 SQLite knowledge storage, conversation-owned bounded immutable messages and histories, selectable persistent conversations, optional loopback Ollama connectivity, explicit model selection, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and classified privacy-safe failures
+- Active work: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11) and [Feature 005.06 — Relevant-Context Retrieval](https://github.com/karanbabu2110/KAOS/issues/870); Features 005.01 through 005.05 are complete
+- Repository state: one root Gradle/Java 21 application with one production entry point, bounded UTF-8 document admission, exact extraction and overlapping chunks, explicit local Ollama embeddings, atomic version-1 SQLite knowledge storage, deterministic top-three cosine retrieval, bounded persistent conversations, optional loopback Ollama connectivity, explicit model selection, Jackson JSON and pinned SQLite JDBC runtime libraries, and classified privacy-safe failures
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -80,6 +80,21 @@ implemented yet. See [single document ingestion](docs/evolution/single-document-
 [document chunking](docs/evolution/document-chunking.md), then
 [embedding generation](docs/evolution/embedding-generation.md), then
 [vector storage](docs/evolution/vector-storage.md) for exact behavior and limitations.
+
+Retrieve the three most relevant compatible stored chunks without printing their
+content:
+
+```powershell
+$env:KAOS_OLLAMA_EMBEDDING_MODEL = "embeddinggemma"
+$env:KAOS_KNOWLEDGE_DATA_DIRECTORY = "D:\kaos-data"
+./gradlew.bat --% run --args="knowledge-retrieve \"What does the document say about caching?\""
+```
+
+The query is limited to 1,000 Unicode code points and embedded through the same
+fixed loopback endpoint. KAOS compares only vectors with the same explicit model
+and dimensions, ranks by cosine similarity, and prints at most three document,
+source, chunk, and score references. It does not print the query or stored chunk
+content. See [relevant-context retrieval](docs/evolution/relevant-context-retrieval.md).
 
 Check whether Ollama is reachable on the fixed local endpoint
 `http://127.0.0.1:11434/api/version`:
@@ -272,8 +287,8 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-004 and Features #865-#868 are complete. Epic #11 and Feature #869 are
-active. The current branch atomically persists exact chunks and bounded vectors
-in a versioned local SQLite knowledge database. Relevant-context retrieval is
-the next ordered feature boundary at #870; grounded prompts, source attribution,
+Epics 000-004 and Features #865-#869 are complete. Epic #11 and Feature #870 are
+active. The current branch embeds one bounded query and deterministically ranks
+compatible stored chunks without exposing their content. Grounded prompt
+construction is the next ordered feature boundary at #871; source attribution
 and RAG evaluation remain later features in Epic 005.

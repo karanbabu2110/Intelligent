@@ -100,6 +100,17 @@ See [single document ingestion](../evolution/single-document-ingestion.md) and
 [embedding generation](../evolution/embedding-generation.md), then
 [vector storage](../evolution/vector-storage.md).
 
+Retrieve bounded context references from the same local knowledge database:
+
+```powershell
+./gradlew.bat --% run --args="knowledge-retrieve \"What does the document say about caching?\""
+```
+
+The command uses the same `KAOS_OLLAMA_EMBEDDING_MODEL` and
+`KAOS_KNOWLEDGE_DATA_DIRECTORY` settings as ingestion. It prints at most three
+safe references and scores, not the query, chunk content, model name, or vectors.
+See [relevant-context retrieval](../evolution/relevant-context-retrieval.md).
+
 The no-argument form is equivalent to `status`:
 
 ```powershell
