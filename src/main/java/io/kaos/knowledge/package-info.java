@@ -9,6 +9,8 @@
  * points with 200 code points of overlap. Each chunk may be paired with one immutable,
  * bounded local embedding vector. A versioned local SQLite store atomically persists exact
  * ordered chunks and fixed-width vector values and restores one bounded document snapshot.
- * The package does not retrieve or rank context, construct prompts, or own provider transport.</p>
+ * A direct in-process retriever ranks compatible stored chunks by deterministic cosine
+ * similarity and returns at most three immutable context results. The package does not
+ * construct grounded prompts or own provider transport.</p>
  */
 package io.kaos.knowledge;

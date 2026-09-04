@@ -41,9 +41,9 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 005.05</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 005.06</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> Feature 005.05 adds a second versioned local SQLite database, <code>knowledge.db</code>. After all embeddings validate, <code>SqliteKnowledgeStore</code> atomically commits document metadata, exact ordered chunks, and fixed-width vectors. Bounded snapshots survive restart; retrieval and ranking do not exist yet.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> Feature 005.06 adds a read path from <code>knowledge.db</code> through <code>RelevantContextRetriever</code>. One bounded query is embedded with the explicit model, compatible stored vectors are ranked by deterministic cosine similarity, and at most three immutable context results return. Grounded prompt construction does not exist yet.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
@@ -577,15 +577,16 @@
     </section>
 
     <section class="panel changed" aria-labelledby="embedding-flow-heading">
-      <h2 id="embedding-flow-heading">5. Local embedding and vector-storage flow</h2>
+      <h2 id="embedding-flow-heading">5. Local embedding, storage, and retrieval flow</h2>
       <p>The knowledge command loads one explicit embedding model, then sends each exact chunk in order to fixed loopback <code>POST /api/embed</code> with <code>truncate: false</code>. The client validates the echoed model, one finite vector of 1–4,096 dimensions, consistent dimensions across chunks, a 128 KiB per-response limit, and one shared five-minute foreground deadline.</p>
-      <div class="card-grid" aria-label="Feature 005.04 and 005.05 knowledge data flow">
+      <div class="card-grid" aria-label="Feature 005.04 through 005.06 knowledge data flow">
         <article class="card"><div class="status implemented">Implemented input</div><h3>Ordered document chunks</h3><p>Immutable exact chunk text remains in memory and is never printed.</p></article>
         <article class="card"><div class="status implemented">Feature 005.04</div><h3>OllamaEmbeddingClient</h3><p>Direct loopback HTTP calls validate bounded JSON without retries, redirects, remote configuration, or provider truncation.</p></article>
         <article class="card"><div class="status implemented">Feature 005.04</div><h3>EmbeddedChunk list</h3><p>Each chunk is paired with a defensively copied bounded vector. Only safe counts reach stdout.</p></article>
-        <article class="card changed"><div class="status implemented">Feature 005.05</div><h3>SQLite knowledge store</h3><p>One foreground transaction writes metadata and every chunk to version-1 <code>knowledge.db</code>. Exact bounded snapshots can be restored after reopening.</p></article>
+        <article class="card"><div class="status implemented">Feature 005.05</div><h3>SQLite knowledge store</h3><p>One foreground transaction writes metadata and every chunk to version-1 <code>knowledge.db</code>. Exact bounded snapshots can be restored after reopening.</p></article>
+        <article class="card changed"><div class="status implemented">Feature 005.06</div><h3>RelevantContextRetriever</h3><p>A query vector ranks compatible stored chunks by cosine similarity. Stable ties use document and chunk order; at most three context objects return.</p></article>
       </div>
-      <p class="rule">Code evidence: <a href="../../src/main/java/io/kaos/ai/ollama/OllamaEmbeddingClient.java"><code>OllamaEmbeddingClient.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/EmbeddedChunk.java"><code>EmbeddedChunk.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/SqliteKnowledgeStore.java"><code>SqliteKnowledgeStore.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/SqliteKnowledgeStoreTest.java"><code>SqliteKnowledgeStoreTest.java</code></a>, <a href="../../docs/evolution/embedding-generation.md">Feature 005.04 evidence</a>, and <a href="../../docs/evolution/vector-storage.md">Feature 005.05 evidence</a>.</p>
+      <p class="rule">Code evidence: <a href="../../src/main/java/io/kaos/ai/ollama/OllamaEmbeddingClient.java"><code>OllamaEmbeddingClient.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/SqliteKnowledgeStore.java"><code>SqliteKnowledgeStore.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/RelevantContextRetriever.java"><code>RelevantContextRetriever.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeRetrieveCommand.java"><code>KnowledgeRetrieveCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/RelevantContextRetrieverTest.java"><code>RelevantContextRetrieverTest.java</code></a>, <a href="../../docs/evolution/vector-storage.md">Feature 005.05 evidence</a>, and <a href="../../docs/evolution/relevant-context-retrieval.md">Feature 005.06 evidence</a>.</p>
     </section>
 
     <section class="panel" aria-labelledby="status-heading">
@@ -719,12 +720,17 @@
         <article class="card">
           <div class="status implemented">Implemented storage boundary</div>
           <h3>Vector storage</h3>
-          <p>Feature 005.05 atomically stores exact chunks and vectors in version-1 local SQLite and restores one bounded document after restart. No vector index or retrieval exists yet.</p>
+          <p>Feature 005.05 atomically stores exact chunks and vectors in version-1 local SQLite and restores bounded documents after restart.</p>
+        </article>
+        <article class="card">
+          <div class="status implemented">Implemented retrieval boundary</div>
+          <h3>Relevant-context retrieval</h3>
+          <p>Feature 005.06 embeds one query, ranks same-model and same-dimension stored chunks, and returns the deterministic top three without printing content.</p>
         </article>
         <article class="card">
           <div class="status next">Next approved work</div>
-          <h3>Relevant-context retrieval</h3>
-          <p>Feature 005.06 will embed one query and rank stored chunks. No similarity calculation, result selection, or retrieval command exists yet.</p>
+          <h3>Grounded prompt construction</h3>
+          <p>Feature 005.07 will place retrieved text into one bounded provider prompt. No context template, token-budget policy, or grounded answer exists yet.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -796,7 +802,8 @@
           <tr><td>Exact bounded text extraction</td><td><a href="../../src/main/java/io/kaos/knowledge/PlainTextExtractor.java"><code>PlainTextExtractor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/ExtractedText.java"><code>ExtractedText.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/TextExtractionException.java"><code>TextExtractionException.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeIngestCommand.java"><code>KnowledgeIngestCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/PlainTextExtractorTest.java"><code>PlainTextExtractorTest.java</code></a>, and <a href="../../docs/evolution/text-extraction.md">Feature 005.02 evidence</a></td><td>Implemented; delivered by PR #44</td></tr>
           <tr><td>Deterministic bounded document chunking</td><td><a href="../../src/main/java/io/kaos/knowledge/DocumentChunker.java"><code>DocumentChunker.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/DocumentChunk.java"><code>DocumentChunk.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeIngestCommand.java"><code>KnowledgeIngestCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/DocumentChunkerTest.java"><code>DocumentChunkerTest.java</code></a>, and <a href="../../docs/evolution/document-chunking.md">Feature 005.03 evidence</a></td><td>Implemented; delivered by PR #45</td></tr>
           <tr><td>Bounded local embedding generation</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaEmbeddingClient.java"><code>OllamaEmbeddingClient.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/EmbeddedChunk.java"><code>EmbeddedChunk.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaEmbeddingClientTest.java"><code>OllamaEmbeddingClientTest.java</code></a>, and <a href="../../docs/evolution/embedding-generation.md">Feature 005.04 evidence</a></td><td>Implemented; delivered by PR #46</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 005.05</span>Atomic local vector storage</td><td><a href="../../src/main/java/io/kaos/knowledge/SqliteKnowledgeStore.java"><code>SqliteKnowledgeStore.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/KnowledgeDatabasePath.java"><code>KnowledgeDatabasePath.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/SqliteKnowledgeStoreTest.java"><code>SqliteKnowledgeStoreTest.java</code></a>, and <a href="../../docs/evolution/vector-storage.md">Feature 005.05 evidence</a></td><td>Implemented on the Feature 005.05 branch; PR pending</td></tr>
+          <tr><td>Atomic local vector storage</td><td><a href="../../src/main/java/io/kaos/knowledge/SqliteKnowledgeStore.java"><code>SqliteKnowledgeStore.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/KnowledgeDatabasePath.java"><code>KnowledgeDatabasePath.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/SqliteKnowledgeStoreTest.java"><code>SqliteKnowledgeStoreTest.java</code></a>, and <a href="../../docs/evolution/vector-storage.md">Feature 005.05 evidence</a></td><td>Implemented; delivered by PR #47</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 005.06</span>Deterministic relevant-context retrieval</td><td><a href="../../src/main/java/io/kaos/knowledge/RelevantContextRetriever.java"><code>RelevantContextRetriever.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeRetrieveCommand.java"><code>KnowledgeRetrieveCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/RelevantContextRetrieverTest.java"><code>RelevantContextRetrieverTest.java</code></a>, and <a href="../../docs/evolution/relevant-context-retrieval.md">Feature 005.06 evidence</a></td><td>Implemented on the Feature 005.06 branch; PR pending</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

@@ -18,6 +18,8 @@ import java.util.Objects;
 /** Versioned SQLite storage for exact chunks and their local embedding vectors. */
 public final class SqliteKnowledgeStore {
     public static final int CURRENT_VERSION = 1;
+    public static final int MAX_STORED_DOCUMENTS = 100;
+    public static final int MAX_STORED_CHUNKS = 2_000;
     private final String databaseUrl;
 
     public SqliteKnowledgeStore(Path databasePath) {
@@ -38,6 +40,7 @@ public final class SqliteKnowledgeStore {
         try (Connection connection = open()) {
             connection.setAutoCommit(false);
             try {
+                requireCapacity(connection, chunks.size());
                 long identifier = insertDocument(connection, embeddingModel, chunks);
                 insertChunks(connection, identifier, chunks);
                 connection.commit();
@@ -50,6 +53,31 @@ public final class SqliteKnowledgeStore {
         } catch (SQLException exception) {
             throw KnowledgeStorageException.fromSql(exception);
         }
+    }
+
+    /** Returns every bounded stored snapshot in insertion order. */
+    public List<StoredKnowledgeDocument> loadAll() {
+        List<Long> identifiers = new ArrayList<>();
+        int chunks = 0;
+        try (Connection connection = open();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT identifier, chunk_count FROM knowledge_documents ORDER BY identifier LIMIT ?")) {
+            statement.setInt(1, MAX_STORED_DOCUMENTS + 1);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    identifiers.add(rows.getLong(1));
+                    chunks = Math.addExact(chunks, rows.getInt(2));
+                }
+            }
+        } catch (SQLException exception) {
+            throw KnowledgeStorageException.fromSql(exception);
+        } catch (ArithmeticException exception) {
+            throw invalidState();
+        }
+        if (identifiers.size() > MAX_STORED_DOCUMENTS || chunks > MAX_STORED_CHUNKS) {
+            throw new KnowledgeStorageException(KnowledgeStorageException.Reason.CAPACITY);
+        }
+        return identifiers.stream().map(this::load).toList();
     }
 
     /** Restores one bounded snapshot in original chunk order. */
@@ -111,6 +139,18 @@ public final class SqliteKnowledgeStore {
             try (ResultSet keys = statement.getGeneratedKeys()) {
                 if (!keys.next()) throw invalidState();
                 return keys.getLong(1);
+            }
+        }
+    }
+
+    private static void requireCapacity(Connection connection, int additionalChunks)
+            throws SQLException {
+        try (Statement statement = connection.createStatement();
+                ResultSet counts = statement.executeQuery(
+                        "SELECT COUNT(*), COALESCE(SUM(chunk_count), 0) FROM knowledge_documents")) {
+            if (!counts.next() || counts.getLong(1) >= MAX_STORED_DOCUMENTS
+                    || counts.getLong(2) > MAX_STORED_CHUNKS - additionalChunks) {
+                throw new KnowledgeStorageException(KnowledgeStorageException.Reason.CAPACITY);
             }
         }
     }
