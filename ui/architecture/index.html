@@ -41,9 +41,9 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 005.08</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 005.09</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> Feature 005.08 derives stable <code>[1]</code>–<code>[3]</code> source citations from the exact records included by <code>GroundedPromptBuilder</code>. The content-free manifest preserves document, source, and chunk coordinates; no grounded provider submission, answer, or answer-citation validation exists yet.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> Feature 005.09 adds deterministic evidence across extraction, chunking, SQLite storage, compatible-vector ranking, grounded prompt construction, and source attribution. The evaluation also confirms the current boundary: no grounded provider submission or answer exists, so Epic 005's grounded-answer outcome is not yet implemented.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
@@ -586,7 +586,7 @@
         <article class="card"><div class="status implemented">Feature 005.05</div><h3>SQLite knowledge store</h3><p>One foreground transaction writes metadata and every chunk to version-1 <code>knowledge.db</code>. Exact bounded snapshots can be restored after reopening.</p></article>
         <article class="card"><div class="status implemented">Feature 005.06</div><h3>RelevantContextRetriever</h3><p>A query vector ranks compatible stored chunks by cosine similarity. Stable ties use document and chunk order; at most three context objects return.</p></article>
         <article class="card"><div class="status implemented">Feature 005.07</div><h3>GroundedPromptBuilder</h3><p>The exact question and whole ranked chunks form one length-prefixed, untrusted-evidence prompt of at most 4,096 code points.</p></article>
-        <article class="card changed"><div class="status implemented">Feature 005.08</div><h3>SourceCitation</h3><p>Stable prompt-local labels map only included evidence to content-free document, source, and chunk coordinates.</p></article>
+        <article class="card"><div class="status implemented">Feature 005.08</div><h3>SourceCitation</h3><p>Stable prompt-local labels map only included evidence to content-free document, source, and chunk coordinates.</p></article>
       </div>
       <p class="rule">Code evidence: <a href="../../src/main/java/io/kaos/ai/ollama/OllamaEmbeddingClient.java"><code>OllamaEmbeddingClient.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/SqliteKnowledgeStore.java"><code>SqliteKnowledgeStore.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/RelevantContextRetriever.java"><code>RelevantContextRetriever.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/GroundedPromptBuilder.java"><code>GroundedPromptBuilder.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/SourceCitation.java"><code>SourceCitation.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeRetrieveCommand.java"><code>KnowledgeRetrieveCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/SourceCitationTest.java"><code>SourceCitationTest.java</code></a>, <a href="../../docs/evolution/grounded-prompt-construction.md">Feature 005.07 evidence</a>, and <a href="../../docs/evolution/source-attribution.md">Feature 005.08 evidence</a>.</p>
     </section>
@@ -739,10 +739,15 @@
           <h3>Source attribution</h3>
           <p>Feature 005.08 assigns stable labels to included prompt evidence and renders content-free source coordinates. No answer submission or answer-citation validation exists yet.</p>
         </article>
-        <article class="card">
-          <div class="status next">Next approved work</div>
+        <article class="card changed">
+          <div class="status implemented">Implemented evaluation evidence</div>
           <h3>RAG evaluation and testing</h3>
-          <p>Feature 005.09 will define deterministic evaluation evidence for the implemented knowledge path.</p>
+          <p>Feature 005.09 deterministically verifies the local knowledge pipeline from exact extraction through citation construction, including incompatible-model exclusion.</p>
+        </article>
+        <article class="card">
+          <div class="status future">Missing delivery boundary</div>
+          <h3>Grounded answer generation</h3>
+          <p>The epic target requires an answer from retrieved context, but the current command stops at prompt construction. A new #814 descendant is required before Epic 005 can close.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -817,7 +822,8 @@
           <tr><td>Atomic local vector storage</td><td><a href="../../src/main/java/io/kaos/knowledge/SqliteKnowledgeStore.java"><code>SqliteKnowledgeStore.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/KnowledgeDatabasePath.java"><code>KnowledgeDatabasePath.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/SqliteKnowledgeStoreTest.java"><code>SqliteKnowledgeStoreTest.java</code></a>, and <a href="../../docs/evolution/vector-storage.md">Feature 005.05 evidence</a></td><td>Implemented; delivered by PR #47</td></tr>
           <tr><td>Deterministic relevant-context retrieval</td><td><a href="../../src/main/java/io/kaos/knowledge/RelevantContextRetriever.java"><code>RelevantContextRetriever.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeRetrieveCommand.java"><code>KnowledgeRetrieveCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/RelevantContextRetrieverTest.java"><code>RelevantContextRetrieverTest.java</code></a>, and <a href="../../docs/evolution/relevant-context-retrieval.md">Feature 005.06 evidence</a></td><td>Implemented; delivered by PR #48</td></tr>
           <tr><td>Bounded grounded prompt construction</td><td><a href="../../src/main/java/io/kaos/knowledge/GroundedPromptBuilder.java"><code>GroundedPromptBuilder.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/GroundedPrompt.java"><code>GroundedPrompt.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/GroundedPromptBuilderTest.java"><code>GroundedPromptBuilderTest.java</code></a>, and <a href="../../docs/evolution/grounded-prompt-construction.md">Feature 005.07 evidence</a></td><td>Implemented; delivered by PR #49</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 005.08</span>Stable source attribution</td><td><a href="../../src/main/java/io/kaos/knowledge/SourceCitation.java"><code>SourceCitation.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/GroundedPrompt.java"><code>GroundedPrompt.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/SourceCitationTest.java"><code>SourceCitationTest.java</code></a>, and <a href="../../docs/evolution/source-attribution.md">Feature 005.08 evidence</a></td><td>Implemented on the Feature 005.08 branch; PR pending</td></tr>
+          <tr><td>Stable source attribution</td><td><a href="../../src/main/java/io/kaos/knowledge/SourceCitation.java"><code>SourceCitation.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/GroundedPrompt.java"><code>GroundedPrompt.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/SourceCitationTest.java"><code>SourceCitationTest.java</code></a>, and <a href="../../docs/evolution/source-attribution.md">Feature 005.08 evidence</a></td><td>Implemented; delivered by PR #50</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 005.09</span>Deterministic RAG pipeline evaluation</td><td><a href="../../src/test/java/io/kaos/knowledge/RagPipelineEvaluationTest.java"><code>RagPipelineEvaluationTest.java</code></a> and <a href="../../docs/evolution/rag-evaluation-testing.md">Feature 005.09 evidence</a></td><td>Implemented on the Feature 005.09 branch; PR pending</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>
