@@ -38,6 +38,7 @@ public final class KaosApplication {
     static final String OLLAMA_EMBEDDING_CODE = "KAOS-KNOWLEDGE-005";
     static final String OLLAMA_EMBEDDING_RESPONSE_CODE = "KAOS-KNOWLEDGE-006";
     static final String OLLAMA_EMBEDDING_TIMEOUT_CODE = "KAOS-KNOWLEDGE-007";
+    static final String KNOWLEDGE_STORAGE_CODE = "KAOS-KNOWLEDGE-008";
 
     private KaosApplication() {
     }

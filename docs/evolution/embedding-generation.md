@@ -24,12 +24,11 @@ and local response-limit failures produce stable content-free recovery guidance.
 - `OllamaEmbeddingConfiguration` owns the explicit embedding-model selection.
 - `EmbeddedChunk` pairs one existing immutable chunk with a defensively copied,
   bounded vector.
-- `KnowledgeIngestCommand` coordinates the in-process sequence and discards the
-  complete working set when the command exits.
+- `KnowledgeIngestCommand` coordinates the in-process sequence. Feature 005.05
+  now persists its complete validated result atomically after embedding succeeds.
 
-No default model, model download, retry, remote endpoint, persistence, vector
-index, similarity search, retrieval, grounded prompt, or citation exists.
-Feature 005.05 owns vector storage.
+No default model, model download, retry, remote endpoint, vector index,
+similarity search, retrieval, grounded prompt, or citation exists.
 
 ## Verification
 

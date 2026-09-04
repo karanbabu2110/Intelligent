@@ -8,8 +8,8 @@ inside the verified single application.
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), and [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
-- Active work: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11) and [Feature 005.04 — Embedding Generation](https://github.com/karanbabu2110/KAOS/issues/868); Features 005.01 through 005.03 are complete
-- Repository state: one root Gradle/Java 21 application with one production entry point, bounded in-memory UTF-8 text-document admission, exact immutable text extraction, deterministic immutable overlapping document chunks, explicit local Ollama embedding generation with bounded immutable vectors, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and a version-1 local SQLite database wired into the conversation command with classified privacy-safe failures and deterministic restart-to-provider integration evidence
+- Active work: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11) and [Feature 005.05 — Vector Storage](https://github.com/karanbabu2110/KAOS/issues/869); Features 005.01 through 005.04 are complete
+- Repository state: one root Gradle/Java 21 application with one production entry point, bounded UTF-8 text-document admission, exact immutable text extraction, deterministic overlapping chunks, explicit local Ollama embeddings, atomic version-1 SQLite knowledge storage, conversation-owned bounded immutable messages and histories, selectable persistent conversations, optional loopback Ollama connectivity, explicit model selection, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and classified privacy-safe failures
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -60,6 +60,7 @@ Admit one local UTF-8 plain-text document into a bounded in-memory snapshot:
 
 ```powershell
 $env:KAOS_OLLAMA_EMBEDDING_MODEL = "embeddinggemma"
+$env:KAOS_KNOWLEDGE_DATA_DIRECTORY = "D:\kaos-data"
 ./gradlew.bat --% run --args="knowledge-ingest \"D:\documents\notes.txt\""
 ```
 
@@ -71,11 +72,14 @@ selected installed embedding model, it sends each chunk in order to fixed
 loopback Ollama `/api/embed` with provider truncation disabled and validates one
 finite vector of at most 4,096 dimensions per chunk. It prints only safe metadata
 and counts. Errors do not expose the path, content, model name, or provider body.
-All snapshots and vectors are discarded when the command exits. Vector storage,
-retrieval, grounded prompts, and citations are not implemented yet. See [single document ingestion](docs/evolution/single-document-ingestion.md),
+The complete document, chunks, embedding model identity, and vectors commit
+atomically to version-1 local SQLite `knowledge.db`; success includes the safe
+stored-document identifier. Retrieval, grounded prompts, and citations are not
+implemented yet. See [single document ingestion](docs/evolution/single-document-ingestion.md),
 [text extraction](docs/evolution/text-extraction.md), and
 [document chunking](docs/evolution/document-chunking.md), then
-[embedding generation](docs/evolution/embedding-generation.md) for exact behavior and limitations.
+[embedding generation](docs/evolution/embedding-generation.md), then
+[vector storage](docs/evolution/vector-storage.md) for exact behavior and limitations.
 
 Check whether Ollama is reachable on the fixed local endpoint
 `http://127.0.0.1:11434/api/version`:
@@ -268,8 +272,8 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-004 and Features #865-#867 are complete. Epic #11 and Feature #868 are
-active. The current branch generates transient bounded embeddings for exact
-document chunks through fixed loopback Ollama and reports only safe counts.
-Vector storage is the next ordered feature boundary at #869; retrieval, grounded
-prompts, source attribution, and RAG evaluation remain later features in Epic 005.
+Epics 000-004 and Features #865-#868 are complete. Epic #11 and Feature #869 are
+active. The current branch atomically persists exact chunks and bounded vectors
+in a versioned local SQLite knowledge database. Relevant-context retrieval is
+the next ordered feature boundary at #870; grounded prompts, source attribution,
+and RAG evaluation remain later features in Epic 005.

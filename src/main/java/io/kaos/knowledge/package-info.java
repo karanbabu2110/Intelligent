@@ -7,7 +7,8 @@
  * bounded Unicode text snapshot without whitespace or line-ending normalization. That
  * snapshot is split into immutable, ordered retrieval chunks of at most 1,000 Unicode code
  * points with 200 code points of overlap. Each chunk may be paired with one immutable,
- * bounded local embedding vector. The package does not persist documents, chunks, or vectors,
- * store vectors, retrieve context, or own provider transport.</p>
+ * bounded local embedding vector. A versioned local SQLite store atomically persists exact
+ * ordered chunks and fixed-width vector values and restores one bounded document snapshot.
+ * The package does not retrieve or rank context, construct prompts, or own provider transport.</p>
  */
 package io.kaos.knowledge;

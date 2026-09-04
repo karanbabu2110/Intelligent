@@ -109,14 +109,15 @@ class KaosApplicationTest {
                         (configuration, chunks) -> new OllamaEmbeddingClient.Result(
                                 OllamaEmbeddingClient.Status.SUCCESS,
                                 chunks.stream().map(chunk -> new EmbeddedChunk(
-                                        chunk, new double[] {0.1, 0.2, 0.3})).toList()))
+                                        chunk, new double[] {0.1, 0.2, 0.3})).toList()),
+                        (model, chunks) -> 1L)
                         .execute(new String[] {"knowledge-ingest", documentPath.toString()},
                                 new ApplicationConfiguration("KAOS"), InputStream.nullInputStream(),
                                 output, errorOutput));
 
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(
-                "Ingested document: knowledge.txt (type: text/plain; charset=utf-8, bytes: 14, characters: 13, chunks: 1, embeddings: 1, dimensions: 3)."
+                "Ingested document: knowledge.txt (type: text/plain; charset=utf-8, bytes: 14, characters: 13, chunks: 1, embeddings: 1, dimensions: 3, stored document: 1)."
                         + System.lineSeparator(),
                 result.standardOutput());
         assertEquals("", result.errorOutput());
