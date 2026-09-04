@@ -4,6 +4,8 @@ import io.kaos.ai.ollama.OllamaEmbeddingClient;
 import io.kaos.ai.ollama.OllamaEmbeddingConfiguration;
 import io.kaos.knowledge.DocumentChunk;
 import io.kaos.knowledge.KnowledgeDatabasePath;
+import io.kaos.knowledge.GroundedPrompt;
+import io.kaos.knowledge.GroundedPromptBuilder;
 import io.kaos.knowledge.KnowledgeQuery;
 import io.kaos.knowledge.KnowledgeStorageException;
 import io.kaos.knowledge.RelevantContextRetriever;
@@ -62,6 +64,14 @@ final class KnowledgeRetrieveCommand {
                         "No compatible stored context is available. Ingest a document with the configured embedding model and retry.");
                 return KaosApplication.APPLICATION_ERROR;
             }
+            GroundedPrompt groundedPrompt;
+            try {
+                groundedPrompt = new GroundedPromptBuilder().build(query, matches);
+            } catch (IllegalArgumentException exception) {
+                report(KaosApplication.KNOWLEDGE_GROUNDED_PROMPT_CODE,
+                        "The retrieved context could not form a safe bounded prompt. Check stored document content and retry.");
+                return KaosApplication.APPLICATION_ERROR;
+            }
             context.output().println("Retrieved context: " + matches.size() + " matches.");
             for (RetrievedContext match : matches) {
                 context.output().printf(Locale.ROOT,
@@ -69,6 +79,8 @@ final class KnowledgeRetrieveCommand {
                         match.documentIdentifier(), match.chunk().sourceName(),
                         match.chunk().index(), match.score());
             }
+            context.output().println("Grounded prompt: " + groundedPrompt.codePointCount()
+                    + " characters from " + groundedPrompt.contexts().size() + " contexts.");
             return KaosApplication.SUCCESS;
         } catch (KnowledgeStorageException exception) {
             report(KaosApplication.KNOWLEDGE_STORAGE_CODE,

@@ -13,8 +13,8 @@ and calculates cosine similarity directly in process.
 
 Results are ordered by descending similarity, then document identifier and chunk
 index for deterministic ties. At most three immutable `RetrievedContext` values
-are returned. Each retains the exact chunk for the next grounded-prompt feature,
-while the current CLI prints only document identifier, safe source name, chunk
+are returned. Each retains the exact chunk for grounded prompt construction,
+while the CLI prints only document identifier, safe source name, chunk
 index, and six-decimal score. Query text, chunk content, model names, and vectors
 are never printed.
 
@@ -28,8 +28,8 @@ are never printed.
   failures return content-free recovery guidance.
 
 There is no approximate-nearest-neighbor index, token-budget selection, metadata
-filter, threshold configuration, reranking, grounded prompt, answer generation,
-or citation. Feature 005.07 owns grounded prompt construction.
+filter, threshold configuration, reranking, answer generation, or citation.
+Feature 005.07 now constructs the bounded grounded prompt.
 
 ## Verification
 

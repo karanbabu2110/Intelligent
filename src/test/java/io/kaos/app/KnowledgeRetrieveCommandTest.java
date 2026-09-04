@@ -2,6 +2,7 @@ package io.kaos.app;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.kaos.ai.ollama.OllamaEmbeddingClient;
 import io.kaos.ai.ollama.OllamaEmbeddingConfiguration;
@@ -35,11 +36,14 @@ class KnowledgeRetrieveCommandTest {
         int exitCode = command.execute(privateQuery);
 
         assertEquals(KaosApplication.SUCCESS, exitCode);
-        assertEquals("Retrieved context: 2 matches." + System.lineSeparator()
+        String referenceOutput = "Retrieved context: 2 matches." + System.lineSeparator()
                 + "document: 7, source: notes.txt, chunk: 0, score: 1.000000"
                 + System.lineSeparator()
                 + "document: 7, source: notes.txt, chunk: 1, score: 0.000000"
-                + System.lineSeparator(), output.standardOutput());
+                + System.lineSeparator();
+        assertTrue(output.standardOutput().startsWith(referenceOutput));
+        assertTrue(output.standardOutput().substring(referenceOutput.length())
+                .matches("Grounded prompt: [1-9][0-9]* characters from 2 contexts\\.\\R"));
         assertFalse(output.standardOutput().contains("private"));
         assertEquals("", output.errorOutput());
     }
@@ -78,6 +82,26 @@ class KnowledgeRetrieveCommandTest {
         assertEquals(KaosApplication.APPLICATION_ERROR, exitCode);
         assertEquals("ERROR [KAOS-KNOWLEDGE-006] Ollama returned an unusable query embedding. "
                 + "Check the configured embedding model and retry."
+                + System.lineSeparator(), output.errorOutput());
+        assertFalse(output.errorOutput().contains("private"));
+    }
+
+    @Test
+    void rejectsUnsafeStoredContentWithoutPrintingIt() {
+        Output output = new Output();
+        KnowledgeRetrieveCommand command = new KnowledgeRetrieveCommand(
+                output.context(),
+                () -> new OllamaEmbeddingConfiguration("embeddinggemma"),
+                (configuration, chunks) -> success(chunks.getFirst(), 1, 0),
+                () -> List.of(new StoredKnowledgeDocument(1, "embeddinggemma",
+                        List.of(embedded("private\u0000content", 0, 1, 0)))));
+
+        int exitCode = command.execute("question");
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, exitCode);
+        assertEquals("", output.standardOutput());
+        assertEquals("ERROR [KAOS-KNOWLEDGE-010] The retrieved context could not form a "
+                + "safe bounded prompt. Check stored document content and retry."
                 + System.lineSeparator(), output.errorOutput());
         assertFalse(output.errorOutput().contains("private"));
     }
