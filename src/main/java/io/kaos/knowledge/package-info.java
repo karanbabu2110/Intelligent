@@ -10,7 +10,9 @@
  * bounded local embedding vector. A versioned local SQLite store atomically persists exact
  * ordered chunks and fixed-width vector values and restores one bounded document snapshot.
  * A direct in-process retriever ranks compatible stored chunks by deterministic cosine
- * similarity and returns at most three immutable context results. The package does not
- * construct grounded prompts or own provider transport.</p>
+ * similarity and returns at most three immutable context results. A bounded prompt builder
+ * combines one exact question with whole ranked evidence records, explicit grounding rules,
+ * and untrusted-data instructions. The package does not submit grounded prompts, generate
+ * answers, or own provider transport.</p>
  */
 package io.kaos.knowledge;

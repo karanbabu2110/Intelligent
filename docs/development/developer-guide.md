@@ -108,8 +108,10 @@ Retrieve bounded context references from the same local knowledge database:
 
 The command uses the same `KAOS_OLLAMA_EMBEDDING_MODEL` and
 `KAOS_KNOWLEDGE_DATA_DIRECTORY` settings as ingestion. It prints at most three
-safe references and scores, not the query, chunk content, model name, or vectors.
-See [relevant-context retrieval](../evolution/relevant-context-retrieval.md).
+safe references and scores, followed by the bounded prompt size and included
+context count—not the query, chunk content, model name, vectors, or prompt.
+See [relevant-context retrieval](../evolution/relevant-context-retrieval.md) and
+[grounded prompt construction](../evolution/grounded-prompt-construction.md).
 
 The no-argument form is equivalent to `status`:
 
