@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.kaos.ai.ollama.OllamaConnectivity;
+import io.kaos.ai.ollama.OllamaEmbeddingClient;
+import io.kaos.ai.ollama.OllamaEmbeddingConfiguration;
 import io.kaos.ai.ollama.OllamaModelConfiguration;
 import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
@@ -18,6 +20,7 @@ import io.kaos.conversation.ConversationSession;
 import io.kaos.conversation.ConversationStorageException;
 import io.kaos.conversation.SqliteConversationSchema;
 import io.kaos.conversation.SqliteConversationStore;
+import io.kaos.knowledge.EmbeddedChunk;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -93,12 +96,27 @@ class KaosApplicationTest {
         Path documentPath = temporaryDirectory.resolve("knowledge.txt");
         Files.writeString(documentPath, "grounded café", java.nio.charset.StandardCharsets.UTF_8);
 
-        KaosApplicationHarness.Result result =
-                KaosApplicationHarness.run("knowledge-ingest", documentPath.toString());
+        KaosApplicationHarness.Result result = KaosApplicationHarness.capture(
+                (output, errorOutput) -> new ApplicationRuntime(
+                        () -> new OllamaConnectivity.Result(
+                                OllamaConnectivity.Status.REACHABLE, "test"),
+                        () -> new OllamaModelConfiguration("chat-model"),
+                        (model, history, prompt, thinking, chunks) -> {
+                            throw new AssertionError("prompt submission must not run");
+                        },
+                        () -> temporaryDirectory.resolve("conversations.db"),
+                        () -> new OllamaEmbeddingConfiguration("embeddinggemma"),
+                        (configuration, chunks) -> new OllamaEmbeddingClient.Result(
+                                OllamaEmbeddingClient.Status.SUCCESS,
+                                chunks.stream().map(chunk -> new EmbeddedChunk(
+                                        chunk, new double[] {0.1, 0.2, 0.3})).toList()))
+                        .execute(new String[] {"knowledge-ingest", documentPath.toString()},
+                                new ApplicationConfiguration("KAOS"), InputStream.nullInputStream(),
+                                output, errorOutput));
 
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(
-                "Ingested document: knowledge.txt (type: text/plain; charset=utf-8, bytes: 14, characters: 13, chunks: 1)."
+                "Ingested document: knowledge.txt (type: text/plain; charset=utf-8, bytes: 14, characters: 13, chunks: 1, embeddings: 1, dimensions: 3)."
                         + System.lineSeparator(),
                 result.standardOutput());
         assertEquals("", result.errorOutput());

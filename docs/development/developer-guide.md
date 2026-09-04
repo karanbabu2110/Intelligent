@@ -76,6 +76,7 @@ Show supported commands:
 Admit one local UTF-8 `.txt` file, up to 1 MiB, for later knowledge processing:
 
 ```powershell
+$env:KAOS_OLLAMA_EMBEDDING_MODEL = "embeddinggemma"
 ./gradlew.bat --% run --args="knowledge-ingest \"D:\documents\notes.txt\""
 ```
 
@@ -85,12 +86,15 @@ admitted bytes exactly without whitespace or line-ending normalization, then
 splits the text into immutable chunks of at most 1,000 Unicode code points with
 200 code points of overlap. Success prints the safe file name,
 `text/plain; charset=utf-8`, byte count, Unicode code-point count, and chunk
-count without printing the text. All immutable snapshots remain in memory only
-until the foreground command exits. The path may remain in shell history or
-process arguments, but KAOS does not print the path or content.
+count, embedding count, and dimension count without printing text or vector
+values. The selected model must already be installed. KAOS sends exact chunks
+only to fixed loopback Ollama `/api/embed`, disables provider truncation, and
+retains neither text nor vectors after the command exits. The path may remain in
+shell history or process arguments, but KAOS does not print the path or content.
 See [single document ingestion](../evolution/single-document-ingestion.md) and
 [text extraction](../evolution/text-extraction.md), then
-[document chunking](../evolution/document-chunking.md).
+[document chunking](../evolution/document-chunking.md) and
+[embedding generation](../evolution/embedding-generation.md).
 
 The no-argument form is equivalent to `status`:
 

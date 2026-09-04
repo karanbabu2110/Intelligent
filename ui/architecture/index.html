@@ -41,16 +41,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in application responsibility refactor</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 005.04</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> magenta labels identify the application responsibility refactor. <code>KaosApplication</code> now owns only the JVM and configuration boundary; <code>ApplicationRuntime</code> composes explicit dependencies, <code>CommandRouter</code> selects one CLI branch, and named command coordinators own knowledge, Ollama, and conversation workflows. Product behavior, deployment, data flow, and external contracts are unchanged.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> Feature 005.04 extends the existing knowledge command from deterministic chunks to transient local embeddings. An explicit embedding-model configuration and <code>OllamaEmbeddingClient</code> call fixed loopback Ollama once per chunk; bounded immutable vectors return in order and are discarded on exit. No vector storage or retrieval exists.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 720" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes one packaged Java process. KaosApplication owns process lifecycle, configuration loading, and the top-level safe failure boundary. ApplicationRuntime constructs explicit local dependencies and command coordinators. CommandRouter selects exactly one status, help, knowledge ingestion, Ollama status, model, prompt, or conversation branch. KnowledgeIngestCommand coordinates bounded admission, exact text extraction, and deterministic chunking without persistence or Ollama. OllamaStatusCommand, OllamaModelCommand, and OllamaPromptCommand coordinate provider-facing workflows through a narrow OllamaPromptSubmission port. ConversationCommand owns the foreground UTF-8 loop, bounded session coordination, SQLite restore and writes, and phase-specific recovery. ErrorReporter owns the stable coded-error format. Capability packages retain product and infrastructure behavior. The application remains one Gradle project and process with unchanged CLI, local Ollama, SQLite, and verification boundaries.</desc>
+          <desc id="diagram-description">A terminal invokes one packaged Java process. KaosApplication owns process lifecycle, configuration loading, and the top-level safe failure boundary. ApplicationRuntime constructs explicit local dependencies and command coordinators. CommandRouter selects exactly one status, help, knowledge ingestion, Ollama status, model, prompt, or conversation branch. KnowledgeIngestCommand coordinates bounded admission, exact text extraction, deterministic chunking, and transient embedding generation through fixed loopback Ollama. OllamaStatusCommand, OllamaModelCommand, and OllamaPromptCommand coordinate other provider-facing workflows through a narrow OllamaPromptSubmission port. ConversationCommand owns the foreground UTF-8 loop, bounded session coordination, SQLite restore and writes, and phase-specific recovery. ErrorReporter owns the stable coded-error format. Capability packages retain product and infrastructure behavior. The application remains one Gradle project and process.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -453,11 +453,11 @@
 
     <section id="knowledge-flow" class="panel" aria-labelledby="knowledge-flow-heading">
       <h2 id="knowledge-flow-heading">4. Document ingestion, extraction, and chunking sequence</h2>
-      <p>This view answers: “What exactly happens to my path, file bytes, decoded text, and chunks before KAOS reports success?” Green arrows follow calls and reads; blue arrows carry immutable results or command output back; magenta dashed arrows carry only content-free failure reasons.</p>
+      <p>This view answers: “What exactly happens to my path, file bytes, decoded text, and chunks before embedding begins?” Green arrows follow calls and reads; blue arrows carry immutable results or command output back; magenta dashed arrows carry only content-free failure reasons. Feature 005.04 continues from the immutable chunk list in the next view.</p>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable document ingestion, text-extraction, and chunking code-flow diagram">
         <svg viewBox="0 0 1140 920" role="img" aria-labelledby="knowledge-title knowledge-description">
           <title id="knowledge-title">KAOS bounded text-document ingestion, extraction, and chunking sequence</title>
-          <desc id="knowledge-description">The terminal passes knowledge-ingest and one path through CommandRouter to KnowledgeIngestCommand. The command converts path text to a Path and coordinates TextDocumentIngestor, PlainTextExtractor, and DocumentChunker directly in process. Admission validates a safe dot-txt file name, no-follow regular-file attributes, the one MiB limit, and strict UTF-8 before returning an immutable byte snapshot. Extraction preserves exact Unicode text without normalization. Chunking returns immutable ordered units of at most 1,000 code points with 200 code points of overlap. The command prints only safe name, media type, byte count, character count, and chunk count. Content-safe capability failures return through ErrorReporter. No arrow reaches SQLite or Ollama.</desc>
+          <desc id="knowledge-description">The terminal passes knowledge-ingest and one path through CommandRouter to KnowledgeIngestCommand. The command converts path text to a Path and coordinates TextDocumentIngestor, PlainTextExtractor, and DocumentChunker directly in process. Admission validates a safe dot-txt file name, no-follow regular-file attributes, the one MiB limit, and strict UTF-8 before returning an immutable byte snapshot. Extraction preserves exact Unicode text without normalization. Chunking returns immutable ordered units of at most 1,000 code points with 200 code points of overlap. Content-safe capability failures return through ErrorReporter. This diagram ends at the chunk list; the next view continues into embedding generation.</desc>
           <defs>
             <marker id="knowledge-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="knowledge-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
@@ -570,10 +570,21 @@
           <path d="M570 515 L570 555 L1075 555" class="knowledge-failure"></path>
           <path d="M1075 355 L1075 730 L930 730 L930 760" class="knowledge-failure"></path>
 
-          <text x="410" y="895" class="svg-label">NO PERSISTENCE · NO OLLAMA · NO BACKGROUND WORK</text>
+          <text x="350" y="895" class="svg-label">CHUNKING STAGE: NO PERSISTENCE · NO PROVIDER CALL · NO BACKGROUND WORK</text>
         </svg>
       </div>
       <p class="rule">Code evidence: <a href="../../src/main/java/io/kaos/app/KnowledgeIngestCommand.java"><code>KnowledgeIngestCommand.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/TextDocumentIngestor.java"><code>TextDocumentIngestor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/IngestedDocument.java"><code>IngestedDocument.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/KnowledgeIngestionException.java"><code>KnowledgeIngestionException.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/PlainTextExtractor.java"><code>PlainTextExtractor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/ExtractedText.java"><code>ExtractedText.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/TextExtractionException.java"><code>TextExtractionException.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/DocumentChunker.java"><code>DocumentChunker.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/DocumentChunk.java"><code>DocumentChunk.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/TextDocumentIngestorTest.java"><code>TextDocumentIngestorTest.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/PlainTextExtractorTest.java"><code>PlainTextExtractorTest.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/DocumentChunkerTest.java"><code>DocumentChunkerTest.java</code></a>, <a href="../../docs/evolution/single-document-ingestion.md">Feature 005.01 evidence</a>, <a href="../../docs/evolution/text-extraction.md">Feature 005.02 evidence</a>, and <a href="../../docs/evolution/document-chunking.md">Feature 005.03 evidence</a>.</p>
+    </section>
+
+    <section class="panel changed" aria-labelledby="embedding-flow-heading">
+      <h2 id="embedding-flow-heading">5. Local embedding generation flow</h2>
+      <p>The knowledge command loads one explicit embedding model, then sends each exact chunk in order to fixed loopback <code>POST /api/embed</code> with <code>truncate: false</code>. The client validates the echoed model, one finite vector of 1–4,096 dimensions, consistent dimensions across chunks, a 128 KiB per-response limit, and one shared five-minute foreground deadline.</p>
+      <div class="card-grid" aria-label="Feature 005.04 embedding data flow">
+        <article class="card"><div class="status implemented">Implemented input</div><h3>Ordered document chunks</h3><p>Immutable exact chunk text remains in memory and is never printed.</p></article>
+        <article class="card changed"><div class="status implemented">Feature 005.04</div><h3>OllamaEmbeddingClient</h3><p>Direct loopback HTTP calls validate bounded JSON without retries, redirects, remote configuration, or provider truncation.</p></article>
+        <article class="card changed"><div class="status implemented">Feature 005.04</div><h3>EmbeddedChunk list</h3><p>Each chunk is paired with a defensively copied bounded vector. Only embedding and dimension counts reach stdout; the list is discarded on exit.</p></article>
+      </div>
+      <p class="rule">Code evidence: <a href="../../src/main/java/io/kaos/ai/ollama/OllamaEmbeddingClient.java"><code>OllamaEmbeddingClient.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaEmbeddingConfiguration.java"><code>OllamaEmbeddingConfiguration.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/EmbeddedChunk.java"><code>EmbeddedChunk.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaEmbeddingClientTest.java"><code>OllamaEmbeddingClientTest.java</code></a>, and <a href="../../docs/evolution/embedding-generation.md">Feature 005.04 evidence</a>.</p>
     </section>
 
     <section class="panel" aria-labelledby="status-heading">
@@ -687,7 +698,7 @@
         <article class="card">
           <div class="status implemented">Implemented admission boundary</div>
           <h3>Single text-document ingestion</h3>
-          <p>One CLI path directly admits a regular non-link UTF-8 <code>.txt</code> file up to one MiB into an immutable foreground byte snapshot. Safe metadata returns once; content is neither persisted nor sent to Ollama.</p>
+          <p>One CLI path directly admits a regular non-link UTF-8 <code>.txt</code> file up to one MiB into an immutable foreground byte snapshot. Content remains transient; exact derived chunks now proceed to the explicit local embedding step.</p>
         </article>
         <article class="card">
           <div class="status implemented">Implemented extraction boundary</div>
@@ -700,9 +711,14 @@
           <p>One direct in-process chunker splits exact text into immutable ordered units of at most 1,000 Unicode code points with 200 code points of overlap. The CLI reports only the bounded chunk count.</p>
         </article>
         <article class="card">
-          <div class="status next">Next approved work</div>
+          <div class="status implemented">Implemented embedding boundary</div>
           <h3>Embedding generation</h3>
-          <p>Feature 005.04 will turn the bounded document chunks into local embedding vectors. No embedding request, model policy, vector value, or storage exists yet.</p>
+          <p>Feature 005.04 turns every exact chunk into one ordered, finite, bounded vector through an explicitly selected local Ollama embedding model. Vectors remain transient; no storage or retrieval exists yet.</p>
+        </article>
+        <article class="card">
+          <div class="status next">Next approved work</div>
+          <h3>Vector storage</h3>
+          <p>Feature 005.05 will define the smallest local persistence boundary for embedding vectors. No vector schema, index, write, or restart restore exists yet.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -743,7 +759,7 @@
         <tbody>
           <tr><td>One build and application</td><td><a href="../../settings.gradle.kts"><code>settings.gradle.kts</code></a> and <a href="../../build.gradle.kts"><code>build.gradle.kts</code></a></td><td>Implemented</td></tr>
           <tr><td>Single process entry point</td><td><a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a></td><td>Implemented</td></tr>
-          <tr class="change-current"><td><span class="change-label">Updated in application responsibility refactor</span>Explicit application composition and command responsibilities</td><td><a href="../../src/main/java/io/kaos/app/ApplicationRuntime.java"><code>ApplicationRuntime.java</code></a>, <a href="../../src/main/java/io/kaos/app/CommandRouter.java"><code>CommandRouter.java</code></a>, <a href="../../src/main/java/io/kaos/app/ConversationCommand.java"><code>ConversationCommand.java</code></a>, <a href="../../src/main/java/io/kaos/app/OllamaPromptCommand.java"><code>OllamaPromptCommand.java</code></a>, and <a href="../../docs/development/developer-guide.md#application-code-organization">coding responsibility rules</a></td><td>Implemented and verified on the refactor branch</td></tr>
+          <tr><td>Explicit application composition and command responsibilities</td><td><a href="../../src/main/java/io/kaos/app/ApplicationRuntime.java"><code>ApplicationRuntime.java</code></a>, <a href="../../src/main/java/io/kaos/app/CommandRouter.java"><code>CommandRouter.java</code></a>, <a href="../../src/main/java/io/kaos/app/ConversationCommand.java"><code>ConversationCommand.java</code></a>, <a href="../../src/main/java/io/kaos/app/OllamaPromptCommand.java"><code>OllamaPromptCommand.java</code></a>, and <a href="../../docs/development/developer-guide.md#application-code-organization">coding responsibility rules</a></td><td>Implemented and verified on main</td></tr>
           <tr><td>Local validated configuration</td><td><a href="../../src/main/java/io/kaos/app/config/ApplicationConfiguration.java"><code>ApplicationConfiguration.java</code></a></td><td>Implemented</td></tr>
           <tr><td>Package-first growth</td><td><a href="../../docs/evolution/package-first-application-structure.md">Package-first structure</a></td><td>Active rule</td></tr>
           <tr><td>Evidence-gated extraction</td><td><a href="../../docs/evolution/capability-boundary-evolution.md">Boundary evolution decision</a></td><td>Active rule</td></tr>
@@ -773,6 +789,7 @@
           <tr><td>Bounded local text-document admission</td><td><a href="../../src/main/java/io/kaos/knowledge/TextDocumentIngestor.java"><code>TextDocumentIngestor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/IngestedDocument.java"><code>IngestedDocument.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/KnowledgeIngestionException.java"><code>KnowledgeIngestionException.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeIngestCommand.java"><code>KnowledgeIngestCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/TextDocumentIngestorTest.java"><code>TextDocumentIngestorTest.java</code></a>, and <a href="../../docs/evolution/single-document-ingestion.md">Feature 005.01 evidence</a></td><td>Implemented; delivered by PR #43</td></tr>
           <tr><td>Exact bounded text extraction</td><td><a href="../../src/main/java/io/kaos/knowledge/PlainTextExtractor.java"><code>PlainTextExtractor.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/ExtractedText.java"><code>ExtractedText.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/TextExtractionException.java"><code>TextExtractionException.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeIngestCommand.java"><code>KnowledgeIngestCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/PlainTextExtractorTest.java"><code>PlainTextExtractorTest.java</code></a>, and <a href="../../docs/evolution/text-extraction.md">Feature 005.02 evidence</a></td><td>Implemented; delivered by PR #44</td></tr>
           <tr><td>Deterministic bounded document chunking</td><td><a href="../../src/main/java/io/kaos/knowledge/DocumentChunker.java"><code>DocumentChunker.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/DocumentChunk.java"><code>DocumentChunk.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeIngestCommand.java"><code>KnowledgeIngestCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/DocumentChunkerTest.java"><code>DocumentChunkerTest.java</code></a>, and <a href="../../docs/evolution/document-chunking.md">Feature 005.03 evidence</a></td><td>Implemented; delivered by PR #45</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 005.04</span>Bounded local embedding generation</td><td><a href="../../src/main/java/io/kaos/ai/ollama/OllamaEmbeddingClient.java"><code>OllamaEmbeddingClient.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/EmbeddedChunk.java"><code>EmbeddedChunk.java</code></a>, <a href="../../src/test/java/io/kaos/ai/ollama/OllamaEmbeddingClientTest.java"><code>OllamaEmbeddingClientTest.java</code></a>, and <a href="../../docs/evolution/embedding-generation.md">Feature 005.04 evidence</a></td><td>Implemented on the Feature 005.04 branch; PR pending</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

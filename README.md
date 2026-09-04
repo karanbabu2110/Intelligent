@@ -8,8 +8,8 @@ inside the verified single application.
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), and [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
-- Active work: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11) and [Feature 005.03 — Document Chunking](https://github.com/karanbabu2110/KAOS/issues/867); [Feature 005.01 — Single Document-Type Ingestion](https://github.com/karanbabu2110/KAOS/issues/865) and [Feature 005.02 — Text Extraction](https://github.com/karanbabu2110/KAOS/issues/866) are complete
-- Repository state: one root Gradle/Java 21 application with one production entry point, bounded in-memory UTF-8 text-document admission, exact immutable text extraction, deterministic immutable overlapping document chunks, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and a version-1 local SQLite database wired into the conversation command with classified privacy-safe failures and deterministic restart-to-provider integration evidence
+- Active work: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11) and [Feature 005.04 — Embedding Generation](https://github.com/karanbabu2110/KAOS/issues/868); Features 005.01 through 005.03 are complete
+- Repository state: one root Gradle/Java 21 application with one production entry point, bounded in-memory UTF-8 text-document admission, exact immutable text extraction, deterministic immutable overlapping document chunks, explicit local Ollama embedding generation with bounded immutable vectors, conversation-owned bounded immutable user/assistant messages, bounded ordered histories, selectable foreground sessions with current conversation and turn safety limits, optional loopback Ollama connectivity, explicit local model selection, an evidence-selected configurable context window, one bounded streaming chat flow, Jackson JSON and pinned SQLite JDBC runtime libraries, and a version-1 local SQLite database wired into the conversation command with classified privacy-safe failures and deterministic restart-to-provider integration evidence
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -59,20 +59,23 @@ echoing the supplied values.
 Admit one local UTF-8 plain-text document into a bounded in-memory snapshot:
 
 ```powershell
+$env:KAOS_OLLAMA_EMBEDDING_MODEL = "embeddinggemma"
 ./gradlew.bat --% run --args="knowledge-ingest \"D:\documents\notes.txt\""
 ```
 
 The command accepts one non-empty regular `.txt` file, rejects symbolic links,
 and enforces a 1 MiB limit. It strictly extracts the admitted UTF-8 bytes without
 normalizing their decoded content, then splits the exact text into immutable
-1,000-code-point chunks with 200-code-point overlap. It prints only the file
-name, media type, byte count, Unicode code-point count, and chunk count. Errors
-do not expose the path or content. All snapshots are discarded when the command
-exits. Persistence, embeddings, vector storage, retrieval, grounded prompts,
-and citations are not implemented yet. See [single document ingestion](docs/evolution/single-document-ingestion.md),
+1,000-code-point chunks with 200-code-point overlap. Using the explicitly
+selected installed embedding model, it sends each chunk in order to fixed
+loopback Ollama `/api/embed` with provider truncation disabled and validates one
+finite vector of at most 4,096 dimensions per chunk. It prints only safe metadata
+and counts. Errors do not expose the path, content, model name, or provider body.
+All snapshots and vectors are discarded when the command exits. Vector storage,
+retrieval, grounded prompts, and citations are not implemented yet. See [single document ingestion](docs/evolution/single-document-ingestion.md),
 [text extraction](docs/evolution/text-extraction.md), and
-[document chunking](docs/evolution/document-chunking.md) for exact behavior and
-limitations.
+[document chunking](docs/evolution/document-chunking.md), then
+[embedding generation](docs/evolution/embedding-generation.md) for exact behavior and limitations.
 
 Check whether Ollama is reachable on the fixed local endpoint
 `http://127.0.0.1:11434/api/version`:
@@ -265,9 +268,8 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-004 and Features #865-#866 are complete. Epic #11 and Feature #867 are
-active. The current branch splits one exact extracted text snapshot into
-bounded immutable chunks and reports only safe counts. Nothing is persisted or
-sent to Ollama. Embedding generation is the next ordered feature boundary at
-#868; vector storage, retrieval, grounded prompts, source attribution, and RAG
-evaluation remain later features in Epic 005.
+Epics 000-004 and Features #865-#867 are complete. Epic #11 and Feature #868 are
+active. The current branch generates transient bounded embeddings for exact
+document chunks through fixed loopback Ollama and reports only safe counts.
+Vector storage is the next ordered feature boundary at #869; retrieval, grounded
+prompts, source attribution, and RAG evaluation remain later features in Epic 005.
