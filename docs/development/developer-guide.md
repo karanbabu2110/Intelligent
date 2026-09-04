@@ -114,6 +114,8 @@ chunk content, model name, vectors, or prompt.
 See [relevant-context retrieval](../evolution/relevant-context-retrieval.md) and
 [grounded prompt construction](../evolution/grounded-prompt-construction.md),
 then [source attribution](../evolution/source-attribution.md).
+For deterministic end-to-end evidence that requires no Ollama process, run the
+[RAG evaluation test](../evolution/rag-evaluation-testing.md).
 
 The no-argument form is equivalent to `status`:
 
