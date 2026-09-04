@@ -11,6 +11,7 @@ import io.kaos.knowledge.KnowledgeStorageException;
 import io.kaos.knowledge.RelevantContextRetriever;
 import io.kaos.knowledge.RetrievedContext;
 import io.kaos.knowledge.SqliteKnowledgeStore;
+import io.kaos.knowledge.SourceCitation;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -76,11 +77,18 @@ final class KnowledgeRetrieveCommand {
             for (RetrievedContext match : matches) {
                 context.output().printf(Locale.ROOT,
                         "document: %d, source: %s, chunk: %d, score: %.6f%n",
-                        match.documentIdentifier(), match.chunk().sourceName(),
+                        match.documentIdentifier(), printable(match.chunk().sourceName()),
                         match.chunk().index(), match.score());
             }
             context.output().println("Grounded prompt: " + groundedPrompt.codePointCount()
                     + " characters from " + groundedPrompt.contexts().size() + " contexts.");
+            List<SourceCitation> citations = groundedPrompt.citations();
+            context.output().println("Citation sources: " + citations.size() + ".");
+            for (SourceCitation citation : citations) {
+                context.output().printf("citation %s: document: %d, source: %s, chunk: %d%n",
+                        citation.label(), citation.documentIdentifier(), citation.printableSourceName(),
+                        citation.chunkIndex());
+            }
             return KaosApplication.SUCCESS;
         } catch (KnowledgeStorageException exception) {
             report(KaosApplication.KNOWLEDGE_STORAGE_CODE,
@@ -114,6 +122,13 @@ final class KnowledgeRetrieveCommand {
         } catch (IllegalArgumentException | IllegalStateException exception) {
             throw KnowledgeStorageException.unavailable();
         }
+    }
+
+    private static String printable(String sourceName) {
+        return sourceName.replace("\\", "\\\\")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
     }
 
     private void report(String code, String message) {

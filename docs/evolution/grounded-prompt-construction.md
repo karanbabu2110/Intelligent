@@ -29,9 +29,10 @@ evidence content, or constructed prompt.
 - Construction is direct and in process with no template framework or new
   module.
 
-The prompt is not submitted and no answer, citation rendering, token estimator,
-configurable template, conversation integration, or model-specific formatting
-exists. Feature 005.08 owns source attribution.
+The prompt is not submitted and no answer, token estimator, configurable
+template, conversation integration, or model-specific formatting exists.
+Feature 005.08 now provides stable citation labels and source coordinates for
+the records this prompt includes.
 
 ## Verification
 

@@ -1,6 +1,7 @@
 package io.kaos.knowledge;
 
 import java.util.List;
+import java.util.stream.IntStream;
 
 /** One immutable bounded prompt paired with the exact contexts it contains. */
 public record GroundedPrompt(String text, List<RetrievedContext> contexts) {
@@ -21,6 +22,18 @@ public record GroundedPrompt(String text, List<RetrievedContext> contexts) {
     }
 
     public int codePointCount() { return text.codePointCount(0, text.length()); }
+
+    /** Returns stable source references in the same order as the included evidence. */
+    public List<SourceCitation> citations() {
+        return IntStream.range(0, contexts.size())
+                .mapToObj(index -> citation(index + 1, contexts.get(index)))
+                .toList();
+    }
+
+    private static SourceCitation citation(int number, RetrievedContext context) {
+        return new SourceCitation(number, context.documentIdentifier(),
+                context.chunk().sourceName(), context.chunk().index());
+    }
 
     private static boolean unsafe(int codePoint) {
         return Character.isISOControl(codePoint)
