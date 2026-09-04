@@ -43,7 +43,10 @@ class KnowledgeRetrieveCommandTest {
                 + System.lineSeparator();
         assertTrue(output.standardOutput().startsWith(referenceOutput));
         assertTrue(output.standardOutput().substring(referenceOutput.length())
-                .matches("Grounded prompt: [1-9][0-9]* characters from 2 contexts\\.\\R"));
+                .matches("Grounded prompt: [1-9][0-9]* characters from 2 contexts\\.\\R"
+                        + "Citation sources: 2\\.\\R"
+                        + "citation \\[1]: document: 7, source: notes\\.txt, chunk: 0\\R"
+                        + "citation \\[2]: document: 7, source: notes\\.txt, chunk: 1\\R"));
         assertFalse(output.standardOutput().contains("private"));
         assertEquals("", output.errorOutput());
     }
