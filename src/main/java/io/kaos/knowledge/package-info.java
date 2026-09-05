@@ -13,7 +13,7 @@
  * similarity and returns at most three immutable context results. A bounded prompt builder
  * combines one exact question with whole ranked evidence records, explicit grounding rules,
  * and untrusted-data instructions. Stable citation labels map included evidence to content-free
- * document, source, and chunk coordinates. The package does not submit grounded prompts,
- * generate or validate answers, or own provider transport.</p>
+ * document, source, and chunk coordinates. The application submits this prompt through the
+ * existing provider transport; this package does not generate or validate answers.</p>
  */
 package io.kaos.knowledge;

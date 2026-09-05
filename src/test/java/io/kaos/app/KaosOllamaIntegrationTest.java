@@ -48,6 +48,48 @@ class KaosOllamaIntegrationTest {
     Path temporaryDirectory;
 
     @Test
+    void sendsGroundedEvidenceThroughHttpAndPrintsSourcesAfterCompletion() throws Exception {
+        var chunk = new io.kaos.knowledge.DocumentChunk(
+                "policy.txt", 0, 0, 20, "Backups run nightly.");
+        var store = new io.kaos.knowledge.SqliteKnowledgeStore(
+                temporaryDirectory.resolve("knowledge.db"));
+        store.store("embedding-model", List.of(new io.kaos.knowledge.EmbeddedChunk(
+                chunk, new double[] {1, 0})));
+        String question = "When do backups run?";
+        var expected = new io.kaos.knowledge.GroundedPromptBuilder().build(
+                new io.kaos.knowledge.KnowledgeQuery(question),
+                new io.kaos.knowledge.RelevantContextRetriever().retrieve(
+                        new double[] {1, 0}, "embedding-model", store.loadAll()));
+        try (LocalOllamaServer server = LocalOllamaServer.responding(
+                200, record("Nightly ") + record("[1].") + TERMINAL)) {
+            var client = OllamaPromptClientTestSupport.client(server.endpoint());
+            var result = KaosApplicationHarness.capture((output, error) ->
+                    new ApplicationRuntime(
+                            () -> new OllamaConnectivity.Result(
+                                    OllamaConnectivity.Status.REACHABLE, "test"),
+                            () -> MODEL, client::submit,
+                            () -> temporaryDirectory.resolve("unused.db"),
+                            () -> new io.kaos.ai.ollama.OllamaEmbeddingConfiguration("embedding-model"),
+                            (configuration, chunks) -> new io.kaos.ai.ollama.OllamaEmbeddingClient.Result(
+                                    io.kaos.ai.ollama.OllamaEmbeddingClient.Status.SUCCESS,
+                                    List.of(new io.kaos.knowledge.EmbeddedChunk(
+                                            chunks.getFirst(), new double[] {1, 0}))),
+                            (model, chunks) -> { throw new AssertionError("unexpected write"); },
+                            store::loadAll).execute(new String[] {"knowledge-ask", question},
+                            new ApplicationConfiguration("KAOS"), InputStream.nullInputStream(),
+                            output, error));
+            assertEquals(KaosApplication.SUCCESS, result.exitCode());
+            assertEquals("", result.errorOutput());
+            assertEquals(expected.text(), requestMessages(server.requestBody())
+                    .get(0).get("content").textValue());
+            assertEquals("Nightly [1]." + System.lineSeparator()
+                    + "Citation sources: 1." + System.lineSeparator()
+                    + "citation [1]: document: 1, source: policy.txt, chunk: 0"
+                    + System.lineSeparator(), result.standardOutput());
+        }
+    }
+
+    @Test
     void streamsOneAnswerAcrossTheCompleteLocalAiPath() throws Exception {
         String body = record("Integrated ") + record("answer.") + TERMINAL;
         try (LocalOllamaServer server = LocalOllamaServer.responding(200, body)) {
