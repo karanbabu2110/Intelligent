@@ -9,6 +9,7 @@ final class CommandRouter {
     private final CommandContext context;
     private final ArgumentCommand knowledgeIngestCommand;
     private final ArgumentCommand knowledgeRetrieveCommand;
+    private final ArgumentCommand knowledgeAskCommand;
     private final Command ollamaStatusCommand;
     private final Command ollamaModelCommand;
     private final ArgumentCommand ollamaPromptCommand;
@@ -22,6 +23,7 @@ final class CommandRouter {
             ArgumentCommand ollamaPromptCommand,
             Command conversationCommand) {
         this(context, knowledgeIngestCommand, argument -> KaosApplication.USAGE_ERROR,
+                argument -> KaosApplication.USAGE_ERROR,
                 ollamaStatusCommand, ollamaModelCommand, ollamaPromptCommand,
                 conversationCommand);
     }
@@ -34,11 +36,28 @@ final class CommandRouter {
             Command ollamaModelCommand,
             ArgumentCommand ollamaPromptCommand,
             Command conversationCommand) {
+        this(context, knowledgeIngestCommand, knowledgeRetrieveCommand,
+                argument -> KaosApplication.USAGE_ERROR,
+                ollamaStatusCommand, ollamaModelCommand, ollamaPromptCommand,
+                conversationCommand);
+    }
+
+    CommandRouter(
+            CommandContext context,
+            ArgumentCommand knowledgeIngestCommand,
+            ArgumentCommand knowledgeRetrieveCommand,
+            ArgumentCommand knowledgeAskCommand,
+            Command ollamaStatusCommand,
+            Command ollamaModelCommand,
+            ArgumentCommand ollamaPromptCommand,
+            Command conversationCommand) {
         this.context = Objects.requireNonNull(context, "context");
         this.knowledgeIngestCommand = Objects.requireNonNull(
                 knowledgeIngestCommand, "knowledgeIngestCommand");
         this.knowledgeRetrieveCommand = Objects.requireNonNull(
                 knowledgeRetrieveCommand, "knowledgeRetrieveCommand");
+        this.knowledgeAskCommand = Objects.requireNonNull(
+                knowledgeAskCommand, "knowledgeAskCommand");
         this.ollamaStatusCommand = Objects.requireNonNull(
                 ollamaStatusCommand, "ollamaStatusCommand");
         this.ollamaModelCommand = Objects.requireNonNull(
@@ -66,6 +85,9 @@ final class CommandRouter {
         if (arguments.length == 2 && "knowledge-retrieve".equals(arguments[0])) {
             return knowledgeRetrieveCommand.execute(arguments[1]);
         }
+        if (arguments.length == 2 && "knowledge-ask".equals(arguments[0])) {
+            return knowledgeAskCommand.execute(arguments[1]);
+        }
         if (isCommand(arguments, "ollama-status")) {
             return ollamaStatusCommand.execute();
         }
@@ -91,6 +113,11 @@ final class CommandRouter {
         if (arguments.length > 0 && "knowledge-retrieve".equals(arguments[0])) {
             context.errorOutput().println(
                     "Expected one quoted knowledge query. Run 'kaos help' for usage.");
+            return KaosApplication.USAGE_ERROR;
+        }
+        if (arguments.length > 0 && "knowledge-ask".equals(arguments[0])) {
+            context.errorOutput().println(
+                    "Expected one quoted knowledge question. Run 'kaos help' for usage.");
             return KaosApplication.USAGE_ERROR;
         }
 

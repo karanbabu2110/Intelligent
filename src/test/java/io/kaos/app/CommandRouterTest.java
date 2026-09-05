@@ -67,6 +67,26 @@ class CommandRouterTest {
         assertEquals(1, retrievalCalls.get());
     }
 
+    @Test
+    void dispatchesOneQuotedKnowledgeQuestionOnlyToAnswerGeneration() {
+        AtomicInteger answerCalls = new AtomicInteger();
+        CommandRouter.Command command = () -> KaosApplication.SUCCESS;
+        CommandRouter router = new CommandRouter(
+                context(new ByteArrayOutputStream(), new ByteArrayOutputStream()),
+                argument -> command.execute(),
+                argument -> command.execute(),
+                argument -> {
+                    assertEquals("When do backups run?", argument);
+                    answerCalls.incrementAndGet();
+                    return KaosApplication.SUCCESS;
+                },
+                command, command, argument -> command.execute(), command);
+
+        assertEquals(KaosApplication.SUCCESS,
+                router.route(new String[] {"knowledge-ask", "When do backups run?"}));
+        assertEquals(1, answerCalls.get());
+    }
+
     private static CommandRouter router(
             ByteArrayOutputStream standardBytes,
             AtomicInteger commandCalls) {

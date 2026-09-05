@@ -29,12 +29,9 @@ current retriever has no relevance threshold, so compatible low-scoring chunks
 can remain in the bounded top-three results. The fixed vectors do not measure
 embedding quality, recall, precision, latency, or generated-answer faithfulness.
 
-Most importantly, the current knowledge command constructs but does not submit
-the grounded prompt. KAOS therefore cannot yet demonstrate the Epic 005 outcome
-of answering a question from retrieved context. No generated answer exists to
-evaluate for correctness, unsupported claims, or citation use. Epic 005 must
-remain open until that missing user outcome receives an explicit roadmap
-boundary and implementation evidence.
+Feature 005.10 now submits the grounded prompt and streams an answer. The fixed
+vector evaluation remains deterministic pipeline evidence; it does not evaluate
+the generated answer for correctness, unsupported claims, or citation use.
 
 ## Verification
 

@@ -8,8 +8,8 @@ inside the verified single application.
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), and [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
-- Active work: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11) and [Feature 005.09 — RAG Evaluation and Testing](https://github.com/karanbabu2110/KAOS/issues/873); Features 005.01 through 005.08 are complete
-- Repository state: one root Gradle/Java 21 application with one production entry point, bounded UTF-8 document admission, exact extraction and overlapping chunks, explicit local Ollama embeddings, atomic version-1 SQLite knowledge storage, deterministic top-three cosine retrieval, bounded injection-aware grounded prompt construction with stable source citations and deterministic cross-boundary evaluation, bounded persistent conversations, optional loopback Ollama connectivity, explicit model selection, Jackson JSON and pinned SQLite JDBC runtime libraries, and classified privacy-safe failures
+- Active work: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11) and [Feature 005.10 — Grounded Answer Generation](https://github.com/karanbabu2110/KAOS/issues/1091); Features 005.01 through 005.09 are complete
+- Repository state: one root Gradle/Java 21 application with one production entry point, bounded UTF-8 document admission, exact extraction and overlapping chunks, explicit local Ollama embeddings, atomic version-1 SQLite knowledge storage, deterministic top-three cosine retrieval, bounded injection-aware grounded prompt construction, streamed local grounded answers with stable source citations, deterministic cross-boundary evaluation, bounded persistent conversations, explicit model selection, Jackson JSON and pinned SQLite JDBC runtime libraries, and classified privacy-safe failures
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -102,6 +102,21 @@ It does not print the query, stored chunk content, or constructed prompt. See
 then [source attribution](docs/evolution/source-attribution.md).
 The deterministic [RAG evaluation](docs/evolution/rag-evaluation-testing.md)
 exercises extraction through citation construction without an external model.
+
+Answer one question from the stored local knowledge and print the sources made
+available to the answer:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
+$env:KAOS_OLLAMA_EMBEDDING_MODEL = "embeddinggemma"
+$env:KAOS_KNOWLEDGE_DATA_DIRECTORY = "D:\kaos-data"
+./gradlew.bat --% run --args="knowledge-ask \"When do backups run?\""
+```
+
+KAOS submits the exact bounded grounded prompt to fixed loopback Ollama, streams
+the answer, and prints source coordinates only after clean completion. Failed or
+partial responses never print citations. See
+[grounded answer generation](docs/evolution/grounded-answer-generation.md).
 
 Check whether Ollama is reachable on the fixed local endpoint
 `http://127.0.0.1:11434/api/version`:
@@ -294,8 +309,7 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-004 and Features #865-#872 are complete. Epic #11 and Feature #873 are
-active. Deterministic evaluation now crosses extraction, chunking, SQLite
-storage, compatible-vector ranking, grounded prompt construction, and source
-attribution. The pipeline still does not submit the grounded prompt or return an
-answer, so Epic #11 cannot yet claim its stated grounded-answer outcome.
+Epics 000-004 and Features #865-#873 are complete. Epic #11 and Feature #1091 are
+active. The application now retrieves local evidence, submits the exact grounded
+prompt, streams one answer, and prints only its available source coordinates
+after clean completion. Feature #1091 is the final missing Epic 005 outcome.

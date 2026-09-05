@@ -41,9 +41,9 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 005.09</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 005.10</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> Feature 005.09 adds deterministic evidence across extraction, chunking, SQLite storage, compatible-vector ranking, grounded prompt construction, and source attribution. The evaluation also confirms the current boundary: no grounded provider submission or answer exists, so Epic 005's grounded-answer outcome is not yet implemented.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> Feature 005.10 submits the exact bounded grounded prompt through the existing loopback Ollama stream. Source coordinates follow clean completion. Generated claims and citation use are not automatically verified.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
@@ -732,22 +732,22 @@
         <article class="card">
           <div class="status implemented">Implemented prompt boundary</div>
           <h3>Grounded prompt construction</h3>
-          <p>Feature 005.07 places the exact question and whole ranked evidence records into one bounded injection-aware prompt. It is constructed but not submitted.</p>
+          <p>Feature 005.07 places the exact question and whole ranked evidence records into one bounded injection-aware prompt. knowledge-retrieve constructs it; knowledge-ask submits it.</p>
         </article>
         <article class="card">
           <div class="status implemented">Implemented citation boundary</div>
           <h3>Source attribution</h3>
-          <p>Feature 005.08 assigns stable labels to included prompt evidence and renders content-free source coordinates. No answer submission or answer-citation validation exists yet.</p>
+          <p>Feature 005.08 assigns stable labels to included prompt evidence and renders content-free source coordinates. knowledge-ask submits the prompt; answer-citation validation remains deferred.</p>
         </article>
-        <article class="card changed">
+        <article class="card">
           <div class="status implemented">Implemented evaluation evidence</div>
           <h3>RAG evaluation and testing</h3>
           <p>Feature 005.09 deterministically verifies the local knowledge pipeline from exact extraction through citation construction, including incompatible-model exclusion.</p>
         </article>
         <article class="card">
-          <div class="status future">Missing delivery boundary</div>
+          <div class="status implemented">Feature 005.10</div>
           <h3>Grounded answer generation</h3>
-          <p>The epic target requires an answer from retrieved context, but the current command stops at prompt construction. A new #814 descendant is required before Epic 005 can close.</p>
+          <p>knowledge-ask retrieves evidence, submits the exact grounded prompt with empty history, and streams the answer. Source coordinates follow clean completion; partial failures omit the manifest and retain the existing warning.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -823,7 +823,8 @@
           <tr><td>Deterministic relevant-context retrieval</td><td><a href="../../src/main/java/io/kaos/knowledge/RelevantContextRetriever.java"><code>RelevantContextRetriever.java</code></a>, <a href="../../src/main/java/io/kaos/app/KnowledgeRetrieveCommand.java"><code>KnowledgeRetrieveCommand.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/RelevantContextRetrieverTest.java"><code>RelevantContextRetrieverTest.java</code></a>, and <a href="../../docs/evolution/relevant-context-retrieval.md">Feature 005.06 evidence</a></td><td>Implemented; delivered by PR #48</td></tr>
           <tr><td>Bounded grounded prompt construction</td><td><a href="../../src/main/java/io/kaos/knowledge/GroundedPromptBuilder.java"><code>GroundedPromptBuilder.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/GroundedPrompt.java"><code>GroundedPrompt.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/GroundedPromptBuilderTest.java"><code>GroundedPromptBuilderTest.java</code></a>, and <a href="../../docs/evolution/grounded-prompt-construction.md">Feature 005.07 evidence</a></td><td>Implemented; delivered by PR #49</td></tr>
           <tr><td>Stable source attribution</td><td><a href="../../src/main/java/io/kaos/knowledge/SourceCitation.java"><code>SourceCitation.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/GroundedPrompt.java"><code>GroundedPrompt.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/SourceCitationTest.java"><code>SourceCitationTest.java</code></a>, and <a href="../../docs/evolution/source-attribution.md">Feature 005.08 evidence</a></td><td>Implemented; delivered by PR #50</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 005.09</span>Deterministic RAG pipeline evaluation</td><td><a href="../../src/test/java/io/kaos/knowledge/RagPipelineEvaluationTest.java"><code>RagPipelineEvaluationTest.java</code></a> and <a href="../../docs/evolution/rag-evaluation-testing.md">Feature 005.09 evidence</a></td><td>Implemented on the Feature 005.09 branch; PR pending</td></tr>
+          <tr><td>Deterministic RAG pipeline evaluation</td><td><a href="../../src/test/java/io/kaos/knowledge/RagPipelineEvaluationTest.java"><code>RagPipelineEvaluationTest.java</code></a> and <a href="../../docs/evolution/rag-evaluation-testing.md">Feature 005.09 evidence</a></td><td>Implemented; delivered by PR #51</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 005.10</span>Grounded answer generation</td><td><a href="../../src/main/java/io/kaos/app/KnowledgeAskCommand.java">KnowledgeAskCommand</a>, <a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java">HTTP integration test</a>, and <a href="../../docs/evolution/grounded-answer-generation.md">Feature evidence</a></td><td>Implemented on feature branch; review pending</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

@@ -117,6 +117,19 @@ then [source attribution](../evolution/source-attribution.md).
 For deterministic end-to-end evidence that requires no Ollama process, run the
 [RAG evaluation test](../evolution/rag-evaluation-testing.md).
 
+Generate one grounded answer through the configured local chat and embedding
+models:
+
+```powershell
+./gradlew.bat --% run --args="knowledge-ask \"When do backups run?\""
+```
+
+The command streams the answer and prints the content-free citation manifest
+only after clean provider completion. It uses the existing
+`KAOS_OLLAMA_MODEL`, `KAOS_OLLAMA_EMBEDDING_MODEL`, and
+`KAOS_KNOWLEDGE_DATA_DIRECTORY` settings. See
+[grounded answer generation](../evolution/grounded-answer-generation.md).
+
 The no-argument form is equivalent to `status`:
 
 ```powershell

@@ -25,10 +25,10 @@ model name, or prompt.
 - Citation construction is deterministic and in process. It adds no database,
   framework, provider request, or network boundary.
 
-No grounded answer is generated yet, so KAOS does not claim that a model used a
-label correctly or that any answer sentence is supported. Feature 005.09 owns
-RAG evaluation and testing; answer generation and post-generation citation
-validation remain deferred until an explicit roadmap boundary supplies them.
+Feature 005.10 now generates a grounded answer and prints this manifest after
+clean completion. KAOS still does not claim that a model used a label correctly
+or that any answer sentence is supported; post-generation citation validation
+remains deferred.
 
 ## Verification
 
