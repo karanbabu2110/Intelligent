@@ -362,8 +362,8 @@ generation with exit code 0.
 Epic 006 — First Memory Capability is the next ordered stage and remains in
 Backlog until explicitly activated.
 
-Release checkpoint: [KAOS 1.2.0 release notes](../releases/v1.2.0.md) and
-[validation and publication procedure](../releases/v1.2.0-validation.md).
+Release checkpoint: [KAOS 1.3.0 release notes](../releases/v1.3.0.md) and
+[validation and publication procedure](../releases/v1.3.0-validation.md).
 
 ## Maintenance rule
 
