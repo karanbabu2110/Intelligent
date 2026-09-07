@@ -10,6 +10,7 @@ final class CommandRouter {
     private final ArgumentCommand knowledgeIngestCommand;
     private final ArgumentCommand knowledgeRetrieveCommand;
     private final ArgumentCommand knowledgeAskCommand;
+    private final TwoArgumentCommand memoryCreateCommand;
     private final Command ollamaStatusCommand;
     private final Command ollamaModelCommand;
     private final ArgumentCommand ollamaPromptCommand;
@@ -24,6 +25,7 @@ final class CommandRouter {
             Command conversationCommand) {
         this(context, knowledgeIngestCommand, argument -> KaosApplication.USAGE_ERROR,
                 argument -> KaosApplication.USAGE_ERROR,
+                (first, second) -> KaosApplication.USAGE_ERROR,
                 ollamaStatusCommand, ollamaModelCommand, ollamaPromptCommand,
                 conversationCommand);
     }
@@ -38,6 +40,7 @@ final class CommandRouter {
             Command conversationCommand) {
         this(context, knowledgeIngestCommand, knowledgeRetrieveCommand,
                 argument -> KaosApplication.USAGE_ERROR,
+                (first, second) -> KaosApplication.USAGE_ERROR,
                 ollamaStatusCommand, ollamaModelCommand, ollamaPromptCommand,
                 conversationCommand);
     }
@@ -51,6 +54,22 @@ final class CommandRouter {
             Command ollamaModelCommand,
             ArgumentCommand ollamaPromptCommand,
             Command conversationCommand) {
+        this(context, knowledgeIngestCommand, knowledgeRetrieveCommand,
+                knowledgeAskCommand, (first, second) -> KaosApplication.USAGE_ERROR,
+                ollamaStatusCommand, ollamaModelCommand, ollamaPromptCommand,
+                conversationCommand);
+    }
+
+    CommandRouter(
+            CommandContext context,
+            ArgumentCommand knowledgeIngestCommand,
+            ArgumentCommand knowledgeRetrieveCommand,
+            ArgumentCommand knowledgeAskCommand,
+            TwoArgumentCommand memoryCreateCommand,
+            Command ollamaStatusCommand,
+            Command ollamaModelCommand,
+            ArgumentCommand ollamaPromptCommand,
+            Command conversationCommand) {
         this.context = Objects.requireNonNull(context, "context");
         this.knowledgeIngestCommand = Objects.requireNonNull(
                 knowledgeIngestCommand, "knowledgeIngestCommand");
@@ -58,6 +77,8 @@ final class CommandRouter {
                 knowledgeRetrieveCommand, "knowledgeRetrieveCommand");
         this.knowledgeAskCommand = Objects.requireNonNull(
                 knowledgeAskCommand, "knowledgeAskCommand");
+        this.memoryCreateCommand = Objects.requireNonNull(
+                memoryCreateCommand, "memoryCreateCommand");
         this.ollamaStatusCommand = Objects.requireNonNull(
                 ollamaStatusCommand, "ollamaStatusCommand");
         this.ollamaModelCommand = Objects.requireNonNull(
@@ -87,6 +108,9 @@ final class CommandRouter {
         }
         if (arguments.length == 2 && "knowledge-ask".equals(arguments[0])) {
             return knowledgeAskCommand.execute(arguments[1]);
+        }
+        if (arguments.length == 3 && "memory-create".equals(arguments[0])) {
+            return memoryCreateCommand.execute(arguments[1], arguments[2]);
         }
         if (isCommand(arguments, "ollama-status")) {
             return ollamaStatusCommand.execute();
@@ -120,6 +144,11 @@ final class CommandRouter {
                     "Expected one quoted knowledge question. Run 'kaos help' for usage.");
             return KaosApplication.USAGE_ERROR;
         }
+        if (arguments.length > 0 && "memory-create".equals(arguments[0])) {
+            context.errorOutput().println(
+                    "Expected memory-create answer-detail <concise|balanced|detailed>. Run 'kaos help' for usage.");
+            return KaosApplication.USAGE_ERROR;
+        }
 
         context.errorOutput().println(invalidArgumentsMessage(arguments));
         return KaosApplication.USAGE_ERROR;
@@ -144,5 +173,10 @@ final class CommandRouter {
     @FunctionalInterface
     interface ArgumentCommand {
         int execute(String argument);
+    }
+
+    @FunctionalInterface
+    interface TwoArgumentCommand {
+        int execute(String firstArgument, String secondArgument);
     }
 }

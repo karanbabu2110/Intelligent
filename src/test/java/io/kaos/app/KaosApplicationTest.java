@@ -92,6 +92,33 @@ class KaosApplicationTest {
     }
 
     @Test
+    void createsTheBoundedAnswerDetailMemoryThroughTheCommandBoundary() {
+        KaosApplicationHarness.Result result = KaosApplicationHarness.run(
+                "memory-create", "answer-detail", "concise");
+
+        assertEquals(KaosApplication.SUCCESS, result.exitCode());
+        assertEquals("Created memory: answer-detail=concise." + System.lineSeparator(),
+                result.standardOutput());
+        assertEquals("", result.errorOutput());
+    }
+
+    @Test
+    void rejectsInvalidMemoryCreationArgumentsWithoutEchoingThem() {
+        String privateArgument = "private-extra-value";
+
+        KaosApplicationHarness.Result result = KaosApplicationHarness.run(
+                "memory-create", "answer-detail", "concise", privateArgument);
+
+        assertEquals(KaosApplication.USAGE_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "Expected memory-create answer-detail <concise|balanced|detailed>. "
+                        + "Run 'kaos help' for usage." + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains(privateArgument));
+    }
+
+    @Test
     void ingestsOneLocalTextDocumentThroughTheCommandBoundary() throws Exception {
         Path documentPath = temporaryDirectory.resolve("knowledge.txt");
         Files.writeString(documentPath, "grounded café", java.nio.charset.StandardCharsets.UTF_8);

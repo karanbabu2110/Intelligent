@@ -32,7 +32,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-09-07</strong>
-        Version 1.3.0 · Epic 005 verified<br>
+        Version 1.3.0 · Feature 006.02 working tree<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -41,16 +41,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated at the Epic 005 exit</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated for Feature 006.02</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> Epic 005 is verified from bounded UTF-8 document admission through a streamed local grounded answer and source manifest. Automated tests cover the complete local path, and an installed-model demonstration completed with exit code 0. Epic 006 is next and remains inactive.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> Feature 006.02 adds one direct in-process <code>io.kaos.memory</code> boundary. The CLI explicitly creates a fixed <code>answer-detail</code> value once for the current process; persistence, retrieval, AI-context use, inspection, editing, and deletion remain unimplemented.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 720" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes one packaged Java process. KaosApplication owns process lifecycle, configuration loading, and the top-level safe failure boundary. ApplicationRuntime constructs explicit local dependencies and command coordinators. CommandRouter selects exactly one status, help, knowledge ingestion, Ollama status, model, prompt, or conversation branch. KnowledgeIngestCommand coordinates bounded admission, exact text extraction, deterministic chunking, and transient embedding generation through fixed loopback Ollama. OllamaStatusCommand, OllamaModelCommand, and OllamaPromptCommand coordinate other provider-facing workflows through a narrow OllamaPromptSubmission port. ConversationCommand owns the foreground UTF-8 loop, bounded session coordination, SQLite restore and writes, and phase-specific recovery. ErrorReporter owns the stable coded-error format. Capability packages retain product and infrastructure behavior. The application remains one Gradle project and process.</desc>
+          <desc id="diagram-description">A terminal invokes one packaged Java process. KaosApplication owns process lifecycle, configuration loading, and the top-level safe failure boundary. ApplicationRuntime constructs explicit local dependencies and command coordinators. CommandRouter selects exactly one status, help, memory creation, knowledge, Ollama, or conversation branch. MemoryCreateCommand calls process-local AnswerDetailMemory for one bounded create-only transition. KnowledgeIngestCommand coordinates bounded admission, exact text extraction, deterministic chunking, and transient embedding generation through fixed loopback Ollama. Other command coordinators own their foreground workflows and ErrorReporter owns the stable coded-error format. Capability packages retain product and infrastructure behavior. The application remains one Gradle project and process.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -62,7 +62,7 @@
           <text x="58" y="105" class="svg-title">Terminal</text>
           <text x="58" y="126" class="svg-copy">status · help</text>
           <text x="58" y="148" class="svg-copy">ollama-status · ollama-model</text>
-          <text x="58" y="170" class="svg-copy">knowledge-ingest · AI · conversation</text>
+          <text x="58" y="170" class="svg-copy">memory-create · knowledge · AI · conversation</text>
 
           <text x="340" y="40" class="svg-label">SINGLE JAVA 21 PROCESS</text>
           <rect x="330" y="65" width="474" height="455" class="box box-implemented"></rect>
@@ -749,6 +749,11 @@
           <h3>Grounded answer generation</h3>
           <p>knowledge-ask retrieves evidence, submits the exact grounded prompt with empty history, and streams the answer. Source coordinates follow clean completion; partial failures omit the manifest and retain the existing warning.</p>
         </article>
+        <article class="card change-current">
+          <div class="status implemented">Feature 006.02 · implemented</div>
+          <h3>Explicit memory creation</h3>
+          <p><code>memory-create</code> validates one fixed <code>answer-detail</code> key and three structured values, performs only the absent-to-present transition in process, and reports content-safe failures. No persistence or consumer exists yet.</p>
+        </article>
         <article class="card">
           <div class="status future">Not justified today</div>
           <h3>Distributed boundaries</h3>
@@ -825,7 +830,8 @@
           <tr><td>Stable source attribution</td><td><a href="../../src/main/java/io/kaos/knowledge/SourceCitation.java"><code>SourceCitation.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/GroundedPrompt.java"><code>GroundedPrompt.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/SourceCitationTest.java"><code>SourceCitationTest.java</code></a>, and <a href="../../docs/evolution/source-attribution.md">Feature 005.08 evidence</a></td><td>Implemented; delivered by PR #50</td></tr>
           <tr><td>Deterministic RAG pipeline evaluation</td><td><a href="../../src/test/java/io/kaos/knowledge/RagPipelineEvaluationTest.java"><code>RagPipelineEvaluationTest.java</code></a> and <a href="../../docs/evolution/rag-evaluation-testing.md">Feature 005.09 evidence</a></td><td>Implemented; delivered by PR #51</td></tr>
           <tr><td>Grounded answer generation</td><td><a href="../../src/main/java/io/kaos/app/KnowledgeAskCommand.java">KnowledgeAskCommand</a>, <a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java">HTTP integration test</a>, and <a href="../../docs/evolution/grounded-answer-generation.md">Feature evidence</a></td><td>Implemented; delivered by PR #52</td></tr>
-          <tr class="change-current"><td><span class="change-label">New at the Epic 005 exit</span>First Knowledge and RAG Capability</td><td><a href="../../docs/evolution/epic-005-exit.md">Automated and installed-model exit evidence</a></td><td>Verified; exit review pending</td></tr>
+          <tr><td>First Knowledge and RAG Capability</td><td><a href="../../docs/evolution/epic-005-exit.md">Automated and installed-model exit evidence</a></td><td>Verified; exit review pending</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 006.02</span>Explicit bounded memory creation</td><td><a href="../../src/main/java/io/kaos/memory/AnswerDetailMemory.java"><code>AnswerDetailMemory.java</code></a>, <a href="../../src/main/java/io/kaos/app/MemoryCreateCommand.java"><code>MemoryCreateCommand.java</code></a>, <a href="../../src/test/java/io/kaos/memory/AnswerDetailMemoryTest.java"><code>AnswerDetailMemoryTest.java</code></a>, and <a href="../../docs/evolution/explicit-memory-creation.md">Feature evidence</a></td><td>Implemented in the current feature branch; process-local only</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>
