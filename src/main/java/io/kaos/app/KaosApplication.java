@@ -41,6 +41,7 @@ public final class KaosApplication {
     static final String KNOWLEDGE_STORAGE_CODE = "KAOS-KNOWLEDGE-008";
     static final String KNOWLEDGE_RETRIEVAL_CODE = "KAOS-KNOWLEDGE-009";
     static final String KNOWLEDGE_GROUNDED_PROMPT_CODE = "KAOS-KNOWLEDGE-010";
+    static final String MEMORY_CREATION_CODE = "KAOS-MEMORY-001";
 
     private KaosApplication() {
     }
@@ -159,11 +160,12 @@ public final class KaosApplication {
 
     static String helpText() {
         return """
-                Usage: kaos [status|help|knowledge-ingest <path>|knowledge-retrieve <query>|knowledge-ask <question>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
+                Usage: kaos [status|help|memory-create answer-detail <value>|knowledge-ingest <path>|knowledge-retrieve <query>|knowledge-ask <question>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
 
                 Commands:
                   status         Show local application status (default).
                   help           Show this help. The --help alias is also supported.
+                  memory-create  Create answer-detail as concise, balanced, or detailed for this process.
                   knowledge-ingest  Ingest and embed one local UTF-8 .txt document up to 1 MiB.
                   knowledge-retrieve  Rank stored chunks and construct one grounded prompt.
                   knowledge-ask  Answer one question from retrieved local context with citations.

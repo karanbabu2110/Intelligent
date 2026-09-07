@@ -73,6 +73,18 @@ Show supported commands:
 ./gradlew.bat run --args=help
 ```
 
+Create the first bounded memory for the current application process:
+
+```powershell
+./gradlew.bat --% run --args="memory-create answer-detail balanced"
+```
+
+The fixed key accepts only `concise`, `balanced`, or `detailed`. Creation is
+explicit and does not overwrite an existing value. The value is currently
+process-local and is discarded when the command process exits; durable storage,
+retrieval, inspection, editing, deletion, and AI-context use remain separate
+features. See [explicit memory creation](../evolution/explicit-memory-creation.md).
+
 Admit one local UTF-8 `.txt` file, up to 1 MiB, for later knowledge processing:
 
 ```powershell

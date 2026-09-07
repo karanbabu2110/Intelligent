@@ -361,8 +361,10 @@ generation with exit code 0.
 
 Epic 006 — First Memory Capability is now the active ordered stage. Its first
 feature defines one explicit local answer-detail preference in
-[Memory Use-Case Definition](memory-use-case-definition.md); runtime memory
-creation remains with Feature 006.02.
+[Memory Use-Case Definition](memory-use-case-definition.md). Feature 006.02
+implements its create-only, process-local absent-to-present transition in
+[Explicit Memory Creation](explicit-memory-creation.md); durable storage remains
+with Feature 006.03.
 
 Release checkpoint: [KAOS 1.3.0 release notes](../releases/v1.3.0.md) and
 [validation and publication procedure](../releases/v1.3.0-validation.md).
