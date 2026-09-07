@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import io.kaos.app.config.ApplicationConfiguration;
 import io.kaos.memory.AnswerDetailMemory;
+import io.kaos.memory.MemoryStorageException;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -60,14 +61,39 @@ class MemoryCreateCommandTest {
                 errorOutput.toString(StandardCharsets.UTF_8));
     }
 
+    @Test
+    void reportsAnUnavailableStoreWithoutExposingItsCause() {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ByteArrayOutputStream errorOutput = new ByteArrayOutputStream();
+        MemoryCreateCommand command = new MemoryCreateCommand(
+                context(output, errorOutput),
+                () -> {
+                    throw MemoryStorageException.unavailable();
+                });
+
+        int exitCode = command.execute("answer-detail", "balanced");
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, exitCode);
+        assertEquals("", output.toString(StandardCharsets.UTF_8));
+        assertEquals(
+                "ERROR [KAOS-MEMORY-002] The local memory database is unavailable or invalid. "
+                        + "Check the configured data directory and retry."
+                        + System.lineSeparator(),
+                errorOutput.toString(StandardCharsets.UTF_8));
+    }
+
     private static MemoryCreateCommand command(
             ByteArrayOutputStream output,
             ByteArrayOutputStream errorOutput,
             AnswerDetailMemory memory) {
-        CommandContext context = new CommandContext(
+        return new MemoryCreateCommand(context(output, errorOutput), memory);
+    }
+
+    private static CommandContext context(
+            ByteArrayOutputStream output, ByteArrayOutputStream errorOutput) {
+        return new CommandContext(
                 new ApplicationConfiguration("KAOS"), InputStream.nullInputStream(),
                 new PrintStream(output, true, StandardCharsets.UTF_8),
                 new PrintStream(errorOutput, true, StandardCharsets.UTF_8));
-        return new MemoryCreateCommand(context, memory);
     }
 }

@@ -10,7 +10,8 @@ import io.kaos.conversation.ConversationDatabasePath;
 import io.kaos.knowledge.KnowledgeDatabasePath;
 import io.kaos.knowledge.KnowledgeStorageException;
 import io.kaos.knowledge.SqliteKnowledgeStore;
-import io.kaos.memory.AnswerDetailMemory;
+import io.kaos.memory.MemoryDatabasePath;
+import io.kaos.memory.SqliteAnswerDetailStore;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.file.Path;
@@ -27,7 +28,6 @@ final class ApplicationRuntime {
     private final EmbeddingSubmission embeddingSubmission;
     private final KnowledgeStorageSubmission knowledgeStorageSubmission;
     private final KnowledgeDocumentLoader knowledgeDocumentLoader;
-    private final AnswerDetailMemory answerDetailMemory = new AnswerDetailMemory();
 
     ApplicationRuntime(
             Supplier<OllamaConnectivity.Result> connectivityCheck,
@@ -125,7 +125,7 @@ final class ApplicationRuntime {
         KnowledgeAskCommand knowledgeAskCommand = new KnowledgeAskCommand(
                 knowledgeRetrieveCommand, ollamaPromptCommand);
         MemoryCreateCommand memoryCreateCommand = new MemoryCreateCommand(
-                context, answerDetailMemory);
+                context, () -> new SqliteAnswerDetailStore(MemoryDatabasePath.load()));
         return new CommandRouter(
                 context,
                 new KnowledgeIngestCommand(

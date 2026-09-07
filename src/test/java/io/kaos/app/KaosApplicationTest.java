@@ -21,6 +21,7 @@ import io.kaos.conversation.ConversationStorageException;
 import io.kaos.conversation.SqliteConversationSchema;
 import io.kaos.conversation.SqliteConversationStore;
 import io.kaos.knowledge.EmbeddedChunk;
+import io.kaos.memory.MemoryDatabasePath;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -92,14 +93,32 @@ class KaosApplicationTest {
     }
 
     @Test
-    void createsTheBoundedAnswerDetailMemoryThroughTheCommandBoundary() {
-        KaosApplicationHarness.Result result = KaosApplicationHarness.run(
-                "memory-create", "answer-detail", "concise");
+    void persistsTheBoundedAnswerDetailAcrossApplicationRuns() {
+        String previous = System.getProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+        System.setProperty(
+                MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY, temporaryDirectory.toString());
+        try {
+            KaosApplicationHarness.Result created = KaosApplicationHarness.run(
+                    "memory-create", "answer-detail", "concise");
+            KaosApplicationHarness.Result duplicate = KaosApplicationHarness.run(
+                    "memory-create", "answer-detail", "detailed");
 
-        assertEquals(KaosApplication.SUCCESS, result.exitCode());
-        assertEquals("Created memory: answer-detail=concise." + System.lineSeparator(),
-                result.standardOutput());
-        assertEquals("", result.errorOutput());
+            assertEquals(KaosApplication.SUCCESS, created.exitCode());
+            assertEquals("Created memory: answer-detail=concise." + System.lineSeparator(),
+                    created.standardOutput());
+            assertEquals("", created.errorOutput());
+            assertEquals(KaosApplication.APPLICATION_ERROR, duplicate.exitCode());
+            assertEquals(
+                    "ERROR [KAOS-MEMORY-001] The answer-detail memory already exists; "
+                            + "creation does not overwrite it." + System.lineSeparator(),
+                    duplicate.errorOutput());
+        } finally {
+            if (previous == null) {
+                System.clearProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+            } else {
+                System.setProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY, previous);
+            }
+        }
     }
 
     @Test

@@ -22,10 +22,10 @@ prints only the fixed key and bounded value. Invalid keys or values and a second
 creation fail without changing the existing value; error output never echoes
 untrusted input.
 
-The state is application-wide within the current Java process. It is not yet
-written to disk and therefore does not survive a normal CLI process exit. This
-is deliberate: Feature 006.03 owns durable storage, and this feature does not
-preselect its schema or lifecycle mechanics.
+Feature 006.02 initially kept state within the Java process and deliberately did
+not preselect a schema. Feature 006.03 now preserves the same create-only
+transition across application runs in local SQLite; see
+[Memory Storage](memory-storage.md).
 
 ## Privacy and failure boundary
 
@@ -51,9 +51,7 @@ checkpoint is:
 
 ## Deliberate limits and handoff
 
-This feature does not implement persistence, restart recovery, retrieval,
-AI-context use, inspection, editing, deletion, expiration, arbitrary keys, or
-free-form memory. The next ordered feature is
-[006.03 — Memory Storage](https://github.com/karanbabu2110/KAOS/issues/877),
-which should make this exact create-only state durable without broadening its
-key or value domain.
+This feature did not itself implement persistence, retrieval, AI-context use,
+inspection, editing, deletion, expiration, arbitrary keys, or free-form memory.
+Feature 006.03 subsequently added persistence without broadening the key or
+value domain.
