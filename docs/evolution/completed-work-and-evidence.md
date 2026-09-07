@@ -365,7 +365,9 @@ feature defines one explicit local answer-detail preference in
 implements its create-only absent-to-present transition in
 [Explicit Memory Creation](explicit-memory-creation.md). Feature 006.03 persists
 that exact state across application runs through the existing SQLite JDBC
-boundary in [Memory Storage](memory-storage.md); retrieval remains Feature 006.04.
+boundary in [Memory Storage](memory-storage.md). Feature 006.04 restores either
+absence or one validated enum through the bounded
+[Memory Retrieval](memory-retrieval.md) API; AI-context use remains Feature 006.05.
 
 Release checkpoint: [KAOS 1.3.0 release notes](../releases/v1.3.0.md) and
 [validation and publication procedure](../releases/v1.3.0-validation.md).

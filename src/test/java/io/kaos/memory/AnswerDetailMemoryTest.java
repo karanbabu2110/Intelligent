@@ -3,6 +3,7 @@ package io.kaos.memory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class AnswerDetailMemoryTest {
@@ -52,5 +53,16 @@ class AnswerDetailMemoryTest {
                 () -> memory.create(AnswerDetailMemory.KEY, "detailed"));
 
         assertEquals(MemoryCreationException.Reason.ALREADY_EXISTS, exception.reason());
+        assertEquals(Optional.of(AnswerDetail.CONCISE), memory.retrieve());
+    }
+
+    @Test
+    void retrievalDistinguishesAbsentAndPresentState() {
+        AnswerDetailMemory memory = new AnswerDetailMemory();
+        assertEquals(Optional.empty(), memory.retrieve());
+
+        memory.create(AnswerDetailMemory.KEY, "balanced");
+
+        assertEquals(Optional.of(AnswerDetail.BALANCED), memory.retrieve());
     }
 }

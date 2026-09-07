@@ -51,8 +51,7 @@ failure reporting, and separate application runs. The complete checkpoint is:
 ./gradlew.bat clean verifyLocal --no-daemon --warning-mode=all
 ```
 
-This feature does not expose a retrieval or inspection API, apply memory to an
-AI request, or implement editing or deletion. The next ordered feature is
-[006.04 — Memory Retrieval](https://github.com/karanbabu2110/KAOS/issues/876),
-which should read and validate this exact stored preference without broadening
-the memory domain.
+This feature did not itself expose retrieval or inspection, apply memory to an
+AI request, or implement editing or deletion. Feature 006.04 subsequently added
+bounded exact-key [Memory Retrieval](memory-retrieval.md) without broadening the
+memory domain.

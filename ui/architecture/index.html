@@ -32,7 +32,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-09-07</strong>
-        Version 1.3.0 · Feature 006.03 working tree<br>
+        Version 1.3.0 · Feature 006.04 working tree<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -41,9 +41,9 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated for Feature 006.03</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated for Feature 006.04</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> Feature 006.03 persists the fixed <code>answer-detail</code> preference in version-1 local <code>memory.db</code> through the existing SQLite JDBC dependency. Exact-key transactional storage fits the current three-value domain; no vector database, embeddings, semantic search, retrieval API, AI-context use, inspection, editing, or deletion is introduced.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> Feature 006.04 adds an exact in-process retrieval contract over version-1 local <code>memory.db</code>. Consumers receive only absence or one validated <code>AnswerDetail</code>; unexpected keys, values, or rows fail as invalid state. No CLI inspection, AI-context use, vector search, editing, or deletion is introduced.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
@@ -754,10 +754,15 @@
           <h3>Explicit memory creation</h3>
           <p><code>memory-create</code> validates one fixed <code>answer-detail</code> key and three structured values, performs only the absent-to-present transition, and reports content-safe failures.</p>
         </article>
-        <article class="card change-current">
+        <article class="card">
           <div class="status implemented">Feature 006.03 · implemented</div>
           <h3>Durable memory storage</h3>
           <p>A fixed local <code>memory.db</code> stores the preference through the existing SQLite JDBC driver. Versioned schema validation, a primary key, and content-free failures preserve create-only state across processes without a vector index.</p>
+        </article>
+        <article class="card change-current">
+          <div class="status implemented">Feature 006.04 · implemented</div>
+          <h3>Bounded memory retrieval</h3>
+          <p><code>AnswerDetailStore</code> returns only absence or one validated enum. SQLite retrieval reads at most two rows and rejects unexpected keys, values, or additional state without exposing stored text.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -837,7 +842,8 @@
           <tr><td>Grounded answer generation</td><td><a href="../../src/main/java/io/kaos/app/KnowledgeAskCommand.java">KnowledgeAskCommand</a>, <a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java">HTTP integration test</a>, and <a href="../../docs/evolution/grounded-answer-generation.md">Feature evidence</a></td><td>Implemented; delivered by PR #52</td></tr>
           <tr><td>First Knowledge and RAG Capability</td><td><a href="../../docs/evolution/epic-005-exit.md">Automated and installed-model exit evidence</a></td><td>Verified; exit review pending</td></tr>
           <tr><td>Explicit bounded memory creation</td><td><a href="../../src/main/java/io/kaos/memory/AnswerDetailMemory.java"><code>AnswerDetailMemory.java</code></a>, <a href="../../src/main/java/io/kaos/app/MemoryCreateCommand.java"><code>MemoryCreateCommand.java</code></a>, <a href="../../src/test/java/io/kaos/memory/AnswerDetailMemoryTest.java"><code>AnswerDetailMemoryTest.java</code></a>, and <a href="../../docs/evolution/explicit-memory-creation.md">Feature evidence</a></td><td>Implemented; delivered by PR #56</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 006.03</span>Versioned local memory storage</td><td><a href="../../src/main/java/io/kaos/memory/SqliteAnswerDetailStore.java"><code>SqliteAnswerDetailStore.java</code></a>, <a href="../../src/main/java/io/kaos/memory/MemoryDatabasePath.java"><code>MemoryDatabasePath.java</code></a>, <a href="../../src/test/java/io/kaos/memory/SqliteAnswerDetailStoreTest.java"><code>SqliteAnswerDetailStoreTest.java</code></a>, and <a href="../../docs/evolution/memory-storage.md">Feature evidence</a></td><td>Implemented in the current feature branch; local SQLite, no vector database</td></tr>
+          <tr><td>Versioned local memory storage</td><td><a href="../../src/main/java/io/kaos/memory/SqliteAnswerDetailStore.java"><code>SqliteAnswerDetailStore.java</code></a>, <a href="../../src/main/java/io/kaos/memory/MemoryDatabasePath.java"><code>MemoryDatabasePath.java</code></a>, <a href="../../src/test/java/io/kaos/memory/SqliteAnswerDetailStoreTest.java"><code>SqliteAnswerDetailStoreTest.java</code></a>, and <a href="../../docs/evolution/memory-storage.md">Feature evidence</a></td><td>Implemented; delivered by PR #57 using local SQLite, no vector database</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 006.04</span>Bounded exact memory retrieval</td><td><a href="../../src/main/java/io/kaos/memory/AnswerDetailStore.java"><code>AnswerDetailStore.java</code></a>, <a href="../../src/main/java/io/kaos/memory/SqliteAnswerDetailStore.java"><code>SqliteAnswerDetailStore.java</code></a>, <a href="../../src/test/java/io/kaos/memory/SqliteAnswerDetailStoreTest.java"><code>SqliteAnswerDetailStoreTest.java</code></a>, and <a href="../../docs/evolution/memory-retrieval.md">Feature evidence</a></td><td>Implemented in the current feature branch; internal consumer API only</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

@@ -1,6 +1,7 @@
 package io.kaos.memory;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /** Owns the absent-to-present transition for the first application-wide memory. */
 public final class AnswerDetailMemory implements AnswerDetailStore {
@@ -16,6 +17,11 @@ public final class AnswerDetailMemory implements AnswerDetailStore {
         }
         value = parsedValue;
         return parsedValue;
+    }
+
+    @Override
+    public Optional<AnswerDetail> retrieve() {
+        return Optional.ofNullable(value);
     }
 
     static AnswerDetail validate(String key, String requestedValue) {
