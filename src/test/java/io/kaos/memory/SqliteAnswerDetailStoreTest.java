@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -31,6 +32,14 @@ class SqliteAnswerDetailStoreTest {
             assertEquals("detailed", row.getString(2));
             assertEquals(false, row.next());
         }
+        assertEquals(Optional.of(AnswerDetail.DETAILED),
+                new SqliteAnswerDetailStore(database).retrieve());
+    }
+
+    @Test
+    void returnsEmptyWhenThePreferenceIsAbsent() {
+        assertEquals(Optional.empty(), new SqliteAnswerDetailStore(
+                temporaryDirectory.resolve("empty.db")).retrieve());
     }
 
     @Test
@@ -85,6 +94,51 @@ class SqliteAnswerDetailStoreTest {
                 Statement statement = connection.createStatement();
                 var row = statement.executeQuery("SELECT COUNT(*) FROM answer_detail_memory")) {
             assertEquals(0, row.getInt(1));
+        }
+    }
+
+    @Test
+    void rejectsInvalidStoredValuesAndUnexpectedKeys() throws Exception {
+        Path invalidValueDatabase = temporaryDirectory.resolve("invalid-value.db");
+        SqliteAnswerDetailStore invalidValueStore =
+                new SqliteAnswerDetailStore(invalidValueDatabase);
+        insertRaw(invalidValueDatabase, "answer-detail", "private free-form value");
+
+        MemoryStorageException invalidValue = assertThrows(
+                MemoryStorageException.class, invalidValueStore::retrieve);
+
+        assertEquals(MemoryStorageException.Reason.INVALID_STATE, invalidValue.reason());
+
+        Path invalidKeyDatabase = temporaryDirectory.resolve("invalid-key.db");
+        SqliteAnswerDetailStore invalidKeyStore = new SqliteAnswerDetailStore(invalidKeyDatabase);
+        insertRaw(invalidKeyDatabase, "private-key", "concise");
+
+        MemoryStorageException invalidKey = assertThrows(
+                MemoryStorageException.class, invalidKeyStore::retrieve);
+
+        assertEquals(MemoryStorageException.Reason.INVALID_STATE, invalidKey.reason());
+    }
+
+    @Test
+    void rejectsMoreThanTheSingleOwnedMemoryRow() throws Exception {
+        Path database = temporaryDirectory.resolve("extra-row.db");
+        SqliteAnswerDetailStore store = new SqliteAnswerDetailStore(database);
+        insertRaw(database, "answer-detail", "balanced");
+        insertRaw(database, "unexpected", "concise");
+
+        MemoryStorageException exception = assertThrows(
+                MemoryStorageException.class, store::retrieve);
+
+        assertEquals(MemoryStorageException.Reason.INVALID_STATE, exception.reason());
+    }
+
+    private static void insertRaw(Path database, String key, String value) throws Exception {
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database);
+                var statement = connection.prepareStatement(
+                        "INSERT INTO answer_detail_memory (memory_key, memory_value) VALUES (?, ?)")) {
+            statement.setString(1, key);
+            statement.setString(2, value);
+            statement.executeUpdate();
         }
     }
 }

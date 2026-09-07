@@ -12,6 +12,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import org.sqlite.SQLiteErrorCode;
 
 /** Versioned SQLite storage for the fixed answer-detail memory. */
@@ -46,6 +47,34 @@ public final class SqliteAnswerDetailStore implements AnswerDetailStore {
             if ((exception.getErrorCode() & 0xff) == SQLiteErrorCode.SQLITE_CONSTRAINT.code) {
                 throw MemoryCreationException.alreadyExists();
             }
+            throw MemoryStorageException.fromSql(exception);
+        }
+    }
+
+    @Override
+    public Optional<AnswerDetail> retrieve() {
+        try (Connection connection = open();
+                Statement statement = connection.createStatement();
+                ResultSet rows = statement.executeQuery(
+                        "SELECT memory_key, memory_value FROM " + TABLE
+                                + " ORDER BY memory_key LIMIT 2")) {
+            if (!rows.next()) {
+                return Optional.empty();
+            }
+            if (!AnswerDetailMemory.KEY.equals(rows.getString("memory_key"))) {
+                throw invalidState();
+            }
+            AnswerDetail value;
+            try {
+                value = AnswerDetail.parse(rows.getString("memory_value"));
+            } catch (MemoryCreationException | NullPointerException exception) {
+                throw invalidState();
+            }
+            if (rows.next()) {
+                throw invalidState();
+            }
+            return Optional.of(value);
+        } catch (SQLException exception) {
             throw MemoryStorageException.fromSql(exception);
         }
     }
