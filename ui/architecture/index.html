@@ -32,7 +32,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-09-03</strong>
-        Version 1.2.0 · Epic 005 active<br>
+        Version 1.2.0 · Epic 005 verified<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -41,9 +41,9 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated in Feature 005.10</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated at the Epic 005 exit</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> Feature 005.10 submits the exact bounded grounded prompt through the existing loopback Ollama stream. Source coordinates follow clean completion. Generated claims and citation use are not automatically verified.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> Epic 005 is verified from bounded UTF-8 document admission through a streamed local grounded answer and source manifest. Automated tests cover the complete local path, and an installed-model demonstration completed with exit code 0. Epic 006 is next and remains inactive.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
@@ -824,7 +824,8 @@
           <tr><td>Bounded grounded prompt construction</td><td><a href="../../src/main/java/io/kaos/knowledge/GroundedPromptBuilder.java"><code>GroundedPromptBuilder.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/GroundedPrompt.java"><code>GroundedPrompt.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/GroundedPromptBuilderTest.java"><code>GroundedPromptBuilderTest.java</code></a>, and <a href="../../docs/evolution/grounded-prompt-construction.md">Feature 005.07 evidence</a></td><td>Implemented; delivered by PR #49</td></tr>
           <tr><td>Stable source attribution</td><td><a href="../../src/main/java/io/kaos/knowledge/SourceCitation.java"><code>SourceCitation.java</code></a>, <a href="../../src/main/java/io/kaos/knowledge/GroundedPrompt.java"><code>GroundedPrompt.java</code></a>, <a href="../../src/test/java/io/kaos/knowledge/SourceCitationTest.java"><code>SourceCitationTest.java</code></a>, and <a href="../../docs/evolution/source-attribution.md">Feature 005.08 evidence</a></td><td>Implemented; delivered by PR #50</td></tr>
           <tr><td>Deterministic RAG pipeline evaluation</td><td><a href="../../src/test/java/io/kaos/knowledge/RagPipelineEvaluationTest.java"><code>RagPipelineEvaluationTest.java</code></a> and <a href="../../docs/evolution/rag-evaluation-testing.md">Feature 005.09 evidence</a></td><td>Implemented; delivered by PR #51</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 005.10</span>Grounded answer generation</td><td><a href="../../src/main/java/io/kaos/app/KnowledgeAskCommand.java">KnowledgeAskCommand</a>, <a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java">HTTP integration test</a>, and <a href="../../docs/evolution/grounded-answer-generation.md">Feature evidence</a></td><td>Implemented on feature branch; review pending</td></tr>
+          <tr><td>Grounded answer generation</td><td><a href="../../src/main/java/io/kaos/app/KnowledgeAskCommand.java">KnowledgeAskCommand</a>, <a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java">HTTP integration test</a>, and <a href="../../docs/evolution/grounded-answer-generation.md">Feature evidence</a></td><td>Implemented; delivered by PR #52</td></tr>
+          <tr class="change-current"><td><span class="change-label">New at the Epic 005 exit</span>First Knowledge and RAG Capability</td><td><a href="../../docs/evolution/epic-005-exit.md">Automated and installed-model exit evidence</a></td><td>Verified; exit review pending</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>
