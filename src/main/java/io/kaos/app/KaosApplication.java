@@ -42,6 +42,7 @@ public final class KaosApplication {
     static final String KNOWLEDGE_RETRIEVAL_CODE = "KAOS-KNOWLEDGE-009";
     static final String KNOWLEDGE_GROUNDED_PROMPT_CODE = "KAOS-KNOWLEDGE-010";
     static final String MEMORY_CREATION_CODE = "KAOS-MEMORY-001";
+    static final String MEMORY_STORAGE_CODE = "KAOS-MEMORY-002";
 
     private KaosApplication() {
     }
@@ -165,7 +166,7 @@ public final class KaosApplication {
                 Commands:
                   status         Show local application status (default).
                   help           Show this help. The --help alias is also supported.
-                  memory-create  Create answer-detail as concise, balanced, or detailed for this process.
+                  memory-create  Persist answer-detail as concise, balanced, or detailed.
                   knowledge-ingest  Ingest and embed one local UTF-8 .txt document up to 1 MiB.
                   knowledge-retrieve  Rank stored chunks and construct one grounded prompt.
                   knowledge-ask  Answer one question from retrieved local context with citations.
