@@ -331,8 +331,36 @@ exclusion of a failed partial turn.
 Epic 004 is verified end to end through the real conversation command, local
 SQLite schema and store, real Ollama client, streamed loopback NDJSON, and
 separate application runs. The clean merged-main checkpoint completed all seven
-features and passed all 11 `verifyLocal` tasks with 187 tests. Epic 005 — First
-Knowledge and RAG Capability is the next approved stage and is not active yet.
+features and passed all 11 `verifyLocal` tasks with 187 tests. Epic 005 followed
+this checkpoint and is recorded below.
+
+## Epic 005 — First Knowledge and RAG Capability
+
+- Epic: [#11](https://github.com/karanbabu2110/KAOS/issues/11)
+- Features: [#865](https://github.com/karanbabu2110/KAOS/issues/865),
+  [#866](https://github.com/karanbabu2110/KAOS/issues/866),
+  [#867](https://github.com/karanbabu2110/KAOS/issues/867),
+  [#868](https://github.com/karanbabu2110/KAOS/issues/868),
+  [#869](https://github.com/karanbabu2110/KAOS/issues/869),
+  [#870](https://github.com/karanbabu2110/KAOS/issues/870),
+  [#871](https://github.com/karanbabu2110/KAOS/issues/871),
+  [#872](https://github.com/karanbabu2110/KAOS/issues/872),
+  [#873](https://github.com/karanbabu2110/KAOS/issues/873), and
+  [#1091](https://github.com/karanbabu2110/KAOS/issues/1091)
+- Delivery: PRs [#43](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/43)
+  through [#52](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/52)
+- Exit evidence: [Epic 005 exit](epic-005-exit.md)
+
+The verified foreground path admits one bounded UTF-8 text document, stores
+exact chunks and local embeddings atomically, retrieves compatible evidence,
+constructs an injection-aware prompt with stable source labels, streams a local
+grounded answer, and prints source coordinates after clean completion. The
+merged Feature 005.10 tree passed all 11 `verifyLocal` tasks with 254 tests, and
+an isolated installed-model demonstration completed ingestion and answer
+generation with exit code 0.
+
+Epic 006 — First Memory Capability is the next ordered stage and remains in
+Backlog until explicitly activated.
 
 Release checkpoint: [KAOS 1.2.0 release notes](../releases/v1.2.0.md) and
 [validation and publication procedure](../releases/v1.2.0-validation.md).

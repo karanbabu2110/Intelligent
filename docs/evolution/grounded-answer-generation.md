@@ -57,4 +57,6 @@ Validation: 254 passed, one existing skip, zero failures or errors; all 11
 verifyLocal tasks passed. The HTTP integration test uses a real Ollama client
 against a local stub and a temporary SQLite database, asserting exact prompt
 transfer and ordered output. Installed-model answer quality has not been
-evaluated in this checkpoint; Epic 005 exit review remains pending.
+evaluated in the feature checkpoint. The later
+[Epic 005 exit](epic-005-exit.md) records the successful installed-model
+demonstration and the bounded epic conclusion.
