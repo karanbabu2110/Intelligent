@@ -7,8 +7,8 @@ inside the verified single application.
 ## Current development state
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
-- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), and [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823)
-- Active work: [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11) and [Feature 005.10 — Grounded Answer Generation](https://github.com/karanbabu2110/KAOS/issues/1091); Features 005.01 through 005.09 are complete
+- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823), and [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11)
+- Active work: none; [Epic 006 — First Memory Capability](https://github.com/karanbabu2110/KAOS/issues/10) is the next approved stage and remains in Backlog
 - Repository state: one root Gradle/Java 21 application with one production entry point, bounded UTF-8 document admission, exact extraction and overlapping chunks, explicit local Ollama embeddings, atomic version-1 SQLite knowledge storage, deterministic top-three cosine retrieval, bounded injection-aware grounded prompt construction, streamed local grounded answers with stable source citations, deterministic cross-boundary evaluation, bounded persistent conversations, explicit model selection, Jackson JSON and pinned SQLite JDBC runtime libraries, and classified privacy-safe failures
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
@@ -309,7 +309,7 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-004 and Features #865-#873 are complete. Epic #11 and Feature #1091 are
-active. The application now retrieves local evidence, submits the exact grounded
-prompt, streams one answer, and prints only its available source coordinates
-after clean completion. Feature #1091 is the final missing Epic 005 outcome.
+Epics 000-005 and all ten Epic 005 features are complete. The installed
+distribution ingested a synthetic document and returned a grounded cited answer
+through local Ollama with exit code 0. See the [Epic 005 exit
+evidence](docs/evolution/epic-005-exit.md). Epic #10 is next and remains inactive.
