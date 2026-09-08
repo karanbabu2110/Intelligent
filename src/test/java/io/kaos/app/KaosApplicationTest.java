@@ -122,6 +122,37 @@ class KaosApplicationTest {
     }
 
     @Test
+    void inspectsAbsentAndPersistedAnswerDetailAcrossApplicationRuns() {
+        String previous = System.getProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+        System.setProperty(
+                MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY, temporaryDirectory.toString());
+        try {
+            KaosApplicationHarness.Result absent = KaosApplicationHarness.run(
+                    "memory-inspect", "answer-detail");
+            KaosApplicationHarness.Result created = KaosApplicationHarness.run(
+                    "memory-create", "answer-detail", "detailed");
+            KaosApplicationHarness.Result present = KaosApplicationHarness.run(
+                    "memory-inspect", "answer-detail");
+
+            assertEquals(KaosApplication.SUCCESS, absent.exitCode());
+            assertEquals("Memory absent: answer-detail." + System.lineSeparator(),
+                    absent.standardOutput());
+            assertEquals("", absent.errorOutput());
+            assertEquals(KaosApplication.SUCCESS, created.exitCode());
+            assertEquals(KaosApplication.SUCCESS, present.exitCode());
+            assertEquals("Memory: answer-detail=detailed." + System.lineSeparator(),
+                    present.standardOutput());
+            assertEquals("", present.errorOutput());
+        } finally {
+            if (previous == null) {
+                System.clearProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+            } else {
+                System.setProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY, previous);
+            }
+        }
+    }
+
+    @Test
     void rejectsInvalidMemoryCreationArgumentsWithoutEchoingThem() {
         String privateArgument = "private-extra-value";
 
@@ -133,6 +164,22 @@ class KaosApplicationTest {
         assertEquals(
                 "Expected memory-create answer-detail <concise|balanced|detailed>. "
                         + "Run 'kaos help' for usage." + System.lineSeparator(),
+                result.errorOutput());
+        assertFalse(result.errorOutput().contains(privateArgument));
+    }
+
+    @Test
+    void rejectsInvalidMemoryInspectionArgumentsWithoutEchoingThem() {
+        String privateArgument = "private-extra-value";
+
+        KaosApplicationHarness.Result result = KaosApplicationHarness.run(
+                "memory-inspect", "answer-detail", privateArgument);
+
+        assertEquals(KaosApplication.USAGE_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals(
+                "Expected memory-inspect answer-detail. Run 'kaos help' for usage."
+                        + System.lineSeparator(),
                 result.errorOutput());
         assertFalse(result.errorOutput().contains(privateArgument));
     }

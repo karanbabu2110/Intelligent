@@ -166,6 +166,8 @@ final class ApplicationRuntime {
                 knowledgeRetrieveCommand, ollamaPromptCommand);
         MemoryCreateCommand memoryCreateCommand = new MemoryCreateCommand(
                 context, () -> new SqliteAnswerDetailStore(MemoryDatabasePath.load()));
+        MemoryInspectCommand memoryInspectCommand = new MemoryInspectCommand(
+                context, answerDetailLoader);
         return new CommandRouter(
                 context,
                 new KnowledgeIngestCommand(
@@ -174,6 +176,7 @@ final class ApplicationRuntime {
                 knowledgeRetrieveCommand::execute,
                 knowledgeAskCommand::execute,
                 memoryCreateCommand::execute,
+                memoryInspectCommand::execute,
                 ollamaStatusCommand::execute,
                 ollamaModelCommand::execute,
                 ollamaPromptCommand::execute,

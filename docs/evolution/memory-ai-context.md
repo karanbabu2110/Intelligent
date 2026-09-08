@@ -53,5 +53,6 @@ The complete checkpoint is:
 ./gradlew.bat clean verifyLocal --no-daemon --warning-mode=all
 ```
 
-Feature 006.06 owns user-facing memory inspection. This feature exposes no new
-read command.
+Feature 006.06 now owns the separate user-facing
+`memory-inspect answer-detail` read command. AI-context use itself exposes no
+inspection behavior.

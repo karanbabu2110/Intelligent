@@ -22,10 +22,10 @@ state as absence.
 
 ## Boundaries
 
-This is an in-process capability API, not a user-facing inspection command.
-Feature 006.06 owns inspection. Feature 006.05 now consumes this optional value
-for one-shot Ollama prompt construction, but retrieval itself does not change an
-AI request or contact Ollama.
+This in-process capability API is now consumed by the user-facing
+`memory-inspect answer-detail` command implemented in Feature 006.06. Feature
+006.05 also consumes it for one-shot Ollama prompt construction, but retrieval
+itself does not change an AI request or contact Ollama.
 
 Retrieval performs no write, retry, repair, migration, caching, embedding,
 similarity search, vector indexing, logging, or remote transmission. Opening a

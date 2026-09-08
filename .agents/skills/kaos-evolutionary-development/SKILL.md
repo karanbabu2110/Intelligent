@@ -1,20 +1,19 @@
 ---
 name: kaos-evolutionary-development
-description: Implement or document KAOS roadmap features, stories, and tasks in the KAOS repository using its one-goal evolutionary workflow and living architecture. Use for changes rooted in roadmap issue 814; do not use for unrelated repositories or read-only general Java questions.
+description: Implement or document KAOS roadmap features, stories, and tasks in the KAOS repository using its one-goal evolutionary workflow. Use for changes rooted in roadmap issue 814; do not use for unrelated repositories or read-only general Java questions.
 ---
 
 # KAOS Evolutionary Development
 
-Deliver one useful KAOS goal at a time with the least process needed to keep the
-code, roadmap, and architectural claims trustworthy.
+Deliver one useful KAOS goal at a time with the standard process needed to keep the
+code and roadmap trustworthy.
 
 ## Work from the current delta
 
-Confirm the checkout and active #814 issue, then inspect only the source and
-tests affected by the goal. Read `README.md`, evolution records, or the
-architecture website only when the change may make them inaccurate or the
-checkpoint is unclear. Reuse evidence already inspected in the same turn; do
-not repeat an audit because a later step mentions the same artifact.
+Confirm the checkout and active #814 issue, then inspect only the source, tests,
+and documentation affected by the goal. Reuse evidence already inspected in
+the same turn; do not repeat an audit because a later step mentions the same
+artifact.
 
 Repository code and current test results are implementation truth. Planned
 issues preserve intent but do not prove capability. Only #814 descendants are
@@ -55,11 +54,12 @@ single feature PR without adding another approval gate unless the user asks.
   `git diff --check`; do not run application tests.
 - Combine compatible repository and GitHub reads. Do not refetch unchanged
   issue, Project, branch, or PR data.
+- The PR should explain the feature, its boundaries, every included file and why it changed, known limitations, and possible future improvements. Include links to
+  relevant issues, tasks, or stories. If the PR is large, consider breaking it
+  into smaller PRs for easier review.
 
 After merge, compare the verified feature-head tree with merged `main`. If the
-trees match, reuse the pre-merge validation and check only checkout/status. Run
-`verifyLocal` again when the merge changed the tree or the merged content was
-not previously verified.
+trees match, reuse the pre-merge validation and check only checkout/status.
 
 Rely on PR close keywords, Project automation, and automatic branch deletion.
 Inspect final state once and fix only exceptions; do not duplicate completion
@@ -67,11 +67,6 @@ comments already recorded in the PR. Finish cleanup, then wait for the user to
 continue before activating another feature.
 
 ## Update only affected documentation
-
-Change the architecture website only when packages, dependencies, integrations,
-runtime/data flow, configuration, security/failure boundaries, deployment, or
-architectural status changed. Otherwise leave it untouched. When it changes,
-follow `.agents/skills/kaos-architecture-website/SKILL.md`.
 
 Do not edit documentation merely to record activity:
 

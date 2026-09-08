@@ -101,11 +101,33 @@ class CommandRouterTest {
                     memoryCalls.incrementAndGet();
                     return KaosApplication.SUCCESS;
                 },
+                key -> command.execute(),
                 command, command, argument -> command.execute(), command);
 
         assertEquals(KaosApplication.SUCCESS,
                 router.route(new String[] {"memory-create", "answer-detail", "detailed"}));
         assertEquals(1, memoryCalls.get());
+    }
+
+    @Test
+    void dispatchesTheExplicitMemoryKeyOnlyToInspection() {
+        AtomicInteger inspectionCalls = new AtomicInteger();
+        CommandRouter.Command command = () -> KaosApplication.SUCCESS;
+        CommandRouter router = new CommandRouter(
+                context(new ByteArrayOutputStream(), new ByteArrayOutputStream()),
+                argument -> command.execute(), argument -> command.execute(),
+                argument -> command.execute(),
+                (key, value) -> command.execute(),
+                key -> {
+                    assertEquals("answer-detail", key);
+                    inspectionCalls.incrementAndGet();
+                    return KaosApplication.SUCCESS;
+                },
+                command, command, argument -> command.execute(), command);
+
+        assertEquals(KaosApplication.SUCCESS,
+                router.route(new String[] {"memory-inspect", "answer-detail"}));
+        assertEquals(1, inspectionCalls.get());
     }
 
     private static CommandRouter router(

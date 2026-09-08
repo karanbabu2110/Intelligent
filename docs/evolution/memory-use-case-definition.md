@@ -34,15 +34,15 @@ arbitrary instruction.
 | Creation input | A future explicit `memory-create answer-detail <value>` command |
 | Creation output | Confirmation that the key was saved, without echoing unrelated state |
 | AI use | A later `ollama-prompt` request receives one bounded instruction derived from the stored value |
-| Inspection | A future explicit command reports whether the key exists and its value |
+| Inspection | `memory-inspect answer-detail` reports whether the key exists and its validated value |
 | Editing | A future explicit command replaces the value atomically |
 | Deletion | A future explicit command removes the key atomically and confirms absence |
 | Ownership | User-controlled local application data; KAOS owns validation and persistence mechanics |
 | Lifetime | Durable across process restarts until explicit edit or deletion; no implicit expiry |
 
-The creation command is part of this selected behavior. Features 006.06 and
-006.07 will define their exact inspection, edit, and deletion command syntax
-when those operations become active work.
+The creation and inspection commands are part of this selected behavior.
+Feature 006.07 will define exact edit and deletion command syntax when those
+operations become active work.
 
 ## Observable lifecycle
 
