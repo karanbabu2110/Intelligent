@@ -277,12 +277,20 @@ and it never reads a file. There is no retry after visible output, arbitrary
 user-supplied system prompt, executable tool, image, remote-provider, or AI
 response persistence behavior.
 
-The future local-file tool validator requires one explicit read root from
+The local-file tool validator requires one explicit read root from
 `kaos.tool.read-root` or `KAOS_TOOL_READ_ROOT`, with the system property taking
 precedence. There is no default, and a filesystem root is rejected as too
 broad. The configured value must be absolute so its authority does not depend
 on the process working directory. No application command loads this setting or
 reads a tool target yet.
+
+After validation, `ReadLocalFileApprovalRequest` can render the exact local
+target, byte count, current-answer Ollama disclosure, and the two explicit
+tokens `approve` and `deny`. Only the exact lowercase `approve` token creates
+one grant, and that grant can supply its target for one execution attempt.
+Denial, explicit cancellation, end of input, or any other response creates no
+grant. This API is not wired to a command yet and does not open the file or
+contact Ollama.
 
 Clean `done_reason: stop` completion returns exit `0`. Provider
 `done_reason: length`, local byte/text ceilings, inactivity or total timeout,
