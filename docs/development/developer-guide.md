@@ -93,6 +93,12 @@ Replace or remove an existing preference explicitly:
 ./gradlew.bat --% run --args="memory-delete answer-detail"
 ```
 
+Review the content-free memory privacy boundary and present/absent state:
+
+```powershell
+./gradlew.bat run --args=memory-privacy
+```
+
 The fixed key accepts only `concise`, `balanced`, or `detailed`. Creation is
 explicit, persists in `memory.db`, and does not overwrite an existing value—even
 from a later application process. Set `KAOS_MEMORY_DATA_DIRECTORY` to select
@@ -106,7 +112,8 @@ atomic and survive later application processes. See
 [memory storage](../evolution/memory-storage.md), then
 [memory use in AI context](../evolution/memory-ai-context.md) and
 [memory inspection](../evolution/memory-inspection.md), then
-[memory editing and deletion](../evolution/memory-editing-deletion.md).
+[memory editing and deletion](../evolution/memory-editing-deletion.md), then
+[memory privacy controls](../evolution/memory-privacy-controls.md).
 
 Admit one local UTF-8 `.txt` file, up to 1 MiB, for later knowledge processing:
 
