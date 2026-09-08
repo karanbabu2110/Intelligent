@@ -54,10 +54,10 @@ request, outcome, and grant `toString()` values redact the path; ordinary logs
 and diagnostics therefore do not reveal it accidentally.
 
 Approval is not proof that the target remains unchanged. The grant preserves
-the original validated target rather than resolving a replacement. Feature
-007.06 must claim the grant once, revalidate that target, use no-follow bounded
-file opening, validate strict UTF-8, and fail closed before returning any tool
-result.
+the original validated target rather than resolving a replacement. The
+Feature 007.06 executor claims the grant once, revalidates that target, uses
+no-follow bounded file opening, validates strict UTF-8, and fails closed before
+returning any tool result.
 
 ## Verification
 
@@ -83,8 +83,8 @@ permission store, generic approval framework, module, service, plugin, or new
 dependency. Mapping process interruption to `cancel()` remains the
 responsibility of the later command boundary.
 
-The next safe feature is
-[007.06 - Tool Execution Result](https://github.com/karanbabu2110/KAOS/issues/887).
-It should claim one approval grant, revalidate and read the same target once,
-and construct one bounded `ReadLocalFileResult` without yet broadening the tool
+The successor
+[007.06 - Tool Execution Result](https://github.com/karanbabu2110/KAOS/issues/887)
+claims one approval grant, revalidates and reads the same target once, and
+constructs one bounded `ReadLocalFileResult` without broadening the tool
 surface.
