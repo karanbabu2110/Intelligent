@@ -113,7 +113,8 @@ atomic and survive later application processes. See
 [memory use in AI context](../evolution/memory-ai-context.md) and
 [memory inspection](../evolution/memory-inspection.md), then
 [memory editing and deletion](../evolution/memory-editing-deletion.md), then
-[memory privacy controls](../evolution/memory-privacy-controls.md).
+[memory privacy controls](../evolution/memory-privacy-controls.md), then
+[memory testing and evaluation](../evolution/memory-testing-evaluation.md).
 
 Admit one local UTF-8 `.txt` file, up to 1 MiB, for later knowledge processing:
 
