@@ -9,7 +9,9 @@
  * revalidates and reads the exact target once with no-follow and strict UTF-8 rules, and
  * returns one complete bounded result. A content-free audit value can correlate the
  * decision and final outcome to one random per-invocation target identity without
- * retaining the path or content. The package does not persist content or audit values,
+ * retaining the path or content. Known request, permission, execution, cancellation, and
+ * consumed-state failures map to fixed {@code KAOS-TOOL-READ-*} diagnostics without
+ * retaining exception detail. The package does not persist content or audit values,
  * continue a model interaction, or create a general tool framework.</p>
  */
 package io.kaos.tool.readlocalfile;

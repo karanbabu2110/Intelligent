@@ -94,7 +94,7 @@ sink, repository, schema, database table, clock, logging framework, module,
 service, plugin, or dependency. A process crash before the final factory call
 therefore leaves no record, matching the current no-persistence lifecycle.
 
-The next roadmap feature is
-[007.08 - Tool Failure Handling](https://github.com/karanbabu2110/KAOS/issues/889).
-It can map current permission and execution failures to safe caller behavior
+The successor
+[007.08 - Tool Failure Handling](https://github.com/karanbabu2110/KAOS/issues/889)
+maps current permission and execution failures to safe caller diagnostics
 without adding private failure detail to this audit record.
