@@ -14,7 +14,8 @@ setup or operational requirements until they are implemented.
   dependencies
 - Optional: a local Ollama server on `127.0.0.1:11434` to demonstrate
   `ollama-status`, plus one installed model to demonstrate `ollama-prompt` and
-  `conversation`; neither is required to build or run automated tests
+  `conversation`, `knowledge-ask`, and `read-local-file`; neither is required
+  to build or run automated tests
 
 No system Gradle installation is required. Use the Gradle wrapper committed to
 the repository.
@@ -173,6 +174,40 @@ only after clean provider completion. It uses the existing
 `KAOS_KNOWLEDGE_DATA_DIRECTORY` settings. See
 [grounded answer generation](../evolution/grounded-answer-generation.md).
 
+Ask the configured local model about one explicitly approved local file:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
+$env:KAOS_TOOL_READ_ROOT = (Resolve-Path ".").Path
+./gradlew.bat --% run --args="read-local-file \"Explain src/main/java/io/kaos/app/KaosApplication.java\""
+```
+
+The question is not file-read permission. The model must first request exactly
+one supported relative path below `KAOS_TOOL_READ_ROOT` (or the higher-priority
+`kaos.tool.read-root` system property). KAOS then prints the exact resolved path
+and size. Enter exactly `approve` to authorize one read attempt or `deny` to
+finish without reading:
+
+```text
+Tool: read_local_file
+Exact file: <resolved path>
+Size: <bytes> bytes
+If approved, this file's text will be supplied to the configured local Ollama model for the current answer only.
+Type 'approve' to authorize one read attempt or 'deny' to cancel tool use.
+```
+
+An approved read is revalidated, limited to 2,048 bytes, decoded as strict
+UTF-8, and sent as a structured `tool` message to fixed loopback Ollama. The
+continuation request advertises no tools, preventing tool chaining. KAOS prints
+the final answer and one content-free audit line; it does not print the file
+content as a diagnostic or persist it. Denial, invalid approval input,
+end-of-input, and pre-read cancellation execute no read. Supported file types
+are `.txt`, `.md`, `.log`, `.java`, `.kt`, `.kts`, `.gradle`, `.json`, `.xml`,
+`.yaml`, `.yml`, `.properties`, and `.csv`. `.doc`, `.docx`, `.pdf`, other
+binary/compound formats, multiple files, directories, retries, and remote
+providers are not supported. See
+[tool integration testing](../evolution/tool-integration-testing.md).
+
 The no-argument form is equivalent to `status`:
 
 ```powershell
@@ -270,10 +305,11 @@ code points each, inactivity to 60 seconds, and the complete request to five
 minutes. The HTTP publisher supplies one bounded item at a time. Ordinary
 thinking-off requests retain the unlabeled answer stream. Explicit thinking-on
 requests show a content-free progress line and an answer heading without
-displaying raw reasoning. A separate client operation can advertise only the
-fixed `read_local_file` definition and return either an ordinary answer or one
-validated pending tool request. No application command uses that operation yet,
-and it never reads a file. There is no retry after visible output, arbitrary
+displaying raw reasoning. The `read-local-file` command uses a separate client
+operation that advertises only the fixed `read_local_file` definition and
+returns either an ordinary answer or one validated pending tool request. After
+an approved bounded read, its continuation contains the assistant tool call and
+structured tool result but advertises no tools. There is no retry after visible output, arbitrary
 user-supplied system prompt, executable tool, image, remote-provider, or AI
 response persistence behavior.
 
@@ -281,8 +317,8 @@ The local-file tool validator requires one explicit read root from
 `kaos.tool.read-root` or `KAOS_TOOL_READ_ROOT`, with the system property taking
 precedence. There is no default, and a filesystem root is rejected as too
 broad. The configured value must be absolute so its authority does not depend
-on the process working directory. No application command loads this setting or
-reads a tool target yet.
+on the process working directory. Only `read-local-file` loads this setting,
+and only after the local model has requested one structurally valid path.
 
 After validation, `ReadLocalFileApprovalRequest` can render the exact local
 target, byte count, current-answer Ollama disclosure, and the two explicit

@@ -179,6 +179,28 @@ class CommandRouterTest {
         assertEquals(1, privacyCalls.get());
     }
 
+    @Test
+    void dispatchesOneQuotedQuestionOnlyToTheLocalFileToolCommand() {
+        AtomicInteger toolCalls = new AtomicInteger();
+        CommandRouter.Command command = () -> KaosApplication.SUCCESS;
+        CommandRouter router = new CommandRouter(
+                context(new ByteArrayOutputStream(), new ByteArrayOutputStream()),
+                argument -> command.execute(), argument -> command.execute(),
+                argument -> command.execute(), (key, value) -> command.execute(),
+                key -> command.execute(), (key, value) -> command.execute(),
+                key -> command.execute(), command,
+                question -> {
+                    assertEquals("Explain src/Main.java", question);
+                    toolCalls.incrementAndGet();
+                    return KaosApplication.SUCCESS;
+                },
+                command, command, argument -> command.execute(), command);
+
+        assertEquals(KaosApplication.SUCCESS,
+                router.route(new String[] {"read-local-file", "Explain src/Main.java"}));
+        assertEquals(1, toolCalls.get());
+    }
+
     private static CommandRouter router(
             ByteArrayOutputStream standardBytes,
             AtomicInteger commandCalls) {

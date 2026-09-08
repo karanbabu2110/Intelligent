@@ -163,7 +163,7 @@ public final class KaosApplication {
 
     static String helpText() {
         return """
-                Usage: kaos [status|help|memory-create answer-detail <value>|memory-inspect answer-detail|memory-edit answer-detail <value>|memory-delete answer-detail|memory-privacy|knowledge-ingest <path>|knowledge-retrieve <query>|knowledge-ask <question>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
+                Usage: kaos [status|help|memory-create answer-detail <value>|memory-inspect answer-detail|memory-edit answer-detail <value>|memory-delete answer-detail|memory-privacy|knowledge-ingest <path>|knowledge-retrieve <query>|knowledge-ask <question>|read-local-file <question>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
 
                 Commands:
                   status         Show local application status (default).
@@ -176,6 +176,7 @@ public final class KaosApplication {
                   knowledge-ingest  Ingest and embed one local UTF-8 .txt document up to 1 MiB.
                   knowledge-retrieve  Rank stored chunks and construct one grounded prompt.
                   knowledge-ask  Answer one question from retrieved local context with citations.
+                  read-local-file  Ask the local model about one explicitly approved local file.
                   ollama-status  Check connectivity to the local Ollama server.
                   ollama-model   Show the explicitly configured local Ollama model.
                   ollama-prompt  Submit one quoted prompt and stream the answer.
