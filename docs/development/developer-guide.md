@@ -270,9 +270,12 @@ code points each, inactivity to 60 seconds, and the complete request to five
 minutes. The HTTP publisher supplies one bounded item at a time. Ordinary
 thinking-off requests retain the unlabeled answer stream. Explicit thinking-on
 requests show a content-free progress line and an answer heading without
-displaying raw reasoning. There is no retry after visible output, arbitrary
-user-supplied system prompt, tool, image, remote-provider, or AI response
-persistence behavior.
+displaying raw reasoning. A separate client operation can advertise only the
+fixed `read_local_file` definition and return either an ordinary answer or one
+validated pending tool request. No application command uses that operation yet,
+and it never reads a file. There is no retry after visible output, arbitrary
+user-supplied system prompt, executable tool, image, remote-provider, or AI
+response persistence behavior.
 
 Clean `done_reason: stop` completion returns exit `0`. Provider
 `done_reason: length`, local byte/text ceilings, inactivity or total timeout,

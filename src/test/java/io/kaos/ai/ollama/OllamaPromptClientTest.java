@@ -13,6 +13,7 @@ import com.sun.net.httpserver.HttpServer;
 import io.kaos.conversation.ConversationHistory;
 import io.kaos.conversation.ConversationMessage;
 import io.kaos.conversation.ConversationRole;
+import io.kaos.tool.ReadLocalFileToolContract;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -69,8 +70,123 @@ class OllamaPromptClientTest {
                     request.get("messages").get(0).get("content").textValue());
             assertTrue(request.get("stream").booleanValue());
             assertFalse(request.get("think").booleanValue());
+            assertFalse(request.has("tools"));
             assertEquals(8_192, request.get("options").get("num_ctx").intValue());
             assertEquals(512, request.get("options").get("num_predict").intValue());
+        }
+    }
+
+    @Test
+    void advertisesOnlyReadLocalFileAndReturnsOneValidatedRequest() throws Exception {
+        String privatePath = "src/private/Customer.java";
+        try (LocalChatServer server = LocalChatServer.streaming(
+                toolCallLine("read_local_file", "{\"path\":\"" + privatePath + "\"}", ""),
+                TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint())
+                    .submitWithReadLocalFileTool(
+                            new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("Explain the selected file."));
+
+            assertTrue(result.successful());
+            assertTrue(result.toolRequested());
+            assertEquals(privatePath, result.toolRequest().orElseThrow().path());
+            assertEquals("", result.response());
+            assertFalse(result.toString().contains(privatePath));
+
+            JsonNode request = JSON.readTree(server.requestBody());
+            assertEquals(1, request.get("tools").size());
+            assertEquals(ReadLocalFileToolContract.definition(), request.get("tools").get(0));
+        }
+    }
+
+    @Test
+    void toolEnabledRequestMayReturnAnOrdinaryAnswerWithoutRequestingAFile() throws Exception {
+        try (LocalChatServer server = LocalChatServer.streaming(
+                jsonLine("No file is needed.", "", false), TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint())
+                    .submitWithReadLocalFileTool(
+                            new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("Answer without reading a file."));
+
+            assertTrue(result.successful());
+            assertFalse(result.toolRequested());
+            assertEquals("No file is needed.", result.response());
+        }
+    }
+
+    @Test
+    void ordinaryPromptRejectsAnUnadvertisedToolCall() throws Exception {
+        try (LocalChatServer server = LocalChatServer.streaming(
+                toolCallLine("read_local_file", "{\"path\":\"src/Main.java\"}", ""),
+                TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3"), new OllamaPrompt("hello"));
+
+            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            assertFalse(result.toolRequested());
+        }
+    }
+
+    @Test
+    void rejectsUnknownMalformedMultipleAndMixedToolCalls() throws Exception {
+        String valid = toolCallLine(
+                "read_local_file", "{\"path\":\"src/Main.java\"}", "");
+        String multiple = valid.replace(
+                "}]},\"done\":false",
+                "},{\"function\":{\"name\":\"read_local_file\","
+                        + "\"arguments\":{\"path\":\"src/Other.java\"}}}]},"
+                        + "\"done\":false");
+        assertEquals(2, JSON.readTree(multiple).get("message").get("tool_calls").size());
+        for (String record : List.of(
+                toolCallLine("unknown_tool", "{\"path\":\"src/Main.java\"}", ""),
+                toolCallLine("read_local_file",
+                        "{\"path\":\"src/Main.java\",\"extra\":true}", ""),
+                multiple,
+                toolCallLine("read_local_file",
+                        "{\"path\":\"src/Main.java\"}", "unexpected answer"),
+                toolCallLine("read_local_file",
+                        "{\"path\":\"src/Main.java\"}", "   "))) {
+            try (LocalChatServer server = LocalChatServer.streaming(record, TERMINAL)) {
+                OllamaPromptClient.Result result = client(server.endpoint())
+                        .submitWithReadLocalFileTool(
+                                new OllamaModelConfiguration("qwen3"),
+                                new OllamaPrompt("private prompt"));
+
+                assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+                assertFalse(result.toolRequested());
+                assertEquals("", result.response());
+            }
+        }
+    }
+
+    @Test
+    void rejectsMoreThanOneToolCallAcrossStreamRecords() throws Exception {
+        String call = toolCallLine(
+                "read_local_file", "{\"path\":\"src/Main.java\"}", "");
+        try (LocalChatServer server = LocalChatServer.streaming(call, call, TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint())
+                    .submitWithReadLocalFileTool(
+                            new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("private prompt"));
+
+            assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+            assertFalse(result.toolRequested());
+        }
+    }
+
+    @Test
+    void discardsAToolRequestWhenGenerationReachesItsLengthBoundary() throws Exception {
+        String terminal = TERMINAL.replace("\"stop\"", "\"length\"");
+        try (LocalChatServer server = LocalChatServer.streaming(
+                toolCallLine("read_local_file", "{\"path\":\"src/Main.java\"}", ""),
+                terminal)) {
+            OllamaPromptClient.Result result = client(server.endpoint())
+                    .submitWithReadLocalFileTool(
+                            new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("private prompt"));
+
+            assertEquals(OllamaPromptClient.Status.TOKEN_LIMIT_REACHED, result.status());
+            assertFalse(result.toolRequested());
         }
     }
 
@@ -548,6 +664,15 @@ class OllamaPromptClientTest {
                 "message", java.util.Map.of(
                         "role", "assistant", "content", response, "thinking", thinking),
                 "done", done)) + "\n";
+    }
+
+    private static String toolCallLine(String name, String arguments, String content)
+            throws IOException {
+        return "{\"message\":{\"role\":\"assistant\",\"content\":"
+                + JSON.writeValueAsString(content)
+                + ",\"tool_calls\":[{\"function\":{\"name\":"
+                + JSON.writeValueAsString(name) + ",\"arguments\":" + arguments
+                + "}}]},\"done\":false}\n";
     }
 
     private static void assertMessage(JsonNode message, String role, String content) {
