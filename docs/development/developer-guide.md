@@ -301,6 +301,13 @@ record contains no path, content, timestamp, or failure detail. There is no
 audit sink or persistence; application integration will decide where the
 ephemeral record is observed.
 
+Known local-file tool failures map to fixed `KAOS-TOOL-READ-001` through
+`KAOS-TOOL-READ-012` diagnostics with content-free recovery guidance. The
+mapper accepts only typed permission and execution exceptions plus explicit
+invalid-request and inactive-state cases. Denial and cancellation before
+approval remain normal non-execution outcomes. Nothing prints these diagnostics
+until an application tool coordinator is implemented.
+
 Clean `done_reason: stop` completion returns exit `0`. Provider
 `done_reason: length`, local byte/text ceilings, inactivity or total timeout,
 thread interruption, malformed/incomplete streams, and transport failure return
