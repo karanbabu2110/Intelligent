@@ -112,7 +112,7 @@ public final class OllamaPromptClient {
         Objects.requireNonNull(thinkingStarted, "thinkingStarted");
         Objects.requireNonNull(answerChunkConsumer, "answerChunkConsumer");
 
-        byte[] requestBody = encodeRequest(model.modelName(), history, prompt.text(),
+        byte[] requestBody = encodeRequest(model.modelName(), history, prompt,
                 model.contextWindow(), model.thinkingMode(), model.responseTokenLimit());
         if (requestBody == null) {
             return Result.failed(Status.LOCAL_LIMIT_REACHED);
@@ -162,14 +162,20 @@ public final class OllamaPromptClient {
         }
     }
 
-    private static byte[] encodeRequest(String model, ConversationHistory history, String prompt,
+    private static byte[] encodeRequest(String model, ConversationHistory history,
+            OllamaPrompt prompt,
             int contextWindow, OllamaThinkingMode thinkingMode, int responseTokenLimit) {
         try {
-            List<ChatMessage> messages = new ArrayList<>(history.messages().size() + 1);
+            int instructionCount = prompt.systemInstruction().isEmpty() ? 0 : 1;
+            List<ChatMessage> messages = new ArrayList<>(
+                    history.messages().size() + instructionCount + 1);
+            if (!prompt.systemInstruction().isEmpty()) {
+                messages.add(new ChatMessage("system", prompt.systemInstruction()));
+            }
             for (ConversationMessage message : history.messages()) {
                 messages.add(new ChatMessage(chatRole(message.role()), message.content()));
             }
-            messages.add(new ChatMessage("user", prompt));
+            messages.add(new ChatMessage("user", prompt.text()));
             BoundedRequestOutputStream output =
                     new BoundedRequestOutputStream(MAX_REQUEST_BYTES);
             JSON.writeValue(output, new ChatRequest(

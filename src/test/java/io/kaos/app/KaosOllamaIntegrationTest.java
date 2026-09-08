@@ -18,6 +18,8 @@ import io.kaos.conversation.ConversationDatabasePath;
 import io.kaos.conversation.ConversationMessage;
 import io.kaos.conversation.ConversationRole;
 import io.kaos.conversation.SqliteConversationStore;
+import io.kaos.memory.AnswerDetailMemory;
+import io.kaos.memory.SqliteAnswerDetailStore;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
@@ -116,6 +118,38 @@ class KaosOllamaIntegrationTest {
                     request.get("options").get("num_ctx").intValue());
             assertEquals(MODEL.responseTokenLimit(),
                     request.get("options").get("num_predict").intValue());
+        }
+    }
+
+    @Test
+    void appliesStoredAnswerDetailAcrossTheCompleteLocalAiPath() throws Exception {
+        var memoryStore = new SqliteAnswerDetailStore(
+                temporaryDirectory.resolve("memory.db"));
+        memoryStore.create(AnswerDetailMemory.KEY, "detailed");
+        try (LocalOllamaServer server = LocalOllamaServer.responding(
+                200, record("Done.") + TERMINAL)) {
+            OllamaPromptClient client = OllamaPromptClientTestSupport.client(server.endpoint());
+            var result = KaosApplicationHarness.capture((output, errorOutput) ->
+                    new ApplicationRuntime(
+                            () -> new OllamaConnectivity.Result(
+                                    OllamaConnectivity.Status.REACHABLE, "test-version"),
+                            () -> MODEL,
+                            client::submit,
+                            () -> temporaryDirectory.resolve("conversations.db"),
+                            memoryStore::retrieve)
+                            .execute(
+                                    new String[] {"ollama-prompt", "Explain the decision."},
+                                    new ApplicationConfiguration(
+                                            ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                                    InputStream.nullInputStream(), output, errorOutput));
+
+            assertEquals(KaosApplication.SUCCESS, result.exitCode());
+            assertEquals("", result.errorOutput());
+            JsonNode messages = requestMessages(server.requestBody());
+            assertEquals(2, messages.size());
+            assertMessage(messages.get(0), "system",
+                    "Answer in detail with relevant context and explanation.");
+            assertMessage(messages.get(1), "user", "Explain the decision.");
         }
     }
 

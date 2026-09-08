@@ -63,11 +63,10 @@ present(value) --explicit deletion--> absent
 
 ## AI-context boundary
 
-Feature 006.05 will translate each stored value into one fixed, bounded
-instruction controlled by KAOS. It will not insert the database value as an
-arbitrary system instruction. Deterministic integration tests must verify the
-exact provider request and verify that an absent preference leaves the existing
-request unchanged.
+Feature 006.05 translates each stored value into one fixed, bounded instruction
+controlled by KAOS. It does not insert the database value as an arbitrary
+system instruction. Deterministic integration tests verify the exact provider
+request and that an absent preference leaves the existing request unchanged.
 
 The first consumer is only `ollama-prompt`. Applying memory to interactive
 conversations, grounded knowledge answers, or later capabilities is excluded

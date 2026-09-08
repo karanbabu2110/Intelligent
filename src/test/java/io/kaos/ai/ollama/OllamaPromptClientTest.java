@@ -98,6 +98,30 @@ class OllamaPromptClientTest {
     }
 
     @Test
+    void sendsTheBoundedSystemInstructionBeforeHistoryAndUserPrompt() throws Exception {
+        ConversationHistory history = new ConversationHistory(List.of(
+                new ConversationMessage(ConversationRole.USER, "Earlier question"),
+                new ConversationMessage(ConversationRole.ASSISTANT, "Earlier answer")));
+        try (LocalChatServer server = LocalChatServer.streaming(
+                jsonLine("Detailed answer", "", false), TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint()).submit(
+                    new OllamaModelConfiguration("qwen3"), history,
+                    new OllamaPrompt(
+                            "Current question",
+                            "Answer in detail with relevant context and explanation."));
+
+            assertTrue(result.successful());
+            JsonNode messages = JSON.readTree(server.requestBody()).get("messages");
+            assertEquals(4, messages.size());
+            assertMessage(messages.get(0), "system",
+                    "Answer in detail with relevant context and explanation.");
+            assertMessage(messages.get(1), "user", "Earlier question");
+            assertMessage(messages.get(2), "assistant", "Earlier answer");
+            assertMessage(messages.get(3), "user", "Current question");
+        }
+    }
+
+    @Test
     void rejectsAnOversizedSerializedHistoryBeforeConnecting() throws Exception {
         ConversationMessage largestMessage = new ConversationMessage(
                 ConversationRole.USER,

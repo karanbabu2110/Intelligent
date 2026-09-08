@@ -4,8 +4,9 @@
  *
  * <p>This package owns local reachability, explicit model selection, bounded
  * context and response-token configuration, explicit thinking control, and one
- * bounded streaming chat request. The request accepts an ordered conversation
- * history, appends the current prompt as the final user message, and assembles
+ * bounded streaming chat request. The request accepts an optional bounded
+ * KAOS-controlled system instruction, an ordered conversation history, appends
+ * the current prompt as the final user message, and assembles
  * validated answer chunks into the same bounded final answer. Explicitly enabled thinking produces only a
  * content-free progress signal; raw reasoning remains separate from terminal
  * output. Streaming is backpressured one publisher item at a time, bounded by

@@ -367,7 +367,10 @@ implements its create-only absent-to-present transition in
 that exact state across application runs through the existing SQLite JDBC
 boundary in [Memory Storage](memory-storage.md). Feature 006.04 restores either
 absence or one validated enum through the bounded
-[Memory Retrieval](memory-retrieval.md) API; AI-context use remains Feature 006.05.
+[Memory Retrieval](memory-retrieval.md) API. Feature 006.05 translates that
+optional enum into one fixed system instruction only for one-shot
+`ollama-prompt` requests in [Memory Use in AI Context](memory-ai-context.md);
+conversation and knowledge paths remain unchanged.
 
 Release checkpoint: [KAOS 1.3.0 release notes](../releases/v1.3.0.md) and
 [validation and publication procedure](../releases/v1.3.0-validation.md).

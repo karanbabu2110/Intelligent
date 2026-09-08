@@ -10,12 +10,14 @@ import io.kaos.conversation.ConversationDatabasePath;
 import io.kaos.knowledge.KnowledgeDatabasePath;
 import io.kaos.knowledge.KnowledgeStorageException;
 import io.kaos.knowledge.SqliteKnowledgeStore;
+import io.kaos.memory.AnswerDetail;
 import io.kaos.memory.MemoryDatabasePath;
 import io.kaos.memory.SqliteAnswerDetailStore;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /** Composes application commands from explicit process-level dependencies. */
@@ -28,6 +30,7 @@ final class ApplicationRuntime {
     private final EmbeddingSubmission embeddingSubmission;
     private final KnowledgeStorageSubmission knowledgeStorageSubmission;
     private final KnowledgeDocumentLoader knowledgeDocumentLoader;
+    private final Supplier<Optional<AnswerDetail>> answerDetailLoader;
 
     ApplicationRuntime(
             Supplier<OllamaConnectivity.Result> connectivityCheck,
@@ -39,6 +42,20 @@ final class ApplicationRuntime {
                 (configuration, chunks) ->
                         new OllamaEmbeddingClient().embed(configuration, chunks),
                 ApplicationRuntime::storeKnowledge, ApplicationRuntime::loadKnowledge);
+    }
+
+    ApplicationRuntime(
+            Supplier<OllamaConnectivity.Result> connectivityCheck,
+            Supplier<OllamaModelConfiguration> modelConfigurationLoader,
+            OllamaPromptSubmission promptSubmission,
+            Supplier<Path> conversationDatabasePathLoader,
+            Supplier<Optional<AnswerDetail>> answerDetailLoader) {
+        this(connectivityCheck, modelConfigurationLoader, promptSubmission,
+                conversationDatabasePathLoader, OllamaEmbeddingConfiguration::load,
+                (configuration, chunks) ->
+                        new OllamaEmbeddingClient().embed(configuration, chunks),
+                ApplicationRuntime::storeKnowledge, ApplicationRuntime::loadKnowledge,
+                answerDetailLoader);
     }
 
     ApplicationRuntime(
@@ -77,6 +94,22 @@ final class ApplicationRuntime {
             EmbeddingSubmission embeddingSubmission,
             KnowledgeStorageSubmission knowledgeStorageSubmission,
             KnowledgeDocumentLoader knowledgeDocumentLoader) {
+        this(connectivityCheck, modelConfigurationLoader, promptSubmission,
+                conversationDatabasePathLoader, embeddingConfigurationLoader,
+                embeddingSubmission, knowledgeStorageSubmission, knowledgeDocumentLoader,
+                Optional::empty);
+    }
+
+    private ApplicationRuntime(
+            Supplier<OllamaConnectivity.Result> connectivityCheck,
+            Supplier<OllamaModelConfiguration> modelConfigurationLoader,
+            OllamaPromptSubmission promptSubmission,
+            Supplier<Path> conversationDatabasePathLoader,
+            Supplier<OllamaEmbeddingConfiguration> embeddingConfigurationLoader,
+            EmbeddingSubmission embeddingSubmission,
+            KnowledgeStorageSubmission knowledgeStorageSubmission,
+            KnowledgeDocumentLoader knowledgeDocumentLoader,
+            Supplier<Optional<AnswerDetail>> answerDetailLoader) {
         this.connectivityCheck = Objects.requireNonNull(connectivityCheck, "connectivityCheck");
         this.modelConfigurationLoader = Objects.requireNonNull(
                 modelConfigurationLoader, "modelConfigurationLoader");
@@ -91,6 +124,8 @@ final class ApplicationRuntime {
                 knowledgeStorageSubmission, "knowledgeStorageSubmission");
         this.knowledgeDocumentLoader = Objects.requireNonNull(
                 knowledgeDocumentLoader, "knowledgeDocumentLoader");
+        this.answerDetailLoader = Objects.requireNonNull(
+                answerDetailLoader, "answerDetailLoader");
     }
 
     static ApplicationRuntime local() {
@@ -100,7 +135,12 @@ final class ApplicationRuntime {
                 (model, history, prompt, thinking, chunks) ->
                         new OllamaPromptClient().submit(
                                 model, history, prompt, thinking, chunks),
-                ConversationDatabasePath::load);
+                ConversationDatabasePath::load,
+                OllamaEmbeddingConfiguration::load,
+                (configuration, chunks) ->
+                        new OllamaEmbeddingClient().embed(configuration, chunks),
+                ApplicationRuntime::storeKnowledge, ApplicationRuntime::loadKnowledge,
+                ApplicationRuntime::loadAnswerDetail);
     }
 
     int execute(
@@ -116,7 +156,7 @@ final class ApplicationRuntime {
         OllamaModelCommand ollamaModelCommand = new OllamaModelCommand(
                 context, modelConfigurationLoader);
         OllamaPromptCommand ollamaPromptCommand = new OllamaPromptCommand(
-                context, modelConfigurationLoader, promptSubmission);
+                context, modelConfigurationLoader, promptSubmission, answerDetailLoader);
         ConversationCommand conversationCommand = new ConversationCommand(
                 context, ollamaPromptCommand, conversationDatabasePathLoader);
         KnowledgeRetrieveCommand knowledgeRetrieveCommand = new KnowledgeRetrieveCommand(
@@ -156,5 +196,9 @@ final class ApplicationRuntime {
         } catch (IllegalArgumentException | IllegalStateException exception) {
             throw KnowledgeStorageException.unavailable();
         }
+    }
+
+    private static Optional<AnswerDetail> loadAnswerDetail() {
+        return new SqliteAnswerDetailStore(MemoryDatabasePath.load()).retrieve();
     }
 }

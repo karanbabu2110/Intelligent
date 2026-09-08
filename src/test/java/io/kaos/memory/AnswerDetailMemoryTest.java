@@ -65,4 +65,14 @@ class AnswerDetailMemoryTest {
 
         assertEquals(Optional.of(AnswerDetail.BALANCED), memory.retrieve());
     }
+
+    @Test
+    void mapsEachValueToOneFixedAiInstruction() {
+        assertEquals("Answer concisely and include only essential information.",
+                AnswerDetail.CONCISE.aiInstruction());
+        assertEquals("Balance brevity with enough explanation to make the answer clear.",
+                AnswerDetail.BALANCED.aiInstruction());
+        assertEquals("Answer in detail with relevant context and explanation.",
+                AnswerDetail.DETAILED.aiInstruction());
+    }
 }

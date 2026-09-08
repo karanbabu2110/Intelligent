@@ -22,4 +22,15 @@ public enum AnswerDetail {
     public String externalValue() {
         return name().toLowerCase(Locale.ROOT);
     }
+
+    /** Returns the fixed KAOS-controlled instruction for one-shot AI use. */
+    public String aiInstruction() {
+        return switch (this) {
+            case CONCISE -> "Answer concisely and include only essential information.";
+            case BALANCED ->
+                    "Balance brevity with enough explanation to make the answer clear.";
+            case DETAILED ->
+                    "Answer in detail with relevant context and explanation.";
+        };
+    }
 }

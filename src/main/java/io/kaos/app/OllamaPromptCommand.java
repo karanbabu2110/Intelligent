@@ -5,8 +5,11 @@ import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.ai.ollama.OllamaThinkingMode;
 import io.kaos.conversation.ConversationHistory;
+import io.kaos.memory.AnswerDetail;
+import io.kaos.memory.MemoryStorageException;
 import java.io.PrintStream;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /** Submits one prompt and presents its bounded streaming result. */
@@ -14,19 +17,49 @@ final class OllamaPromptCommand {
     private final CommandContext context;
     private final Supplier<OllamaModelConfiguration> modelConfigurationLoader;
     private final OllamaPromptSubmission promptSubmission;
+    private final Supplier<Optional<AnswerDetail>> answerDetailLoader;
 
     OllamaPromptCommand(
             CommandContext context,
             Supplier<OllamaModelConfiguration> modelConfigurationLoader,
             OllamaPromptSubmission promptSubmission) {
+        this(context, modelConfigurationLoader, promptSubmission, Optional::empty);
+    }
+
+    OllamaPromptCommand(
+            CommandContext context,
+            Supplier<OllamaModelConfiguration> modelConfigurationLoader,
+            OllamaPromptSubmission promptSubmission,
+            Supplier<Optional<AnswerDetail>> answerDetailLoader) {
         this.context = Objects.requireNonNull(context, "context");
         this.modelConfigurationLoader = Objects.requireNonNull(
                 modelConfigurationLoader, "modelConfigurationLoader");
         this.promptSubmission = Objects.requireNonNull(promptSubmission, "promptSubmission");
+        this.answerDetailLoader = Objects.requireNonNull(
+                answerDetailLoader, "answerDetailLoader");
     }
 
     int execute(String promptText) {
-        return submit(promptText, ConversationHistory.empty()).exitCode();
+        OllamaPrompt prompt;
+        try {
+            prompt = new OllamaPrompt(promptText);
+        } catch (IllegalArgumentException exception) {
+            reportInvalidPrompt();
+            return KaosApplication.USAGE_ERROR;
+        }
+        try {
+            Optional<AnswerDetail> answerDetail = answerDetailLoader.get();
+            if (answerDetail.isPresent()) {
+                prompt = new OllamaPrompt(prompt.text(), answerDetail.get().aiInstruction());
+            }
+        } catch (MemoryStorageException | IllegalArgumentException exception) {
+            ErrorReporter.report(
+                    context.errorOutput(), KaosApplication.MEMORY_STORAGE_CODE,
+                    "The answer-detail memory could not be read. "
+                            + "Check the configured memory data directory and retry.");
+            return KaosApplication.APPLICATION_ERROR;
+        }
+        return submit(prompt, ConversationHistory.empty()).exitCode();
     }
 
     PromptOutcome submit(String promptText, ConversationHistory history) {
@@ -34,10 +67,13 @@ final class OllamaPromptCommand {
         try {
             prompt = new OllamaPrompt(promptText);
         } catch (IllegalArgumentException exception) {
-            context.errorOutput().println(
-                    "Expected one valid quoted prompt. Run 'kaos help' for usage.");
+            reportInvalidPrompt();
             return PromptOutcome.failed(KaosApplication.USAGE_ERROR);
         }
+        return submit(prompt, history);
+    }
+
+    private PromptOutcome submit(OllamaPrompt prompt, ConversationHistory history) {
         OllamaModelConfiguration model;
         try {
             model = modelConfigurationLoader.get();
@@ -71,6 +107,11 @@ final class OllamaPromptCommand {
         }
         ErrorReporter.report(context.errorOutput(), errorCode(result.status()), recovery);
         return PromptOutcome.failed(KaosApplication.APPLICATION_ERROR);
+    }
+
+    private void reportInvalidPrompt() {
+        context.errorOutput().println(
+                "Expected one valid quoted prompt. Run 'kaos help' for usage.");
     }
 
     private static String recovery(OllamaPromptClient.Status status) {

@@ -83,10 +83,12 @@ The fixed key accepts only `concise`, `balanced`, or `detailed`. Creation is
 explicit, persists in `memory.db`, and does not overwrite an existing value—even
 from a later application process. Set `KAOS_MEMORY_DATA_DIRECTORY` to select
 the parent directory; the `kaos.memory.data-directory` system property takes
-precedence, and the default is the local user's `.kaos` directory. Retrieval,
-inspection, editing, deletion, and AI-context use remain separate features. See
+precedence, and the default is the local user's `.kaos` directory. One-shot
+`ollama-prompt` requests read this value and apply its fixed instruction;
+inspection, editing, and deletion remain separate features. See
 [explicit memory creation](../evolution/explicit-memory-creation.md) and
-[memory storage](../evolution/memory-storage.md).
+[memory storage](../evolution/memory-storage.md), then
+[memory use in AI context](../evolution/memory-ai-context.md).
 
 Admit one local UTF-8 `.txt` file, up to 1 MiB, for later knowledge processing:
 
@@ -222,11 +224,17 @@ export KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT=512
 ./gradlew run --args='ollama-prompt "Why is the sky blue?"'
 ```
 
-The command validates a single 4,096-character prompt, loads the explicit
-model selection, and sends `POST /api/chat` to the fixed loopback Ollama
-endpoint with `stream` set to `true`. Its empty history produces one final
-`user` message; the client also accepts an explicitly supplied ordered history
-before that message. It parses newline-delimited JSON as it arrives, validates
+The command validates a single 4,096-character prompt, retrieves the optional
+`answer-detail` memory, loads the explicit model selection, and sends
+`POST /api/chat` to the fixed loopback Ollama endpoint with `stream` set to
+`true`. A present value adds one bounded KAOS-controlled `system` message before
+the final `user` message: concise requests essentials only, balanced requests
+brief but sufficient explanation, and detailed requests relevant context and
+explanation. When memory is absent, the serialized message sequence remains the
+same single user message as before. Retrieval failure stops before model loading
+or provider submission. Conversation and `knowledge-ask` requests do not apply
+this application-wide preference. The client also accepts an explicitly
+supplied ordered history before the final user message. It parses newline-delimited JSON as it arrives, validates
 each answer chunk, prints and flushes it once, and assembles the same chunks into
 the bounded final answer. It also sends `think: false` and
 `options.num_predict: 512` for this ordinary configuration. The serialized
@@ -236,8 +244,9 @@ code points each, inactivity to 60 seconds, and the complete request to five
 minutes. The HTTP publisher supplies one bounded item at a time. Ordinary
 thinking-off requests retain the unlabeled answer stream. Explicit thinking-on
 requests show a content-free progress line and an answer heading without
-displaying raw reasoning. There is no retry after visible output, system-prompt,
-tool, image, remote-provider, or persistence behavior.
+displaying raw reasoning. There is no retry after visible output, arbitrary
+user-supplied system prompt, tool, image, remote-provider, or AI response
+persistence behavior.
 
 Clean `done_reason: stop` completion returns exit `0`. Provider
 `done_reason: length`, local byte/text ceilings, inactivity or total timeout,
