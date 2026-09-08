@@ -373,7 +373,8 @@ optional enum into one fixed system instruction only for one-shot
 conversation and knowledge paths remain unchanged. Feature 006.06 exposes only
 the fixed key's absence or validated structured value through
 [Memory Inspection](memory-inspection.md), without adding mutation or broad
-listing.
+listing. Feature 006.07 completes the explicit lifecycle with atomic replacement
+and removal in [Memory Editing and Deletion](memory-editing-deletion.md).
 
 Release checkpoint: [KAOS 1.3.0 release notes](../releases/v1.3.0.md) and
 [validation and publication procedure](../releases/v1.3.0-validation.md).

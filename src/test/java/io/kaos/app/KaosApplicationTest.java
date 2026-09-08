@@ -153,6 +153,57 @@ class KaosApplicationTest {
     }
 
     @Test
+    void editsAndDeletesAnswerDetailAcrossApplicationRuns() {
+        String previous = System.getProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+        System.setProperty(
+                MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY, temporaryDirectory.toString());
+        try {
+            assertEquals(KaosApplication.SUCCESS, KaosApplicationHarness.run(
+                    "memory-create", "answer-detail", "concise").exitCode());
+            KaosApplicationHarness.Result edited = KaosApplicationHarness.run(
+                    "memory-edit", "answer-detail", "detailed");
+            KaosApplicationHarness.Result present = KaosApplicationHarness.run(
+                    "memory-inspect", "answer-detail");
+            KaosApplicationHarness.Result deleted = KaosApplicationHarness.run(
+                    "memory-delete", "answer-detail");
+            KaosApplicationHarness.Result absent = KaosApplicationHarness.run(
+                    "memory-inspect", "answer-detail");
+
+            assertEquals(KaosApplication.SUCCESS, edited.exitCode());
+            assertEquals("Edited memory: answer-detail=detailed." + System.lineSeparator(),
+                    edited.standardOutput());
+            assertEquals("Memory: answer-detail=detailed." + System.lineSeparator(),
+                    present.standardOutput());
+            assertEquals(KaosApplication.SUCCESS, deleted.exitCode());
+            assertEquals("Deleted memory: answer-detail." + System.lineSeparator(),
+                    deleted.standardOutput());
+            assertEquals("Memory absent: answer-detail." + System.lineSeparator(),
+                    absent.standardOutput());
+        } finally {
+            if (previous == null) {
+                System.clearProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+            } else {
+                System.setProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY, previous);
+            }
+        }
+    }
+
+    @Test
+    void rejectsInvalidMemoryMutationArgumentsWithoutEchoingThem() {
+        String privateArgument = "private-extra-value";
+
+        KaosApplicationHarness.Result edit = KaosApplicationHarness.run(
+                "memory-edit", "answer-detail", "concise", privateArgument);
+        KaosApplicationHarness.Result delete = KaosApplicationHarness.run(
+                "memory-delete", "answer-detail", privateArgument);
+
+        assertEquals(KaosApplication.USAGE_ERROR, edit.exitCode());
+        assertEquals(KaosApplication.USAGE_ERROR, delete.exitCode());
+        assertFalse(edit.errorOutput().contains(privateArgument));
+        assertFalse(delete.errorOutput().contains(privateArgument));
+    }
+
+    @Test
     void rejectsInvalidMemoryCreationArgumentsWithoutEchoingThem() {
         String privateArgument = "private-extra-value";
 

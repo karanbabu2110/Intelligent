@@ -168,6 +168,10 @@ final class ApplicationRuntime {
                 context, () -> new SqliteAnswerDetailStore(MemoryDatabasePath.load()));
         MemoryInspectCommand memoryInspectCommand = new MemoryInspectCommand(
                 context, answerDetailLoader);
+        java.util.function.Supplier<io.kaos.memory.AnswerDetailStore> memoryStore =
+                () -> new SqliteAnswerDetailStore(MemoryDatabasePath.load());
+        MemoryEditCommand memoryEditCommand = new MemoryEditCommand(context, memoryStore);
+        MemoryDeleteCommand memoryDeleteCommand = new MemoryDeleteCommand(context, memoryStore);
         return new CommandRouter(
                 context,
                 new KnowledgeIngestCommand(
@@ -177,6 +181,8 @@ final class ApplicationRuntime {
                 knowledgeAskCommand::execute,
                 memoryCreateCommand::execute,
                 memoryInspectCommand::execute,
+                memoryEditCommand::execute,
+                memoryDeleteCommand::execute,
                 ollamaStatusCommand::execute,
                 ollamaModelCommand::execute,
                 ollamaPromptCommand::execute,

@@ -44,6 +44,7 @@ public final class KaosApplication {
     static final String MEMORY_CREATION_CODE = "KAOS-MEMORY-001";
     static final String MEMORY_STORAGE_CODE = "KAOS-MEMORY-002";
     static final String MEMORY_INSPECTION_CODE = "KAOS-MEMORY-003";
+    static final String MEMORY_MUTATION_CODE = "KAOS-MEMORY-004";
 
     private KaosApplication() {
     }
@@ -162,13 +163,15 @@ public final class KaosApplication {
 
     static String helpText() {
         return """
-                Usage: kaos [status|help|memory-create answer-detail <value>|memory-inspect answer-detail|knowledge-ingest <path>|knowledge-retrieve <query>|knowledge-ask <question>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
+                Usage: kaos [status|help|memory-create answer-detail <value>|memory-inspect answer-detail|memory-edit answer-detail <value>|memory-delete answer-detail|knowledge-ingest <path>|knowledge-retrieve <query>|knowledge-ask <question>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
 
                 Commands:
                   status         Show local application status (default).
                   help           Show this help. The --help alias is also supported.
                   memory-create  Persist answer-detail as concise, balanced, or detailed.
                   memory-inspect Show whether answer-detail exists and its structured value.
+                  memory-edit    Replace an existing answer-detail value.
+                  memory-delete  Remove the existing answer-detail memory.
                   knowledge-ingest  Ingest and embed one local UTF-8 .txt document up to 1 MiB.
                   knowledge-retrieve  Rank stored chunks and construct one grounded prompt.
                   knowledge-ask  Answer one question from retrieved local context with citations.
