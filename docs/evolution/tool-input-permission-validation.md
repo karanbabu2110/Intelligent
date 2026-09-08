@@ -1,7 +1,7 @@
 # `read_local_file` Input and Permission Validation
 
 Feature [007.05](https://github.com/karanbabu2110/KAOS/issues/888) establishes
-the exact local target that the later approval feature can safely present. It
+the exact local target that the approval boundary can safely present. It
 performs metadata-only validation and does not open or decode file content.
 
 ## Sequence correction
@@ -113,12 +113,12 @@ on an external service.
 ## Deliberate limits and handoff
 
 This feature adds no file-content read, UTF-8 decoding, MIME detection,
-approval prompt, application command, model continuation, audit persistence,
+application command, model continuation, audit persistence,
 watcher, directory listing, generic permission framework, module, service,
 plugin, or new dependency.
 
-The next safe feature is
-[007.04 - User Approval](https://github.com/karanbabu2110/KAOS/issues/885).
-It should present the exact `ReadLocalFileTarget.resolvedPath`, state that its
-content will enter the configured local model request, return one decision tied
-to that target, and revalidate before any later execution.
+The successor
+[007.04 - User Approval](https://github.com/karanbabu2110/KAOS/issues/885)
+presents the exact `ReadLocalFileTarget.resolvedPath`, states that its content
+will enter the configured local model request, and binds one decision to that
+target. The later executor must revalidate before consuming content.

@@ -116,9 +116,11 @@ installed Ollama instance and do not create or read a local tool target.
 
 ## Deliberate limits and handoff
 
-There is no application command, interactive approval, configured read root,
-filesystem validation, file read, result continuation, audit record, generic
-tool interface, registry, dispatcher, plugin, module, service, or tool loop.
+There is no application command, configured read root, filesystem validation,
+file read, result continuation, audit record, generic tool interface, registry,
+dispatcher, plugin, module, service, or tool loop in this feature. The later
+approval boundary can bind a decision after permission validation, but this
+client operation does not invoke that boundary itself.
 Model support and selection remain explicit operator responsibilities; KAOS
 does not discover or substitute a tool-capable model.
 
