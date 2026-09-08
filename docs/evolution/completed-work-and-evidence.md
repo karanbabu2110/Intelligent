@@ -381,8 +381,13 @@ Feature 006.09 evaluates the complete absent-create-use-edit-inspect-delete
 lifecycle across temporary SQLite, application composition, and real loopback
 Ollama HTTP in [Memory Testing and Evaluation](memory-testing-evaluation.md).
 
-Release checkpoint: [KAOS 1.3.0 release notes](../releases/v1.3.0.md) and
-[validation and publication procedure](../releases/v1.3.0-validation.md).
+Epic 006 exit evidence is recorded in
+[Epic 006 Exit — First Memory Capability](epic-006-exit.md). The nine-feature
+outcome is assigned to milestone
+[v1.4.0 — First Memory Capability](https://github.com/karanbabu2110/KAOS/milestone/4).
+
+Release checkpoint: [KAOS 1.4.0 release notes](../releases/v1.4.0.md) and
+[validation and publication procedure](../releases/v1.4.0-validation.md).
 
 ## Maintenance rule
 
