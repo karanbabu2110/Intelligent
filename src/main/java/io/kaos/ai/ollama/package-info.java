@@ -7,7 +7,10 @@
  * bounded streaming chat request. The request accepts an optional bounded
  * KAOS-controlled system instruction, an ordered conversation history, appends
  * the current prompt as the final user message, and assembles
- * validated answer chunks into the same bounded final answer. Explicitly enabled thinking produces only a
+ * validated answer chunks into the same bounded final answer. One explicit client operation may
+ * instead advertise only {@code read_local_file} and return at most one validated request without
+ * executing it. Ordinary prompt, conversation, and knowledge requests remain tool-free.
+ * Explicitly enabled thinking produces only a
  * content-free progress signal; raw reasoning remains separate from terminal
  * output. Streaming is backpressured one publisher item at a time, bounded by
  * total and inactivity deadlines, and cancelled when the command thread is
