@@ -1,6 +1,6 @@
-package io.kaos.tool;
+package io.kaos.tool.readlocalfile;
 
-import io.kaos.tool.ReadLocalFilePermissionException.Reason;
+import io.kaos.tool.readlocalfile.ReadLocalFilePermissionException.Reason;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;

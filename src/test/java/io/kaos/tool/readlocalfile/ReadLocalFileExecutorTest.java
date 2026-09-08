@@ -1,11 +1,11 @@
-package io.kaos.tool;
+package io.kaos.tool.readlocalfile;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import io.kaos.tool.ReadLocalFileExecutionException.Reason;
+import io.kaos.tool.readlocalfile.ReadLocalFileExecutionException.Reason;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;

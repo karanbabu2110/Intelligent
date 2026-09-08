@@ -294,6 +294,13 @@ the target around a no-follow read, strictly decode at most 2,048 UTF-8 bytes,
 and return one complete result. These APIs are not wired to a command yet and
 do not send the result to Ollama.
 
+`ReadLocalFileAuditContext` can assign the validated target a random
+per-invocation UUID and produce one final content-free record of the approval
+decision and broad outcome. The identity is not derived from the path, and the
+record contains no path, content, timestamp, or failure detail. There is no
+audit sink or persistence; application integration will decide where the
+ephemeral record is observed.
+
 Clean `done_reason: stop` completion returns exit `0`. Provider
 `done_reason: length`, local byte/text ceilings, inactivity or total timeout,
 thread interruption, malformed/incomplete streams, and transport failure return
@@ -506,6 +513,10 @@ every command in the public entry point:
 - `OllamaPromptSubmission` is the narrow application port used to substitute a
   deterministic prompt implementation in tests.
 - `ErrorReporter` owns the stable coded-error format shared by commands.
+- `io.kaos.tool.readlocalfile` owns the complete first-tool capability below
+  the `io.kaos.tool` parent namespace. Add a sibling package only when another
+  concrete tool is implemented; do not add a registry or shared tool framework
+  solely because more tools are planned.
 
 When adding a command, keep its parsing in `CommandRouter`, put its workflow in
 a named command coordinator, supply external behavior through its constructor,

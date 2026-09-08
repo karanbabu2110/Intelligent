@@ -13,7 +13,7 @@ import com.sun.net.httpserver.HttpServer;
 import io.kaos.conversation.ConversationHistory;
 import io.kaos.conversation.ConversationMessage;
 import io.kaos.conversation.ConversationRole;
-import io.kaos.tool.ReadLocalFileToolContract;
+import io.kaos.tool.readlocalfile.ReadLocalFileToolContract;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;

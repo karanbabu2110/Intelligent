@@ -85,11 +85,11 @@ on an external service.
 ## Deliberate limits and handoff
 
 This feature adds no application command, interactive input loop, tool-result
-submission to Ollama, final model continuation, audit persistence, retry,
+submission to Ollama, final model continuation, retry,
 directory access, watcher, generic executor framework, module, service,
 plugin, native filesystem dependency, or new library.
 
-The next roadmap feature is
-[007.07 - Tool Audit Record](https://github.com/karanbabu2110/KAOS/issues/890).
-It must remain content-free and must not turn approval or execution outcomes
-into persistent file data.
+The successor
+[007.07 - Tool Audit Record](https://github.com/karanbabu2110/KAOS/issues/890)
+correlates the decision and broad execution outcome through one random,
+content-free target identity. It does not persist file or audit data.

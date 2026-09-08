@@ -1,4 +1,4 @@
-package io.kaos.tool;
+package io.kaos.tool.readlocalfile;
 
 /** Content-free failure while resolving or validating a local file tool target. */
 public final class ReadLocalFilePermissionException extends RuntimeException {
