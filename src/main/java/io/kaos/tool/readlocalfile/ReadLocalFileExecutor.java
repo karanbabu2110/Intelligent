@@ -1,6 +1,6 @@
-package io.kaos.tool;
+package io.kaos.tool.readlocalfile;
 
-import io.kaos.tool.ReadLocalFileExecutionException.Reason;
+import io.kaos.tool.readlocalfile.ReadLocalFileExecutionException.Reason;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;

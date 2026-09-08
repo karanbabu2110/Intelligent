@@ -1,4 +1,4 @@
-package io.kaos.tool;
+package io.kaos.tool.readlocalfile;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;

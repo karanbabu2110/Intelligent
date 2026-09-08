@@ -1,4 +1,4 @@
-package io.kaos.tool;
+package io.kaos.tool.readlocalfile;
 
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
