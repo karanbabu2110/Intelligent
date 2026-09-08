@@ -2,8 +2,9 @@
 
 Feature [007.08](https://github.com/karanbabu2110/KAOS/issues/889) maps every
 known `read_local_file` request, permission, execution, cancellation, and
-consumed-state failure to one stable capability-specific diagnostic. It does
-not yet print the diagnostic because the tool has no application command.
+consumed-state failure to one stable capability-specific diagnostic. The
+`read-local-file` command delivered by Feature 007.09 now prints these fixed
+diagnostics at the application boundary.
 
 ## Implemented outcome
 
@@ -87,3 +88,5 @@ The next roadmap feature is
 [007.09 - Tool Integration Tests](https://github.com/karanbabu2110/KAOS/issues/891).
 It should integrate the completed request, validation, approval, execution,
 audit, and failure contracts through one deterministic application path.
+That integration is documented in
+[tool integration testing](tool-integration-testing.md).

@@ -4,6 +4,7 @@ import io.kaos.ai.ollama.OllamaConnectivity;
 import io.kaos.ai.ollama.OllamaEmbeddingClient;
 import io.kaos.ai.ollama.OllamaEmbeddingConfiguration;
 import io.kaos.ai.ollama.OllamaModelConfiguration;
+import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.app.config.ApplicationConfiguration;
 import io.kaos.conversation.ConversationDatabasePath;
@@ -13,6 +14,8 @@ import io.kaos.knowledge.SqliteKnowledgeStore;
 import io.kaos.memory.AnswerDetail;
 import io.kaos.memory.MemoryDatabasePath;
 import io.kaos.memory.SqliteAnswerDetailStore;
+import io.kaos.tool.readlocalfile.ReadLocalFilePermissionValidator;
+import io.kaos.tool.readlocalfile.ReadLocalFileResult;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.file.Path;
@@ -174,6 +177,37 @@ final class ApplicationRuntime {
         MemoryDeleteCommand memoryDeleteCommand = new MemoryDeleteCommand(context, memoryStore);
         MemoryPrivacyCommand memoryPrivacyCommand = new MemoryPrivacyCommand(
                 context, answerDetailLoader);
+        ReadLocalFileCommand readLocalFileCommand = new ReadLocalFileCommand(
+                context,
+                modelConfigurationLoader,
+                new ReadLocalFilePromptSubmission() {
+                    private OllamaPromptClient client;
+
+                    @Override
+                    public OllamaPromptClient.Result request(
+                            OllamaModelConfiguration model,
+                            OllamaPrompt prompt) {
+                        return client().submitWithReadLocalFileTool(model, prompt);
+                    }
+
+                    @Override
+                    public OllamaPromptClient.Result continueWithResult(
+                            OllamaModelConfiguration model,
+                            OllamaPrompt prompt,
+                            OllamaPromptClient.Result toolCallResult,
+                            ReadLocalFileResult result) {
+                        return client().continueWithReadLocalFileResult(
+                                model, prompt, toolCallResult, result);
+                    }
+
+                    private OllamaPromptClient client() {
+                        if (client == null) {
+                            client = new OllamaPromptClient();
+                        }
+                        return client;
+                    }
+                },
+                ReadLocalFilePermissionValidator::load);
         return new CommandRouter(
                 context,
                 new KnowledgeIngestCommand(
@@ -186,6 +220,7 @@ final class ApplicationRuntime {
                 memoryEditCommand::execute,
                 memoryDeleteCommand::execute,
                 memoryPrivacyCommand::execute,
+                readLocalFileCommand::execute,
                 ollamaStatusCommand::execute,
                 ollamaModelCommand::execute,
                 ollamaPromptCommand::execute,

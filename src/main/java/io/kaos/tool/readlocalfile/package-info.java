@@ -11,7 +11,8 @@
  * decision and final outcome to one random per-invocation target identity without
  * retaining the path or content. Known request, permission, execution, cancellation, and
  * consumed-state failures map to fixed {@code KAOS-TOOL-READ-*} diagnostics without
- * retaining exception detail. The package does not persist content or audit values,
- * continue a model interaction, or create a general tool framework.</p>
+ * retaining exception detail. The application composes these values into one foreground
+ * command and continues the model interaction without advertising another tool. The package
+ * does not persist content or audit values or create a general tool framework.</p>
  */
 package io.kaos.tool.readlocalfile;

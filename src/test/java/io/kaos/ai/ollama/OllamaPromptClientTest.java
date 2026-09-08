@@ -14,6 +14,8 @@ import io.kaos.conversation.ConversationHistory;
 import io.kaos.conversation.ConversationMessage;
 import io.kaos.conversation.ConversationRole;
 import io.kaos.tool.readlocalfile.ReadLocalFileToolContract;
+import io.kaos.tool.readlocalfile.ReadLocalFileRequest;
+import io.kaos.tool.readlocalfile.ReadLocalFileResult;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -112,6 +114,70 @@ class OllamaPromptClientTest {
             assertFalse(result.toolRequested());
             assertEquals("No file is needed.", result.response());
         }
+    }
+
+    @Test
+    void continuesOneToolRequestWithUntrustedResultAndDisablesFurtherTools() throws Exception {
+        ReadLocalFileRequest toolRequest = new ReadLocalFileRequest("src/Example.java");
+        ReadLocalFileResult toolResult = new ReadLocalFileResult(
+                toolRequest, "final class Example {}");
+        try (LocalChatServer server = LocalChatServer.streaming(
+                jsonLine("The file defines Example.", "", false), TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint())
+                    .continueWithReadLocalFileResult(
+                            new OllamaModelConfiguration(
+                                    "qwen3", 4_096, OllamaThinkingMode.ON),
+                            new OllamaPrompt("Explain src/Example.java."),
+                            new OllamaPromptClient.Result(
+                                    OllamaPromptClient.Status.SUCCESS, "tool reasoning", "",
+                                    java.util.Optional.of(toolRequest),
+                                    OllamaPromptClient.CompletionReason.STOP,
+                                    new OllamaPromptClient.CompletionMetrics(1, 1, 1, 1)),
+                            toolResult);
+
+            assertTrue(result.successful());
+            assertFalse(result.toolRequested());
+            assertEquals("The file defines Example.", result.response());
+
+            JsonNode request = JSON.readTree(server.requestBody());
+            assertFalse(request.has("tools"));
+            assertTrue(request.get("think").booleanValue());
+            assertEquals(3, request.get("messages").size());
+            assertMessage(request.get("messages").get(0), "user",
+                    "Explain src/Example.java.");
+            JsonNode assistant = request.get("messages").get(1);
+            assertMessage(assistant, "assistant", "");
+            assertEquals("read_local_file",
+                    assistant.get("tool_calls").get(0).get("function").get("name")
+                            .textValue());
+            assertEquals("src/Example.java",
+                    assistant.get("tool_calls").get(0).get("function").get("arguments")
+                            .get("path").textValue());
+            assertEquals("tool reasoning", assistant.get("thinking").textValue());
+            JsonNode tool = request.get("messages").get(2);
+            assertMessage(tool, "tool",
+                    JSON.writeValueAsString(ReadLocalFileToolContract.encodeResult(toolResult)));
+            assertEquals("read_local_file", tool.get("tool_name").textValue());
+        }
+    }
+
+    @Test
+    void toolContinuationRejectsAMismatchedResultBeforeProviderSubmission() {
+        ReadLocalFileRequest requested = new ReadLocalFileRequest("src/Requested.java");
+        ReadLocalFileResult different = new ReadLocalFileResult(
+                new ReadLocalFileRequest("src/Different.java"), "class Different {}");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> client(URI.create("http://127.0.0.1:1/api/chat"))
+                        .continueWithReadLocalFileResult(
+                                new OllamaModelConfiguration("qwen3"),
+                                new OllamaPrompt("Explain the file."),
+                                new OllamaPromptClient.Result(
+                                        OllamaPromptClient.Status.SUCCESS, "", "",
+                                        java.util.Optional.of(requested),
+                                        OllamaPromptClient.CompletionReason.STOP,
+                                        new OllamaPromptClient.CompletionMetrics(1, 1, 1, 1)),
+                                different));
     }
 
     @Test

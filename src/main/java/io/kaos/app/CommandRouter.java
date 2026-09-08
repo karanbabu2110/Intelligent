@@ -15,6 +15,7 @@ final class CommandRouter {
     private final TwoArgumentCommand memoryEditCommand;
     private final ArgumentCommand memoryDeleteCommand;
     private final Command memoryPrivacyCommand;
+    private final ArgumentCommand readLocalFileCommand;
     private final Command ollamaStatusCommand;
     private final Command ollamaModelCommand;
     private final ArgumentCommand ollamaPromptCommand;
@@ -130,6 +131,29 @@ final class CommandRouter {
             Command ollamaModelCommand,
             ArgumentCommand ollamaPromptCommand,
             Command conversationCommand) {
+        this(context, knowledgeIngestCommand, knowledgeRetrieveCommand, knowledgeAskCommand,
+                memoryCreateCommand, memoryInspectCommand, memoryEditCommand,
+                memoryDeleteCommand, memoryPrivacyCommand,
+                argument -> KaosApplication.USAGE_ERROR,
+                ollamaStatusCommand, ollamaModelCommand, ollamaPromptCommand,
+                conversationCommand);
+    }
+
+    CommandRouter(
+            CommandContext context,
+            ArgumentCommand knowledgeIngestCommand,
+            ArgumentCommand knowledgeRetrieveCommand,
+            ArgumentCommand knowledgeAskCommand,
+            TwoArgumentCommand memoryCreateCommand,
+            ArgumentCommand memoryInspectCommand,
+            TwoArgumentCommand memoryEditCommand,
+            ArgumentCommand memoryDeleteCommand,
+            Command memoryPrivacyCommand,
+            ArgumentCommand readLocalFileCommand,
+            Command ollamaStatusCommand,
+            Command ollamaModelCommand,
+            ArgumentCommand ollamaPromptCommand,
+            Command conversationCommand) {
         this.context = Objects.requireNonNull(context, "context");
         this.knowledgeIngestCommand = Objects.requireNonNull(
                 knowledgeIngestCommand, "knowledgeIngestCommand");
@@ -146,6 +170,8 @@ final class CommandRouter {
                 memoryDeleteCommand, "memoryDeleteCommand");
         this.memoryPrivacyCommand = Objects.requireNonNull(
                 memoryPrivacyCommand, "memoryPrivacyCommand");
+        this.readLocalFileCommand = Objects.requireNonNull(
+                readLocalFileCommand, "readLocalFileCommand");
         this.ollamaStatusCommand = Objects.requireNonNull(
                 ollamaStatusCommand, "ollamaStatusCommand");
         this.ollamaModelCommand = Objects.requireNonNull(
@@ -190,6 +216,9 @@ final class CommandRouter {
         }
         if (isCommand(arguments, "memory-privacy")) {
             return memoryPrivacyCommand.execute();
+        }
+        if (arguments.length == 2 && "read-local-file".equals(arguments[0])) {
+            return readLocalFileCommand.execute(arguments[1]);
         }
         if (isCommand(arguments, "ollama-status")) {
             return ollamaStatusCommand.execute();
@@ -246,6 +275,11 @@ final class CommandRouter {
         if (arguments.length > 0 && "memory-privacy".equals(arguments[0])) {
             context.errorOutput().println(
                     "Expected memory-privacy without arguments. Run 'kaos help' for usage.");
+            return KaosApplication.USAGE_ERROR;
+        }
+        if (arguments.length > 0 && "read-local-file".equals(arguments[0])) {
+            context.errorOutput().println(
+                    "Expected one quoted file question. Run 'kaos help' for usage.");
             return KaosApplication.USAGE_ERROR;
         }
 

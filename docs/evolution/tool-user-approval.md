@@ -80,8 +80,8 @@ content, persists state, or contacts an external service.
 This feature adds no application command, terminal input loop, file execution,
 UTF-8 decoding, model-result continuation, audit persistence, reusable
 permission store, generic approval framework, module, service, plugin, or new
-dependency. Mapping process interruption to `cancel()` remains the
-responsibility of the later command boundary.
+dependency. Feature 007.09's command boundary now maps pre-read process
+interruption and approval-input failure to `cancel()`.
 
 The successor
 [007.06 - Tool Execution Result](https://github.com/karanbabu2110/KAOS/issues/887)

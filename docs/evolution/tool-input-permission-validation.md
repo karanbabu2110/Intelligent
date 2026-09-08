@@ -44,8 +44,8 @@ change with the process working directory. Null, blank, relative, invalid,
 unavailable, non-directory, linked, or filesystem-root configuration is
 rejected without echoing the value.
 
-No application command loads this configuration yet. The examples describe
-the implemented configuration contract, not a runnable tool command.
+The `read-local-file` application command now loads this configuration only
+after the model requests one structurally valid relative path.
 
 ## Validation flow
 

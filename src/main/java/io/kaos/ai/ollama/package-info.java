@@ -9,7 +9,9 @@
  * the current prompt as the final user message, and assembles
  * validated answer chunks into the same bounded final answer. One explicit client operation may
  * instead advertise only {@code read_local_file} and return at most one validated request without
- * executing it. Ordinary prompt, conversation, and knowledge requests remain tool-free.
+ * executing it. A matching continuation operation sends the assistant request and bounded tool
+ * result back to Ollama while advertising no further tools. Ordinary prompt, conversation, and
+ * knowledge requests remain tool-free.
  * Explicitly enabled thinking produces only a
  * content-free progress signal; raw reasoning remains separate from terminal
  * output. Streaming is backpressured one publisher item at a time, bounded by

@@ -9,6 +9,7 @@ import io.kaos.conversation.ConversationHistory;
 import io.kaos.conversation.ConversationMessage;
 import io.kaos.conversation.ConversationRole;
 import io.kaos.tool.readlocalfile.ReadLocalFileRequest;
+import io.kaos.tool.readlocalfile.ReadLocalFileResult;
 import io.kaos.tool.readlocalfile.ReadLocalFileToolContract;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -86,6 +87,36 @@ public final class OllamaPromptClient {
                 () -> { }, ignored -> { }, true);
     }
 
+    /** Continues one exact tool request with its bounded result and permits no further tool call. */
+    public Result continueWithReadLocalFileResult(
+            OllamaModelConfiguration model,
+            OllamaPrompt prompt,
+            Result toolCallResult,
+            ReadLocalFileResult result) {
+        Objects.requireNonNull(model, "model");
+        Objects.requireNonNull(prompt, "prompt");
+        Objects.requireNonNull(toolCallResult, "toolCallResult");
+        Objects.requireNonNull(result, "result");
+        if (!toolCallResult.successful() || !toolCallResult.toolRequested()) {
+            throw new IllegalArgumentException(
+                    "Tool continuation requires one successful pending tool request.");
+        }
+        ReadLocalFileRequest request = toolCallResult.toolRequest().orElseThrow();
+        if (!request.equals(result.request())) {
+            throw new IllegalArgumentException(
+                    "Tool result must belong to the requested local file.");
+        }
+
+        byte[] requestBody = encodeToolContinuation(
+                model.modelName(), prompt, toolCallResult.thinking(), request, result,
+                model.contextWindow(), model.thinkingMode(), model.responseTokenLimit());
+        if (requestBody == null) {
+            return Result.failed(Status.LOCAL_LIMIT_REACHED);
+        }
+        return submitRequest(requestBody, model.thinkingMode(),
+                () -> { }, ignored -> { }, false);
+    }
+
     /** Generates one streamed response and emits every validated answer chunk exactly once. */
     public Result submit(OllamaModelConfiguration model, OllamaPrompt prompt,
             Consumer<String> answerChunkConsumer) {
@@ -135,6 +166,13 @@ public final class OllamaPromptClient {
         if (requestBody == null) {
             return Result.failed(Status.LOCAL_LIMIT_REACHED);
         }
+        return submitRequest(requestBody, model.thinkingMode(), thinkingStarted,
+                answerChunkConsumer, advertiseReadLocalFileTool);
+    }
+
+    private Result submitRequest(byte[] requestBody, OllamaThinkingMode thinkingMode,
+            Runnable thinkingStarted, Consumer<String> answerChunkConsumer,
+            boolean allowReadLocalFileTool) {
         HttpRequest request = HttpRequest.newBuilder(chatEndpoint)
                 .timeout(requestTimeout)
                 .header("Accept", "application/x-ndjson")
@@ -162,8 +200,8 @@ public final class OllamaPromptClient {
             if (!isNdjson(response)) {
                 return Result.failed(Status.INVALID_RESPONSE);
             }
-            return decodeStream(responseBody, model.thinkingMode(), thinkingStarted,
-                    answerChunkConsumer, advertiseReadLocalFileTool);
+            return decodeStream(responseBody, thinkingMode, thinkingStarted,
+                    answerChunkConsumer, allowReadLocalFileTool);
         } catch (StreamInterruptedException exception) {
             Thread.currentThread().interrupt();
             return Result.failed(Status.INTERRUPTED);
@@ -189,12 +227,12 @@ public final class OllamaPromptClient {
             List<ChatMessage> messages = new ArrayList<>(
                     history.messages().size() + instructionCount + 1);
             if (!prompt.systemInstruction().isEmpty()) {
-                messages.add(new ChatMessage("system", prompt.systemInstruction()));
+                messages.add(ChatMessage.text("system", prompt.systemInstruction()));
             }
             for (ConversationMessage message : history.messages()) {
-                messages.add(new ChatMessage(chatRole(message.role()), message.content()));
+                messages.add(ChatMessage.text(chatRole(message.role()), message.content()));
             }
-            messages.add(new ChatMessage("user", prompt.text()));
+            messages.add(ChatMessage.text("user", prompt.text()));
             BoundedRequestOutputStream output =
                     new BoundedRequestOutputStream(MAX_REQUEST_BYTES);
             JSON.writeValue(output, new ChatRequest(
@@ -217,6 +255,44 @@ public final class OllamaPromptClient {
         }
     }
 
+    private static byte[] encodeToolContinuation(
+            String model,
+            OllamaPrompt prompt,
+            String assistantThinking,
+            ReadLocalFileRequest request,
+            ReadLocalFileResult result,
+            int contextWindow,
+            OllamaThinkingMode thinkingMode,
+            int responseTokenLimit) {
+        try {
+            List<ChatMessage> messages = new ArrayList<>(4);
+            if (!prompt.systemInstruction().isEmpty()) {
+                messages.add(ChatMessage.text("system", prompt.systemInstruction()));
+            }
+            messages.add(ChatMessage.text("user", prompt.text()));
+            messages.add(ChatMessage.toolCall(
+                    assistantThinking, encodeToolCall(request)));
+            messages.add(ChatMessage.toolResult(
+                    JSON.writeValueAsString(ReadLocalFileToolContract.encodeResult(result))));
+
+            BoundedRequestOutputStream output =
+                    new BoundedRequestOutputStream(MAX_REQUEST_BYTES);
+            JSON.writeValue(output, new ChatRequest(
+                    model, List.copyOf(messages), List.of(), true,
+                    thinkingMode.enabled(),
+                    new GenerateOptions(contextWindow, responseTokenLimit)));
+            return output.toByteArray();
+        } catch (RequestLimitException exception) {
+            return null;
+        } catch (IOException exception) {
+            if (isCausedByRequestLimit(exception)) {
+                return null;
+            }
+            throw new IllegalStateException(
+                    "Unable to encode validated Ollama tool continuation.", exception);
+        }
+    }
+
     private static boolean isCausedByRequestLimit(Throwable failure) {
         for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
             if (cause instanceof RequestLimitException) {
@@ -224,6 +300,16 @@ public final class OllamaPromptClient {
             }
         }
         return false;
+    }
+
+    private static JsonNode encodeToolCall(ReadLocalFileRequest request) {
+        return JSON.createObjectNode()
+                .put("type", "function")
+                .set("function", JSON.createObjectNode()
+                        .put("name", ReadLocalFileToolContract.NAME)
+                        .set("arguments", JSON.createObjectNode()
+                                .put(ReadLocalFileToolContract.PATH_ARGUMENT,
+                                        request.path())));
     }
 
     private static String chatRole(ConversationRole role) {
@@ -441,7 +527,28 @@ public final class OllamaPromptClient {
             boolean stream, boolean think,
             GenerateOptions options) { }
 
-    private record ChatMessage(String role, String content) { }
+    private record ChatMessage(
+            String role,
+            String content,
+            @JsonProperty("tool_calls")
+            @JsonInclude(JsonInclude.Include.NON_EMPTY) List<JsonNode> toolCalls,
+            @JsonProperty("tool_name")
+            @JsonInclude(JsonInclude.Include.NON_NULL) String toolName,
+            @JsonInclude(JsonInclude.Include.NON_EMPTY) String thinking) {
+
+        private static ChatMessage text(String role, String content) {
+            return new ChatMessage(role, content, List.of(), null, "");
+        }
+
+        private static ChatMessage toolCall(String thinking, JsonNode toolCall) {
+            return new ChatMessage("assistant", "", List.of(toolCall), null, thinking);
+        }
+
+        private static ChatMessage toolResult(String content) {
+            return new ChatMessage(
+                    "tool", content, List.of(), ReadLocalFileToolContract.NAME, "");
+        }
+    }
 
     private record GenerateOptions(@JsonProperty("num_ctx") int contextWindow,
             @JsonProperty("num_predict") int responseTokenLimit) { }
