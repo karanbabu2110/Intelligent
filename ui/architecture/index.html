@@ -32,7 +32,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-09-08</strong>
-        Version 1.3.0 · Feature 006.07 working tree<br>
+        Version 1.3.0 · Feature 006.08 working tree<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -41,16 +41,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated for Feature 006.07</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated for Feature 006.08</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> Feature 006.07 adds explicit <code>memory-edit</code> and <code>memory-delete</code> commands. They reuse the existing fixed-key store for one-row atomic update and deletion without changing schema version 1 or adding a broader memory abstraction.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> Feature 006.08 adds <code>memory-privacy</code> as a content-free transparency control. It reuses validated retrieval to report collection, storage, AI-use, and presence policy without exposing the stored value or changing state.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 720" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes one packaged Java process. KaosApplication owns process lifecycle, configuration loading, and the top-level safe failure boundary. ApplicationRuntime constructs explicit local dependencies and command coordinators. CommandRouter selects exactly one status, help, memory lifecycle, knowledge, Ollama, or conversation branch. Memory commands resolve the owned local memory database path and call SqliteAnswerDetailStore for atomic creation, inspection, replacement, or deletion that survives process restart. The one-shot OllamaPromptCommand retrieves that optional validated value and supplies its fixed instruction to the existing local Ollama request. KnowledgeIngestCommand coordinates bounded admission, exact text extraction, deterministic chunking, and transient embedding generation through fixed loopback Ollama. Other command coordinators own their foreground workflows and ErrorReporter owns the stable coded-error format. Capability packages retain product and infrastructure behavior. The application remains one Gradle project and process.</desc>
+          <desc id="diagram-description">A terminal invokes one packaged Java process. KaosApplication owns process lifecycle, configuration loading, and the top-level safe failure boundary. ApplicationRuntime constructs explicit local dependencies and command coordinators. CommandRouter selects exactly one status, help, memory lifecycle or privacy, knowledge, Ollama, or conversation branch. Memory commands resolve the owned local memory database path and call SqliteAnswerDetailStore for atomic creation, inspection, replacement, or deletion that survives process restart. MemoryPrivacyCommand reads only validated presence and reports the bounded collection, local-storage, and one-shot AI-use policy without the value. The one-shot OllamaPromptCommand retrieves that optional validated value and supplies its fixed instruction to the existing local Ollama request. KnowledgeIngestCommand coordinates bounded admission, exact text extraction, deterministic chunking, and transient embedding generation through fixed loopback Ollama. Other command coordinators own their foreground workflows and ErrorReporter owns the stable coded-error format. Capability packages retain product and infrastructure behavior. The application remains one Gradle project and process.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -774,10 +774,15 @@
           <h3>Explicit memory inspection</h3>
           <p><code>memory-inspect answer-detail</code> reuses exact validated retrieval and reports only absence or the structured enum. Invalid keys fail before database access, and inspection never mutates memory.</p>
         </article>
-        <article class="card change-current">
+        <article class="card">
           <div class="status implemented">Feature 006.07 · implemented</div>
           <h3>Explicit memory editing and deletion</h3>
           <p><code>memory-edit</code> atomically replaces a present structured value and <code>memory-delete</code> removes the present fixed row. Absence fails explicitly, and SQLite schema version 1 remains unchanged.</p>
+        </article>
+        <article class="card change-current">
+          <div class="status implemented">Feature 006.08 · implemented</div>
+          <h3>Content-free memory privacy view</h3>
+          <p><code>memory-privacy</code> reports explicit-only collection, local-only storage, one-shot Ollama use, and present/absent state. It never displays the stored value and performs no mutation or provider call.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -861,7 +866,8 @@
           <tr><td>Bounded exact memory retrieval</td><td><a href="../../src/main/java/io/kaos/memory/AnswerDetailStore.java"><code>AnswerDetailStore.java</code></a>, <a href="../../src/main/java/io/kaos/memory/SqliteAnswerDetailStore.java"><code>SqliteAnswerDetailStore.java</code></a>, <a href="../../src/test/java/io/kaos/memory/SqliteAnswerDetailStoreTest.java"><code>SqliteAnswerDetailStoreTest.java</code></a>, and <a href="../../docs/evolution/memory-retrieval.md">Feature evidence</a></td><td>Implemented; delivered by PR #58</td></tr>
           <tr><td>Bounded memory use in one-shot AI context</td><td><a href="../../src/main/java/io/kaos/app/OllamaPromptCommand.java"><code>OllamaPromptCommand.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPrompt.java"><code>OllamaPrompt.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a>, and <a href="../../docs/evolution/memory-ai-context.md">Feature evidence</a></td><td>Implemented; delivered by PR #59 with one-shot prompt scope only</td></tr>
           <tr><td>Explicit read-only memory inspection</td><td><a href="../../src/main/java/io/kaos/app/MemoryInspectCommand.java"><code>MemoryInspectCommand.java</code></a>, <a href="../../src/test/java/io/kaos/app/MemoryInspectCommandTest.java"><code>MemoryInspectCommandTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/memory-inspection.md">Feature evidence</a></td><td>Implemented; delivered by PR #60</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 006.07</span>Explicit memory editing and deletion</td><td><a href="../../src/main/java/io/kaos/app/MemoryEditCommand.java"><code>MemoryEditCommand.java</code></a>, <a href="../../src/main/java/io/kaos/app/MemoryDeleteCommand.java"><code>MemoryDeleteCommand.java</code></a>, <a href="../../src/test/java/io/kaos/memory/SqliteAnswerDetailStoreTest.java"><code>SqliteAnswerDetailStoreTest.java</code></a>, and <a href="../../docs/evolution/memory-editing-deletion.md">Feature evidence</a></td><td>Implemented in the current feature branch; fixed key and schema version 1 only</td></tr>
+          <tr><td>Explicit memory editing and deletion</td><td><a href="../../src/main/java/io/kaos/app/MemoryEditCommand.java"><code>MemoryEditCommand.java</code></a>, <a href="../../src/main/java/io/kaos/app/MemoryDeleteCommand.java"><code>MemoryDeleteCommand.java</code></a>, <a href="../../src/test/java/io/kaos/memory/SqliteAnswerDetailStoreTest.java"><code>SqliteAnswerDetailStoreTest.java</code></a>, and <a href="../../docs/evolution/memory-editing-deletion.md">Feature evidence</a></td><td>Implemented; delivered by PR #61</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 006.08</span>Content-free memory privacy view</td><td><a href="../../src/main/java/io/kaos/app/MemoryPrivacyCommand.java"><code>MemoryPrivacyCommand.java</code></a>, <a href="../../src/test/java/io/kaos/app/MemoryPrivacyCommandTest.java"><code>MemoryPrivacyCommandTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/memory-privacy-controls.md">Feature evidence</a></td><td>Implemented in the current feature branch; presence only, stored value undisclosed</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

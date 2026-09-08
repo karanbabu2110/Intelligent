@@ -163,7 +163,7 @@ public final class KaosApplication {
 
     static String helpText() {
         return """
-                Usage: kaos [status|help|memory-create answer-detail <value>|memory-inspect answer-detail|memory-edit answer-detail <value>|memory-delete answer-detail|knowledge-ingest <path>|knowledge-retrieve <query>|knowledge-ask <question>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
+                Usage: kaos [status|help|memory-create answer-detail <value>|memory-inspect answer-detail|memory-edit answer-detail <value>|memory-delete answer-detail|memory-privacy|knowledge-ingest <path>|knowledge-retrieve <query>|knowledge-ask <question>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
 
                 Commands:
                   status         Show local application status (default).
@@ -172,6 +172,7 @@ public final class KaosApplication {
                   memory-inspect Show whether answer-detail exists and its structured value.
                   memory-edit    Replace an existing answer-detail value.
                   memory-delete  Remove the existing answer-detail memory.
+                  memory-privacy Show content-free collection, storage, use, and state policy.
                   knowledge-ingest  Ingest and embed one local UTF-8 .txt document up to 1 MiB.
                   knowledge-retrieve  Rank stored chunks and construct one grounded prompt.
                   knowledge-ask  Answer one question from retrieved local context with citations.

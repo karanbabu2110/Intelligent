@@ -160,6 +160,25 @@ class CommandRouterTest {
         assertEquals(1, deleteCalls.get());
     }
 
+    @Test
+    void dispatchesMemoryPrivacyWithoutArguments() {
+        AtomicInteger privacyCalls = new AtomicInteger();
+        CommandRouter.Command command = () -> KaosApplication.SUCCESS;
+        CommandRouter router = new CommandRouter(
+                context(new ByteArrayOutputStream(), new ByteArrayOutputStream()),
+                argument -> command.execute(), argument -> command.execute(),
+                argument -> command.execute(), (key, value) -> command.execute(),
+                key -> command.execute(), (key, value) -> command.execute(),
+                key -> command.execute(), () -> {
+                    privacyCalls.incrementAndGet();
+                    return KaosApplication.SUCCESS;
+                }, command, command, argument -> command.execute(), command);
+
+        assertEquals(KaosApplication.SUCCESS,
+                router.route(new String[] {"memory-privacy"}));
+        assertEquals(1, privacyCalls.get());
+    }
+
     private static CommandRouter router(
             ByteArrayOutputStream standardBytes,
             AtomicInteger commandCalls) {

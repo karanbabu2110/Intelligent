@@ -375,6 +375,8 @@ the fixed key's absence or validated structured value through
 [Memory Inspection](memory-inspection.md), without adding mutation or broad
 listing. Feature 006.07 completes the explicit lifecycle with atomic replacement
 and removal in [Memory Editing and Deletion](memory-editing-deletion.md).
+Feature 006.08 exposes bounded collection, storage, AI-use, and presence facts
+without the stored value through [Memory Privacy Controls](memory-privacy-controls.md).
 
 Release checkpoint: [KAOS 1.3.0 release notes](../releases/v1.3.0.md) and
 [validation and publication procedure](../releases/v1.3.0-validation.md).

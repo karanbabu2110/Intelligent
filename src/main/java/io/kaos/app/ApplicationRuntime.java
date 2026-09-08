@@ -172,6 +172,8 @@ final class ApplicationRuntime {
                 () -> new SqliteAnswerDetailStore(MemoryDatabasePath.load());
         MemoryEditCommand memoryEditCommand = new MemoryEditCommand(context, memoryStore);
         MemoryDeleteCommand memoryDeleteCommand = new MemoryDeleteCommand(context, memoryStore);
+        MemoryPrivacyCommand memoryPrivacyCommand = new MemoryPrivacyCommand(
+                context, answerDetailLoader);
         return new CommandRouter(
                 context,
                 new KnowledgeIngestCommand(
@@ -183,6 +185,7 @@ final class ApplicationRuntime {
                 memoryInspectCommand::execute,
                 memoryEditCommand::execute,
                 memoryDeleteCommand::execute,
+                memoryPrivacyCommand::execute,
                 ollamaStatusCommand::execute,
                 ollamaModelCommand::execute,
                 ollamaPromptCommand::execute,

@@ -204,6 +204,45 @@ class KaosApplicationTest {
     }
 
     @Test
+    void reportsMemoryPrivacyAcrossApplicationRunsWithoutTheValue() {
+        String previous = System.getProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+        System.setProperty(
+                MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY, temporaryDirectory.toString());
+        try {
+            KaosApplicationHarness.Result absent = KaosApplicationHarness.run("memory-privacy");
+            assertEquals(KaosApplication.SUCCESS, KaosApplicationHarness.run(
+                    "memory-create", "answer-detail", "detailed").exitCode());
+            KaosApplicationHarness.Result present = KaosApplicationHarness.run("memory-privacy");
+
+            assertTrue(absent.standardOutput().endsWith("state=absent."
+                    + System.lineSeparator()));
+            assertTrue(present.standardOutput().endsWith("state=present."
+                    + System.lineSeparator()));
+            assertFalse(present.standardOutput().contains("detailed"));
+        } finally {
+            if (previous == null) {
+                System.clearProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+            } else {
+                System.setProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY, previous);
+            }
+        }
+    }
+
+    @Test
+    void rejectsMemoryPrivacyArgumentsWithoutEchoingThem() {
+        String privateArgument = "private-extra-value";
+
+        KaosApplicationHarness.Result result = KaosApplicationHarness.run(
+                "memory-privacy", privateArgument);
+
+        assertEquals(KaosApplication.USAGE_ERROR, result.exitCode());
+        assertEquals("", result.standardOutput());
+        assertEquals("Expected memory-privacy without arguments. Run 'kaos help' for usage."
+                + System.lineSeparator(), result.errorOutput());
+        assertFalse(result.errorOutput().contains(privateArgument));
+    }
+
+    @Test
     void rejectsInvalidMemoryCreationArgumentsWithoutEchoingThem() {
         String privateArgument = "private-extra-value";
 

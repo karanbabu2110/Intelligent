@@ -14,6 +14,7 @@ final class CommandRouter {
     private final ArgumentCommand memoryInspectCommand;
     private final TwoArgumentCommand memoryEditCommand;
     private final ArgumentCommand memoryDeleteCommand;
+    private final Command memoryPrivacyCommand;
     private final Command ollamaStatusCommand;
     private final Command ollamaModelCommand;
     private final ArgumentCommand ollamaPromptCommand;
@@ -32,6 +33,7 @@ final class CommandRouter {
                 argument -> KaosApplication.USAGE_ERROR,
                 (first, second) -> KaosApplication.USAGE_ERROR,
                 argument -> KaosApplication.USAGE_ERROR,
+                () -> KaosApplication.USAGE_ERROR,
                 ollamaStatusCommand, ollamaModelCommand, ollamaPromptCommand,
                 conversationCommand);
     }
@@ -50,6 +52,7 @@ final class CommandRouter {
                 argument -> KaosApplication.USAGE_ERROR,
                 (first, second) -> KaosApplication.USAGE_ERROR,
                 argument -> KaosApplication.USAGE_ERROR,
+                () -> KaosApplication.USAGE_ERROR,
                 ollamaStatusCommand, ollamaModelCommand, ollamaPromptCommand,
                 conversationCommand);
     }
@@ -68,6 +71,7 @@ final class CommandRouter {
                 argument -> KaosApplication.USAGE_ERROR,
                 (first, second) -> KaosApplication.USAGE_ERROR,
                 argument -> KaosApplication.USAGE_ERROR,
+                () -> KaosApplication.USAGE_ERROR,
                 ollamaStatusCommand, ollamaModelCommand, ollamaPromptCommand,
                 conversationCommand);
     }
@@ -87,6 +91,7 @@ final class CommandRouter {
                 memoryCreateCommand, memoryInspectCommand,
                 (first, second) -> KaosApplication.USAGE_ERROR,
                 argument -> KaosApplication.USAGE_ERROR,
+                () -> KaosApplication.USAGE_ERROR,
                 ollamaStatusCommand, ollamaModelCommand, ollamaPromptCommand,
                 conversationCommand);
     }
@@ -100,6 +105,27 @@ final class CommandRouter {
             ArgumentCommand memoryInspectCommand,
             TwoArgumentCommand memoryEditCommand,
             ArgumentCommand memoryDeleteCommand,
+            Command ollamaStatusCommand,
+            Command ollamaModelCommand,
+            ArgumentCommand ollamaPromptCommand,
+            Command conversationCommand) {
+        this(context, knowledgeIngestCommand, knowledgeRetrieveCommand, knowledgeAskCommand,
+                memoryCreateCommand, memoryInspectCommand, memoryEditCommand,
+                memoryDeleteCommand, () -> KaosApplication.USAGE_ERROR,
+                ollamaStatusCommand, ollamaModelCommand, ollamaPromptCommand,
+                conversationCommand);
+    }
+
+    CommandRouter(
+            CommandContext context,
+            ArgumentCommand knowledgeIngestCommand,
+            ArgumentCommand knowledgeRetrieveCommand,
+            ArgumentCommand knowledgeAskCommand,
+            TwoArgumentCommand memoryCreateCommand,
+            ArgumentCommand memoryInspectCommand,
+            TwoArgumentCommand memoryEditCommand,
+            ArgumentCommand memoryDeleteCommand,
+            Command memoryPrivacyCommand,
             Command ollamaStatusCommand,
             Command ollamaModelCommand,
             ArgumentCommand ollamaPromptCommand,
@@ -118,6 +144,8 @@ final class CommandRouter {
         this.memoryEditCommand = Objects.requireNonNull(memoryEditCommand, "memoryEditCommand");
         this.memoryDeleteCommand = Objects.requireNonNull(
                 memoryDeleteCommand, "memoryDeleteCommand");
+        this.memoryPrivacyCommand = Objects.requireNonNull(
+                memoryPrivacyCommand, "memoryPrivacyCommand");
         this.ollamaStatusCommand = Objects.requireNonNull(
                 ollamaStatusCommand, "ollamaStatusCommand");
         this.ollamaModelCommand = Objects.requireNonNull(
@@ -159,6 +187,9 @@ final class CommandRouter {
         }
         if (arguments.length == 2 && "memory-delete".equals(arguments[0])) {
             return memoryDeleteCommand.execute(arguments[1]);
+        }
+        if (isCommand(arguments, "memory-privacy")) {
+            return memoryPrivacyCommand.execute();
         }
         if (isCommand(arguments, "ollama-status")) {
             return ollamaStatusCommand.execute();
@@ -210,6 +241,11 @@ final class CommandRouter {
         if (arguments.length > 0 && "memory-delete".equals(arguments[0])) {
             context.errorOutput().println(
                     "Expected memory-delete answer-detail. Run 'kaos help' for usage.");
+            return KaosApplication.USAGE_ERROR;
+        }
+        if (arguments.length > 0 && "memory-privacy".equals(arguments[0])) {
+            context.errorOutput().println(
+                    "Expected memory-privacy without arguments. Run 'kaos help' for usage.");
             return KaosApplication.USAGE_ERROR;
         }
 
