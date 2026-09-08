@@ -277,6 +277,13 @@ and it never reads a file. There is no retry after visible output, arbitrary
 user-supplied system prompt, executable tool, image, remote-provider, or AI
 response persistence behavior.
 
+The future local-file tool validator requires one explicit read root from
+`kaos.tool.read-root` or `KAOS_TOOL_READ_ROOT`, with the system property taking
+precedence. There is no default, and a filesystem root is rejected as too
+broad. The configured value must be absolute so its authority does not depend
+on the process working directory. No application command loads this setting or
+reads a tool target yet.
+
 Clean `done_reason: stop` completion returns exit `0`. Provider
 `done_reason: length`, local byte/text ceilings, inactivity or total timeout,
 thread interruption, malformed/incomplete streams, and transport failure return

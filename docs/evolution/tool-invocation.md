@@ -122,10 +122,13 @@ tool interface, registry, dispatcher, plugin, module, service, or tool loop.
 Model support and selection remain explicit operator responsibilities; KAOS
 does not discover or substitute a tool-capable model.
 
-The next ordered feature is
-[007.04 - User Approval](https://github.com/karanbabu2110/KAOS/issues/885).
-It should expose the pending request through one foreground application path
-and require an unambiguous per-request decision without executing the file read.
+Implementation evidence changed the next safe checkpoint. Approval must name
+the exact resolved target, so
+[007.05 - Input and Permission Validation](https://github.com/karanbabu2110/KAOS/issues/888)
+must establish that target before
+[007.04 - User Approval](https://github.com/karanbabu2110/KAOS/issues/885)
+can request meaningful authority. This is a dependency-order correction, not a
+scope change to either feature.
 
 ## Reference
 
