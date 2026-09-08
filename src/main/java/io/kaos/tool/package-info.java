@@ -5,8 +5,9 @@
  * function, strict one-path request decoding, one complete bounded UTF-8 result, and
  * metadata-only validation below one explicitly configured read root. Validation returns
  * an exact target fingerprint, and the approval boundary binds one explicit local-user
- * decision and one claimable grant to that target without opening or decoding file content.
- * The package does not execute the tool, persist content, or create a general tool
- * framework.</p>
+ * decision and one claimable grant to that target. The executor consumes that grant,
+ * revalidates and reads the exact target once with no-follow and strict UTF-8 rules, and
+ * returns one complete bounded result. The package does not persist content, continue a
+ * model interaction, or create a general tool framework.</p>
  */
 package io.kaos.tool;

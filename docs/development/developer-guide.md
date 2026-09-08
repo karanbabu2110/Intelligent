@@ -289,8 +289,10 @@ target, byte count, current-answer Ollama disclosure, and the two explicit
 tokens `approve` and `deny`. Only the exact lowercase `approve` token creates
 one grant, and that grant can supply its target for one execution attempt.
 Denial, explicit cancellation, end of input, or any other response creates no
-grant. This API is not wired to a command yet and does not open the file or
-contact Ollama.
+grant. `ReadLocalFileExecutor` can consume an approved grant once, revalidate
+the target around a no-follow read, strictly decode at most 2,048 UTF-8 bytes,
+and return one complete result. These APIs are not wired to a command yet and
+do not send the result to Ollama.
 
 Clean `done_reason: stop` completion returns exit `0`. Provider
 `done_reason: length`, local byte/text ceilings, inactivity or total timeout,

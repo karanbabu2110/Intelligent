@@ -80,7 +80,8 @@ not a cryptographic content identity. Some filesystems may preserve the same
 size, timestamp, and file key across a content change. The later executor must
 therefore open with no-follow semantics and revalidate around its bounded read.
 Reading content before approval solely to hash it would violate the selected
-privacy boundary and is not introduced here.
+privacy boundary. The later executor instead revalidates around its bounded
+approved read.
 
 ## Privacy and diagnostics
 
@@ -121,4 +122,5 @@ The successor
 [007.04 - User Approval](https://github.com/karanbabu2110/KAOS/issues/885)
 presents the exact `ReadLocalFileTarget.resolvedPath`, states that its content
 will enter the configured local model request, and binds one decision to that
-target. The later executor must revalidate before consuming content.
+target. The Feature 007.06 executor revalidates before and after consuming
+content.
