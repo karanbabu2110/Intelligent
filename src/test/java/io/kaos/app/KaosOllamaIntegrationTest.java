@@ -18,7 +18,7 @@ import io.kaos.conversation.ConversationDatabasePath;
 import io.kaos.conversation.ConversationMessage;
 import io.kaos.conversation.ConversationRole;
 import io.kaos.conversation.SqliteConversationStore;
-import io.kaos.memory.AnswerDetailMemory;
+import io.kaos.memory.MemoryDatabasePath;
 import io.kaos.memory.SqliteAnswerDetailStore;
 import java.io.IOException;
 import java.io.InputStream;
@@ -122,34 +122,71 @@ class KaosOllamaIntegrationTest {
     }
 
     @Test
-    void appliesStoredAnswerDetailAcrossTheCompleteLocalAiPath() throws Exception {
-        var memoryStore = new SqliteAnswerDetailStore(
-                temporaryDirectory.resolve("memory.db"));
-        memoryStore.create(AnswerDetailMemory.KEY, "detailed");
+    void evaluatesTheCompleteDurableMemoryLifecycleAcrossLocalAiRequests() throws Exception {
+        Path memoryDatabase = temporaryDirectory.resolve("memory.db");
+        String previousDirectory = System.getProperty(
+                MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+        System.setProperty(
+                MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY,
+                temporaryDirectory.toString());
         try (LocalOllamaServer server = LocalOllamaServer.responding(
-                200, record("Done.") + TERMINAL)) {
-            OllamaPromptClient client = OllamaPromptClientTestSupport.client(server.endpoint());
-            var result = KaosApplicationHarness.capture((output, errorOutput) ->
-                    new ApplicationRuntime(
-                            () -> new OllamaConnectivity.Result(
-                                    OllamaConnectivity.Status.REACHABLE, "test-version"),
-                            () -> MODEL,
-                            client::submit,
-                            () -> temporaryDirectory.resolve("conversations.db"),
-                            memoryStore::retrieve)
-                            .execute(
-                                    new String[] {"ollama-prompt", "Explain the decision."},
-                                    new ApplicationConfiguration(
-                                            ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
-                                    InputStream.nullInputStream(), output, errorOutput));
+                200,
+                record("Absent.") + TERMINAL,
+                record("Concise.") + TERMINAL,
+                record("Detailed.") + TERMINAL,
+                record("Absent again.") + TERMINAL)) {
+            try {
+                assertEquals(KaosApplication.SUCCESS,
+                        runPromptWithMemory(server.endpoint(), memoryDatabase, "First prompt")
+                                .exitCode());
+                assertEquals(KaosApplication.SUCCESS, KaosApplicationHarness.run(
+                        "memory-create", "answer-detail", "concise").exitCode());
+                assertEquals(KaosApplication.SUCCESS,
+                        runPromptWithMemory(server.endpoint(), memoryDatabase, "Second prompt")
+                                .exitCode());
+                assertEquals(KaosApplication.SUCCESS, KaosApplicationHarness.run(
+                        "memory-edit", "answer-detail", "detailed").exitCode());
+                KaosApplicationHarness.Result inspection =
+                        KaosApplicationHarness.run("memory-inspect", "answer-detail");
+                KaosApplicationHarness.Result privacy =
+                        KaosApplicationHarness.run("memory-privacy");
+                assertEquals(KaosApplication.SUCCESS,
+                        runPromptWithMemory(server.endpoint(), memoryDatabase, "Third prompt")
+                                .exitCode());
+                assertEquals(KaosApplication.SUCCESS, KaosApplicationHarness.run(
+                        "memory-delete", "answer-detail").exitCode());
+                assertEquals(KaosApplication.SUCCESS,
+                        runPromptWithMemory(server.endpoint(), memoryDatabase, "Fourth prompt")
+                                .exitCode());
 
-            assertEquals(KaosApplication.SUCCESS, result.exitCode());
-            assertEquals("", result.errorOutput());
-            JsonNode messages = requestMessages(server.requestBody());
-            assertEquals(2, messages.size());
-            assertMessage(messages.get(0), "system",
-                    "Answer in detail with relevant context and explanation.");
-            assertMessage(messages.get(1), "user", "Explain the decision.");
+                assertEquals("Memory: answer-detail=detailed." + System.lineSeparator(),
+                        inspection.standardOutput());
+                assertTrue(privacy.standardOutput().endsWith(
+                        "ai-use=ollama-prompt-only; state=present."
+                                + System.lineSeparator()));
+                assertFalse(privacy.standardOutput().contains("detailed"));
+
+                List<String> requests = server.requestBodies();
+                assertEquals(4, requests.size());
+                assertSingleUserMessage(requests.get(0), "First prompt");
+                assertMemoryMessages(
+                        requests.get(1),
+                        "Answer concisely and include only essential information.",
+                        "Second prompt");
+                assertMemoryMessages(
+                        requests.get(2),
+                        "Answer in detail with relevant context and explanation.",
+                        "Third prompt");
+                assertSingleUserMessage(requests.get(3), "Fourth prompt");
+            } finally {
+                if (previousDirectory == null) {
+                    System.clearProperty(MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+                } else {
+                    System.setProperty(
+                            MemoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY,
+                            previousDirectory);
+                }
+            }
         }
     }
 
@@ -360,6 +397,23 @@ class KaosOllamaIntegrationTest {
                         InputStream.nullInputStream(), output, errorOutput));
     }
 
+    private KaosApplicationHarness.Result runPromptWithMemory(
+            URI endpoint, Path memoryDatabase, String prompt) {
+        OllamaPromptClient client = OllamaPromptClientTestSupport.client(endpoint);
+        return KaosApplicationHarness.capture((output, errorOutput) -> new ApplicationRuntime(
+                () -> new OllamaConnectivity.Result(
+                        OllamaConnectivity.Status.REACHABLE, "test-version"),
+                () -> MODEL,
+                client::submit,
+                () -> temporaryDirectory.resolve("conversations.db"),
+                () -> new SqliteAnswerDetailStore(memoryDatabase).retrieve())
+                .execute(
+                        new String[] {"ollama-prompt", prompt},
+                        new ApplicationConfiguration(
+                                ApplicationConfiguration.DEFAULT_APPLICATION_NAME),
+                        InputStream.nullInputStream(), output, errorOutput));
+    }
+
     private KaosApplicationHarness.Result runConversation(URI endpoint, String input) {
         OllamaPromptClient client = OllamaPromptClientTestSupport.client(endpoint);
         return KaosApplicationHarness.captureInput(input,
@@ -383,6 +437,21 @@ class KaosOllamaIntegrationTest {
     private static void assertMessage(JsonNode message, String role, String content) {
         assertEquals(role, message.get("role").textValue());
         assertEquals(content, message.get("content").textValue());
+    }
+
+    private static void assertSingleUserMessage(String requestBody, String prompt)
+            throws IOException {
+        JsonNode messages = requestMessages(requestBody);
+        assertEquals(1, messages.size());
+        assertMessage(messages.get(0), "user", prompt);
+    }
+
+    private static void assertMemoryMessages(
+            String requestBody, String instruction, String prompt) throws IOException {
+        JsonNode messages = requestMessages(requestBody);
+        assertEquals(2, messages.size());
+        assertMessage(messages.get(0), "system", instruction);
+        assertMessage(messages.get(1), "user", prompt);
     }
 
     private static int occurrences(String value, String content) {

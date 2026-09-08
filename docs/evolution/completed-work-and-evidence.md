@@ -377,6 +377,9 @@ listing. Feature 006.07 completes the explicit lifecycle with atomic replacement
 and removal in [Memory Editing and Deletion](memory-editing-deletion.md).
 Feature 006.08 exposes bounded collection, storage, AI-use, and presence facts
 without the stored value through [Memory Privacy Controls](memory-privacy-controls.md).
+Feature 006.09 evaluates the complete absent-create-use-edit-inspect-delete
+lifecycle across temporary SQLite, application composition, and real loopback
+Ollama HTTP in [Memory Testing and Evaluation](memory-testing-evaluation.md).
 
 Release checkpoint: [KAOS 1.3.0 release notes](../releases/v1.3.0.md) and
 [validation and publication procedure](../releases/v1.3.0-validation.md).
