@@ -32,7 +32,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-09-08</strong>
-        Version 1.3.0 · Feature 006.09 working tree<br>
+        Version 1.4.0 · Epic 006 release checkpoint<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -41,9 +41,9 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated for Feature 006.09</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>Verified for Epic 006 and release 1.4.0</span>
     </div>
-    <p class="change-note"><strong>Current evidence update:</strong> Feature 006.09 changes no production boundary. One deterministic integration scenario now verifies the complete memory lifecycle across public commands, SQLite restarts, application prompt composition, the real Ollama HTTP client, and loopback NDJSON.</p>
+    <p class="change-note"><strong>Current release checkpoint:</strong> Epic 006 is complete. One explicit local <code>answer-detail</code> preference now has durable creation, retrieval, bounded one-shot AI use, inspection, editing, deletion, privacy visibility, and deterministic lifecycle evidence without introducing a new runtime boundary.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
@@ -784,10 +784,15 @@
           <h3>Content-free memory privacy view</h3>
           <p><code>memory-privacy</code> reports explicit-only collection, local-only storage, one-shot Ollama use, and present/absent state. It never displays the stored value and performs no mutation or provider call.</p>
         </article>
-        <article class="card change-current">
+        <article class="card">
           <div class="status implemented">Feature 006.09 · evaluated</div>
           <h3>Complete first-memory evaluation</h3>
           <p>One temporary-database and loopback-HTTP scenario proves absent, create, exact AI use, edit, inspect/privacy, delete, and absent-again behavior across fresh storage boundaries without changing production architecture.</p>
+        </article>
+        <article class="card change-current">
+          <div class="status implemented">Epic 006 · release checkpoint</div>
+          <h3>First Memory Capability complete</h3>
+          <p>Release 1.4.0 snapshots the nine-feature explicit memory outcome. The application remains one Gradle project and one process; Epic 007 is the next inactive checkpoint.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -873,7 +878,8 @@
           <tr><td>Explicit read-only memory inspection</td><td><a href="../../src/main/java/io/kaos/app/MemoryInspectCommand.java"><code>MemoryInspectCommand.java</code></a>, <a href="../../src/test/java/io/kaos/app/MemoryInspectCommandTest.java"><code>MemoryInspectCommandTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/memory-inspection.md">Feature evidence</a></td><td>Implemented; delivered by PR #60</td></tr>
           <tr><td>Explicit memory editing and deletion</td><td><a href="../../src/main/java/io/kaos/app/MemoryEditCommand.java"><code>MemoryEditCommand.java</code></a>, <a href="../../src/main/java/io/kaos/app/MemoryDeleteCommand.java"><code>MemoryDeleteCommand.java</code></a>, <a href="../../src/test/java/io/kaos/memory/SqliteAnswerDetailStoreTest.java"><code>SqliteAnswerDetailStoreTest.java</code></a>, and <a href="../../docs/evolution/memory-editing-deletion.md">Feature evidence</a></td><td>Implemented; delivered by PR #61</td></tr>
           <tr><td>Content-free memory privacy view</td><td><a href="../../src/main/java/io/kaos/app/MemoryPrivacyCommand.java"><code>MemoryPrivacyCommand.java</code></a>, <a href="../../src/test/java/io/kaos/app/MemoryPrivacyCommandTest.java"><code>MemoryPrivacyCommandTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/memory-privacy-controls.md">Feature evidence</a></td><td>Implemented; delivered by PR #62</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 006.09</span>Complete first-memory lifecycle evaluation</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a> and <a href="../../docs/evolution/memory-testing-evaluation.md">Feature evidence</a></td><td>Evaluated in the current feature branch; temporary SQLite and loopback HTTP only</td></tr>
+          <tr><td>Complete first-memory lifecycle evaluation</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a> and <a href="../../docs/evolution/memory-testing-evaluation.md">Feature evidence</a></td><td>Evaluated; delivered by PR #63 with temporary SQLite and loopback HTTP only</td></tr>
+          <tr class="change-current"><td><span class="change-label">Verified for release 1.4.0</span>First Memory Capability</td><td><a href="../../docs/evolution/epic-006-exit.md">Epic 006 exit evidence</a>, <a href="../../docs/releases/v1.4.0.md">release notes</a>, and <a href="../../docs/releases/v1.4.0-validation.md">release validation</a></td><td>Completed nine-feature capability; release checkpoint awaiting reviewed merge</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

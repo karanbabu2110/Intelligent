@@ -7,8 +7,8 @@ inside the verified single application.
 ## Current development state
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
-- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823), and [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11)
-- Active epic: [Epic 006 — First Memory Capability](https://github.com/karanbabu2110/KAOS/issues/10); [Feature 006.09 — Memory Testing and Evaluation](https://github.com/karanbabu2110/KAOS/issues/882) proves the complete durable `answer-detail` lifecycle through real application and loopback Ollama boundaries
+- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823), [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), and [Epic 006 — First Memory Capability](https://github.com/karanbabu2110/KAOS/issues/10)
+- Next epic: [Epic 007 — First Tool Integration](https://github.com/karanbabu2110/KAOS/issues/15) remains inactive until development continues after the 1.4.0 release checkpoint
 - Repository state: one root Gradle/Java 21 application with one production entry point, explicit bounded memory creation, inspection, editing, deletion, and privacy reporting, exact validated retrieval, and one-shot AI-context use through version-1 local SQLite, bounded UTF-8 document admission, exact extraction and overlapping chunks, explicit local Ollama embeddings, atomic version-1 SQLite knowledge storage, deterministic top-three cosine retrieval, bounded injection-aware grounded prompt construction, streamed local grounded answers with stable source citations, deterministic cross-boundary evaluation, bounded persistent conversations, explicit model selection, Jackson JSON and pinned SQLite JDBC runtime libraries, and classified privacy-safe failures
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
@@ -33,16 +33,15 @@ build outputs, troubleshooting, and the feature delivery workflow.
 
 ## Version
 
-The current cumulative release checkpoint is **1.3.0**, identified by annotated
-tag and [GitHub Release `v1.3.0`](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v1.3.0).
+The current cumulative release checkpoint is **1.4.0**, prepared for annotated
+tag and GitHub Release `v1.4.0` from verified merged `main`.
 
-This release represents all verified work through Epic 005: the evolutionary
-development model, minimal runnable application, local AI, bounded persistent
-conversations, and a complete first local Knowledge and RAG path from text-file
-admission through a streamed grounded answer with source citations. It is a
-capability milestone, not a production-readiness, answer-correctness, or
-permanent database-compatibility claim. See the
-[1.3.0 release notes](docs/releases/v1.3.0.md).
+This release represents all verified work through Epic 006, adding one explicit
+durable `answer-detail` preference with bounded one-shot local AI use, inspection,
+editing, deletion, privacy visibility, and complete lifecycle evaluation. It is
+a capability milestone, not a production-readiness, general-memory,
+answer-quality, or permanent database-compatibility claim. See the
+[1.4.0 release notes](docs/releases/v1.4.0.md).
 
 ## Run the application
 
@@ -309,7 +308,8 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000-005 and all ten Epic 005 features are complete. The installed
-distribution ingested a synthetic document and returned a grounded cited answer
-through local Ollama with exit code 0. See the [Epic 005 exit
-evidence](docs/evolution/epic-005-exit.md). Epic #10 is next and remains inactive.
+Epics 000–006 and all nine Epic 006 features are complete. Deterministic
+evaluation proves the complete memory lifecycle across public commands,
+temporary SQLite, application prompt composition, and loopback Ollama. See the
+[Epic 006 exit evidence](docs/evolution/epic-006-exit.md). Epic #15 is next and
+remains inactive.
