@@ -370,7 +370,10 @@ absence or one validated enum through the bounded
 [Memory Retrieval](memory-retrieval.md) API. Feature 006.05 translates that
 optional enum into one fixed system instruction only for one-shot
 `ollama-prompt` requests in [Memory Use in AI Context](memory-ai-context.md);
-conversation and knowledge paths remain unchanged.
+conversation and knowledge paths remain unchanged. Feature 006.06 exposes only
+the fixed key's absence or validated structured value through
+[Memory Inspection](memory-inspection.md), without adding mutation or broad
+listing.
 
 Release checkpoint: [KAOS 1.3.0 release notes](../releases/v1.3.0.md) and
 [validation and publication procedure](../releases/v1.3.0-validation.md).

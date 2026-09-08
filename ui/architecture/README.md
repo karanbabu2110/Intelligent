@@ -132,7 +132,3 @@ artifacts, validation, ownership, and removal or rollback path here.
 - Check keyboard focus, semantic headings, accessible diagram text, contrast,
   and browser console errors.
 - Run `git diff --check`.
-
-The repository-local
-`kaos-architecture-website` skill contains the maintenance workflow used by
-Codex for this website.

@@ -7,6 +7,8 @@
  * semantic search or remote storage. Exact retrieval returns only absence or
  * one validated structured value and rejects unexpected durable state. The
  * structured value supplies one fixed bounded instruction to the one-shot
- * local AI path without becoming arbitrary prompt text.</p>
+ * local AI path without becoming arbitrary prompt text. A user-facing
+ * inspection command exposes only absence or that validated structured
+ * value.</p>
  */
 package io.kaos.memory;

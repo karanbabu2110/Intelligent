@@ -32,7 +32,7 @@
       </div>
       <div class="stamp">
         <strong>Verified 2026-09-08</strong>
-        Version 1.3.0 · Feature 006.05 working tree<br>
+        Version 1.3.0 · Feature 006.06 working tree<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
@@ -41,16 +41,16 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated for Feature 006.05</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>New or updated for Feature 006.06</span>
     </div>
-    <p class="change-note"><strong>Current architecture update:</strong> Feature 006.05 retrieves the optional validated <code>answer-detail</code> value before one-shot <code>ollama-prompt</code> execution and maps it to one fixed system instruction. Absence preserves the prior request, retrieval failure stops before provider contact, and conversation and knowledge paths remain unchanged. No vector search or new runtime boundary is introduced.</p>
+    <p class="change-note"><strong>Current architecture update:</strong> Feature 006.06 adds <code>memory-inspect answer-detail</code> as a separate read-only command. It reuses bounded exact retrieval to report only absence or the validated structured value; unsupported keys are rejected before storage access, and inspection performs no mutation, broad listing, AI request, or remote call.</p>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable architecture diagram">
         <svg viewBox="0 0 1140 720" role="img" aria-labelledby="diagram-title diagram-description">
           <title id="diagram-title">KAOS application architecture</title>
-          <desc id="diagram-description">A terminal invokes one packaged Java process. KaosApplication owns process lifecycle, configuration loading, and the top-level safe failure boundary. ApplicationRuntime constructs explicit local dependencies and command coordinators. CommandRouter selects exactly one status, help, memory creation, knowledge, Ollama, or conversation branch. MemoryCreateCommand resolves the owned local memory database path and calls SqliteAnswerDetailStore for one atomic create-only transition that survives process restart. The one-shot OllamaPromptCommand retrieves that optional validated value and supplies its fixed instruction to the existing local Ollama request. KnowledgeIngestCommand coordinates bounded admission, exact text extraction, deterministic chunking, and transient embedding generation through fixed loopback Ollama. Other command coordinators own their foreground workflows and ErrorReporter owns the stable coded-error format. Capability packages retain product and infrastructure behavior. The application remains one Gradle project and process.</desc>
+          <desc id="diagram-description">A terminal invokes one packaged Java process. KaosApplication owns process lifecycle, configuration loading, and the top-level safe failure boundary. ApplicationRuntime constructs explicit local dependencies and command coordinators. CommandRouter selects exactly one status, help, memory creation or inspection, knowledge, Ollama, or conversation branch. MemoryCreateCommand resolves the owned local memory database path and calls SqliteAnswerDetailStore for one atomic create-only transition that survives process restart. MemoryInspectCommand uses the existing bounded retrieval path to report only absence or the validated structured value. The one-shot OllamaPromptCommand retrieves that optional validated value and supplies its fixed instruction to the existing local Ollama request. KnowledgeIngestCommand coordinates bounded admission, exact text extraction, deterministic chunking, and transient embedding generation through fixed loopback Ollama. Other command coordinators own their foreground workflows and ErrorReporter owns the stable coded-error format. Capability packages retain product and infrastructure behavior. The application remains one Gradle project and process.</desc>
           <defs>
             <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#f6c85f"></path></marker>
@@ -62,7 +62,7 @@
           <text x="58" y="105" class="svg-title">Terminal</text>
           <text x="58" y="126" class="svg-copy">status · help</text>
           <text x="58" y="148" class="svg-copy">ollama-status · ollama-model</text>
-          <text x="58" y="170" class="svg-copy">memory-create · knowledge · AI · conversation</text>
+          <text x="58" y="170" class="svg-copy">memory create/inspect · knowledge · AI · conversation</text>
 
           <text x="340" y="40" class="svg-label">SINGLE JAVA 21 PROCESS</text>
           <rect x="330" y="65" width="474" height="455" class="box box-implemented"></rect>
@@ -148,7 +148,7 @@
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable command routing map">
         <svg viewBox="0 0 1140 535" role="img" aria-labelledby="command-title command-description">
           <title id="command-title">KAOS command routing map</title>
-          <desc id="command-description">Terminal arguments enter KaosApplication main, which installs cancellation cleanup and invokes launch. Launch loads ApplicationConfiguration and calls the local ApplicationRuntime. ApplicationRuntime composes explicit command dependencies, and CommandRouter selects exactly one branch. Status and help print directly from the router. KnowledgeIngestCommand coordinates the bounded local admission path in view 4. OllamaStatusCommand checks connectivity, OllamaModelCommand loads configuration, and one-shot OllamaPromptCommand retrieves optional answer detail before passing empty history to the AI path. ConversationCommand restores local persistence as shown in view 3 and calls the memory-free submit path with selected history. Invalid configuration, arguments, document input, provider results, and storage failures return content-safe errors.</desc>
+          <desc id="command-description">Terminal arguments enter KaosApplication main, which installs cancellation cleanup and invokes launch. Launch loads ApplicationConfiguration and calls the local ApplicationRuntime. ApplicationRuntime composes explicit command dependencies, and CommandRouter selects exactly one branch. Status and help print directly from the router. MemoryInspectCommand validates the fixed key before using bounded exact retrieval and prints only absence or the structured value. KnowledgeIngestCommand coordinates the bounded local admission path in view 4. OllamaStatusCommand checks connectivity, OllamaModelCommand loads configuration, and one-shot OllamaPromptCommand retrieves optional answer detail before passing empty history to the AI path. ConversationCommand restores local persistence as shown in view 3 and calls the memory-free submit path with selected history. Invalid configuration, arguments, document input, provider results, and storage failures return content-safe errors.</desc>
           <defs>
             <marker id="command-arrow-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker>
             <marker id="command-arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#69a9ff"></path></marker>
@@ -764,10 +764,15 @@
           <h3>Bounded memory retrieval</h3>
           <p><code>AnswerDetailStore</code> returns only absence or one validated enum. SQLite retrieval reads at most two rows and rejects unexpected keys, values, or additional state without exposing stored text.</p>
         </article>
-        <article class="card change-current">
+        <article class="card">
           <div class="status implemented">Feature 006.05 · implemented</div>
           <h3>Memory use in AI context</h3>
           <p>One-shot <code>ollama-prompt</code> maps the optional enum to one fixed bounded system message before the unchanged user prompt. Absence preserves the prior request; conversation and knowledge submissions remain memory-free.</p>
+        </article>
+        <article class="card change-current">
+          <div class="status implemented">Feature 006.06 · implemented</div>
+          <h3>Explicit memory inspection</h3>
+          <p><code>memory-inspect answer-detail</code> reuses exact validated retrieval and reports only absence or the structured enum. Invalid keys fail before database access, and inspection never mutates memory.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -849,7 +854,8 @@
           <tr><td>Explicit bounded memory creation</td><td><a href="../../src/main/java/io/kaos/memory/AnswerDetailMemory.java"><code>AnswerDetailMemory.java</code></a>, <a href="../../src/main/java/io/kaos/app/MemoryCreateCommand.java"><code>MemoryCreateCommand.java</code></a>, <a href="../../src/test/java/io/kaos/memory/AnswerDetailMemoryTest.java"><code>AnswerDetailMemoryTest.java</code></a>, and <a href="../../docs/evolution/explicit-memory-creation.md">Feature evidence</a></td><td>Implemented; delivered by PR #56</td></tr>
           <tr><td>Versioned local memory storage</td><td><a href="../../src/main/java/io/kaos/memory/SqliteAnswerDetailStore.java"><code>SqliteAnswerDetailStore.java</code></a>, <a href="../../src/main/java/io/kaos/memory/MemoryDatabasePath.java"><code>MemoryDatabasePath.java</code></a>, <a href="../../src/test/java/io/kaos/memory/SqliteAnswerDetailStoreTest.java"><code>SqliteAnswerDetailStoreTest.java</code></a>, and <a href="../../docs/evolution/memory-storage.md">Feature evidence</a></td><td>Implemented; delivered by PR #57 using local SQLite, no vector database</td></tr>
           <tr><td>Bounded exact memory retrieval</td><td><a href="../../src/main/java/io/kaos/memory/AnswerDetailStore.java"><code>AnswerDetailStore.java</code></a>, <a href="../../src/main/java/io/kaos/memory/SqliteAnswerDetailStore.java"><code>SqliteAnswerDetailStore.java</code></a>, <a href="../../src/test/java/io/kaos/memory/SqliteAnswerDetailStoreTest.java"><code>SqliteAnswerDetailStoreTest.java</code></a>, and <a href="../../docs/evolution/memory-retrieval.md">Feature evidence</a></td><td>Implemented; delivered by PR #58</td></tr>
-          <tr class="change-current"><td><span class="change-label">New in Feature 006.05</span>Bounded memory use in one-shot AI context</td><td><a href="../../src/main/java/io/kaos/app/OllamaPromptCommand.java"><code>OllamaPromptCommand.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPrompt.java"><code>OllamaPrompt.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a>, and <a href="../../docs/evolution/memory-ai-context.md">Feature evidence</a></td><td>Implemented in the current feature branch; one-shot prompt path only</td></tr>
+          <tr><td>Bounded memory use in one-shot AI context</td><td><a href="../../src/main/java/io/kaos/app/OllamaPromptCommand.java"><code>OllamaPromptCommand.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPrompt.java"><code>OllamaPrompt.java</code></a>, <a href="../../src/main/java/io/kaos/ai/ollama/OllamaPromptClient.java"><code>OllamaPromptClient.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a>, and <a href="../../docs/evolution/memory-ai-context.md">Feature evidence</a></td><td>Implemented; delivered by PR #59 with one-shot prompt scope only</td></tr>
+          <tr class="change-current"><td><span class="change-label">New in Feature 006.06</span>Explicit read-only memory inspection</td><td><a href="../../src/main/java/io/kaos/app/MemoryInspectCommand.java"><code>MemoryInspectCommand.java</code></a>, <a href="../../src/test/java/io/kaos/app/MemoryInspectCommandTest.java"><code>MemoryInspectCommandTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/memory-inspection.md">Feature evidence</a></td><td>Implemented in the current feature branch; fixed key only, no mutation</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

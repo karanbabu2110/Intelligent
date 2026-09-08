@@ -79,16 +79,25 @@ Persist the first bounded memory locally:
 ./gradlew.bat --% run --args="memory-create answer-detail balanced"
 ```
 
+Inspect whether that fixed memory exists and, when present, its structured
+value:
+
+```powershell
+./gradlew.bat --% run --args="memory-inspect answer-detail"
+```
+
 The fixed key accepts only `concise`, `balanced`, or `detailed`. Creation is
 explicit, persists in `memory.db`, and does not overwrite an existing value—even
 from a later application process. Set `KAOS_MEMORY_DATA_DIRECTORY` to select
 the parent directory; the `kaos.memory.data-directory` system property takes
 precedence, and the default is the local user's `.kaos` directory. One-shot
 `ollama-prompt` requests read this value and apply its fixed instruction;
-inspection, editing, and deletion remain separate features. See
+inspection reports only `concise`, `balanced`, `detailed`, or absence. Editing
+and deletion remain separate features. See
 [explicit memory creation](../evolution/explicit-memory-creation.md) and
 [memory storage](../evolution/memory-storage.md), then
-[memory use in AI context](../evolution/memory-ai-context.md).
+[memory use in AI context](../evolution/memory-ai-context.md) and
+[memory inspection](../evolution/memory-inspection.md).
 
 Admit one local UTF-8 `.txt` file, up to 1 MiB, for later knowledge processing:
 
