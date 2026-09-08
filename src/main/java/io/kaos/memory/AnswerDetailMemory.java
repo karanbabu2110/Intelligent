@@ -24,6 +24,21 @@ public final class AnswerDetailMemory implements AnswerDetailStore {
         return Optional.ofNullable(value);
     }
 
+    @Override
+    public AnswerDetail edit(String key, String requestedValue) {
+        AnswerDetail parsedValue = validateMutation(key, requestedValue);
+        requirePresent();
+        value = parsedValue;
+        return parsedValue;
+    }
+
+    @Override
+    public void delete(String key) {
+        validateMutationKey(key);
+        requirePresent();
+        value = null;
+    }
+
     static AnswerDetail validate(String key, String requestedValue) {
         Objects.requireNonNull(key, "key");
         Objects.requireNonNull(requestedValue, "requestedValue");
@@ -31,5 +46,28 @@ public final class AnswerDetailMemory implements AnswerDetailStore {
             throw MemoryCreationException.invalidKey();
         }
         return AnswerDetail.parse(requestedValue);
+    }
+
+    static AnswerDetail validateMutation(String key, String requestedValue) {
+        validateMutationKey(key);
+        Objects.requireNonNull(requestedValue, "requestedValue");
+        try {
+            return AnswerDetail.parse(requestedValue);
+        } catch (MemoryCreationException exception) {
+            throw MemoryMutationException.invalidValue();
+        }
+    }
+
+    static void validateMutationKey(String key) {
+        Objects.requireNonNull(key, "key");
+        if (!KEY.equals(key)) {
+            throw MemoryMutationException.invalidKey();
+        }
+    }
+
+    private void requirePresent() {
+        if (value == null) {
+            throw MemoryMutationException.absent();
+        }
     }
 }

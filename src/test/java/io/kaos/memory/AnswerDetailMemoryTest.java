@@ -8,6 +8,35 @@ import org.junit.jupiter.api.Test;
 
 class AnswerDetailMemoryTest {
     @Test
+    void editsAndDeletesOnlyAnExistingPreference() {
+        AnswerDetailMemory memory = new AnswerDetailMemory();
+        assertThrows(MemoryMutationException.class,
+                () -> memory.edit(AnswerDetailMemory.KEY, "detailed"));
+        memory.create(AnswerDetailMemory.KEY, "concise");
+
+        assertEquals(AnswerDetail.DETAILED,
+                memory.edit(AnswerDetailMemory.KEY, "detailed"));
+        memory.delete(AnswerDetailMemory.KEY);
+
+        assertEquals(Optional.empty(), memory.retrieve());
+        assertThrows(MemoryMutationException.class,
+                () -> memory.delete(AnswerDetailMemory.KEY));
+    }
+
+    @Test
+    void rejectsInvalidMutationInputWithoutChangingState() {
+        AnswerDetailMemory memory = new AnswerDetailMemory();
+        memory.create(AnswerDetailMemory.KEY, "balanced");
+
+        assertThrows(MemoryMutationException.class,
+                () -> memory.edit("private-key", "concise"));
+        assertThrows(MemoryMutationException.class,
+                () -> memory.edit(AnswerDetailMemory.KEY, "private value"));
+
+        assertEquals(Optional.of(AnswerDetail.BALANCED), memory.retrieve());
+    }
+
+    @Test
     void createsEachSupportedValueExactly() {
         assertEquals(AnswerDetail.CONCISE,
                 new AnswerDetailMemory().create(AnswerDetailMemory.KEY, "concise"));

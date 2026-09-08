@@ -79,6 +79,38 @@ public final class SqliteAnswerDetailStore implements AnswerDetailStore {
         }
     }
 
+    @Override
+    public AnswerDetail edit(String key, String requestedValue) {
+        AnswerDetail value = AnswerDetailMemory.validateMutation(key, requestedValue);
+        try (Connection connection = open();
+                PreparedStatement statement = connection.prepareStatement(
+                        "UPDATE " + TABLE + " SET memory_value = ? WHERE memory_key = ?")) {
+            statement.setString(1, value.externalValue());
+            statement.setString(2, AnswerDetailMemory.KEY);
+            if (statement.executeUpdate() != 1) {
+                throw MemoryMutationException.absent();
+            }
+            return value;
+        } catch (SQLException exception) {
+            throw MemoryStorageException.fromSql(exception);
+        }
+    }
+
+    @Override
+    public void delete(String key) {
+        AnswerDetailMemory.validateMutationKey(key);
+        try (Connection connection = open();
+                PreparedStatement statement = connection.prepareStatement(
+                        "DELETE FROM " + TABLE + " WHERE memory_key = ?")) {
+            statement.setString(1, AnswerDetailMemory.KEY);
+            if (statement.executeUpdate() != 1) {
+                throw MemoryMutationException.absent();
+            }
+        } catch (SQLException exception) {
+            throw MemoryStorageException.fromSql(exception);
+        }
+    }
+
     private void initialize() {
         try (Connection connection = open()) {
             connection.setAutoCommit(false);

@@ -130,6 +130,36 @@ class CommandRouterTest {
         assertEquals(1, inspectionCalls.get());
     }
 
+    @Test
+    void dispatchesOnlyTheSelectedMemoryMutation() {
+        AtomicInteger editCalls = new AtomicInteger();
+        AtomicInteger deleteCalls = new AtomicInteger();
+        CommandRouter.Command command = () -> KaosApplication.SUCCESS;
+        CommandRouter router = new CommandRouter(
+                context(new ByteArrayOutputStream(), new ByteArrayOutputStream()),
+                argument -> command.execute(), argument -> command.execute(),
+                argument -> command.execute(), (key, value) -> command.execute(),
+                key -> command.execute(),
+                (key, value) -> {
+                    assertEquals("answer-detail", key);
+                    assertEquals("balanced", value);
+                    editCalls.incrementAndGet();
+                    return KaosApplication.SUCCESS;
+                },
+                key -> {
+                    assertEquals("answer-detail", key);
+                    deleteCalls.incrementAndGet();
+                    return KaosApplication.SUCCESS;
+                }, command, command, argument -> command.execute(), command);
+
+        assertEquals(KaosApplication.SUCCESS,
+                router.route(new String[] {"memory-edit", "answer-detail", "balanced"}));
+        assertEquals(KaosApplication.SUCCESS,
+                router.route(new String[] {"memory-delete", "answer-detail"}));
+        assertEquals(1, editCalls.get());
+        assertEquals(1, deleteCalls.get());
+    }
+
     private static CommandRouter router(
             ByteArrayOutputStream standardBytes,
             AtomicInteger commandCalls) {

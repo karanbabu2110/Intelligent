@@ -12,6 +12,33 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class SqliteAnswerDetailStoreTest {
+    @Test
+    void editsAndDeletesAcrossStoreInstances() {
+        Path database = temporaryDirectory.resolve("mutate.db");
+        new SqliteAnswerDetailStore(database).create(AnswerDetailMemory.KEY, "concise");
+
+        assertEquals(AnswerDetail.DETAILED, new SqliteAnswerDetailStore(database)
+                .edit(AnswerDetailMemory.KEY, "detailed"));
+        assertEquals(Optional.of(AnswerDetail.DETAILED),
+                new SqliteAnswerDetailStore(database).retrieve());
+
+        new SqliteAnswerDetailStore(database).delete(AnswerDetailMemory.KEY);
+        assertEquals(Optional.empty(), new SqliteAnswerDetailStore(database).retrieve());
+    }
+
+    @Test
+    void rejectsAbsentMutationsWithoutCreatingState() {
+        Path database = temporaryDirectory.resolve("absent-mutation.db");
+        SqliteAnswerDetailStore store = new SqliteAnswerDetailStore(database);
+
+        assertThrows(MemoryMutationException.class,
+                () -> store.edit(AnswerDetailMemory.KEY, "balanced"));
+        assertThrows(MemoryMutationException.class,
+                () -> store.delete(AnswerDetailMemory.KEY));
+
+        assertEquals(Optional.empty(), store.retrieve());
+    }
+
     @TempDir
     Path temporaryDirectory;
 

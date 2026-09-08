@@ -7,4 +7,8 @@ public interface AnswerDetailStore {
     AnswerDetail create(String key, String requestedValue);
 
     Optional<AnswerDetail> retrieve();
+
+    AnswerDetail edit(String key, String requestedValue);
+
+    void delete(String key);
 }
