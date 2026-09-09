@@ -448,10 +448,14 @@ Epic 008 remains open. Subsequent merged checkpoints are
 [008.03 - Tool Discovery](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/79),
 and [008.04 - Tool Selection](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/80).
 Feature [008.05 - Shared Tool Metadata](https://github.com/karanbabu2110/KAOS/issues/896)
-is prepared for review; its [ownership and validation record](shared-tool-metadata.md)
-documents reuse of concrete tool-name constants in the catalog. After merge,
-the next ordered feature is
-[008.06 - Tool Permission Policies](https://github.com/karanbabu2110/KAOS/issues/897).
+was merged in [PR #81](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/81);
+its [ownership and validation record](shared-tool-metadata.md) documents reuse
+of concrete tool-name constants in the catalog.
+Feature [008.06 - Tool Permission Policies](https://github.com/karanbabu2110/KAOS/issues/897)
+records the [concrete resource policies](tool-permission-policies.md) and adds
+HTTP command checks for invalid approval, end of input, and cancellation.
+The next ordered feature after that checkpoint is
+[008.07 - Tool Execution History](https://github.com/karanbabu2110/KAOS/issues/899).
 
 ## Maintenance rule
 
