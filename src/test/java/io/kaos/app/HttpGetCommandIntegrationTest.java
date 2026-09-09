@@ -107,6 +107,9 @@ class HttpGetCommandIntegrationTest {
             public OllamaPromptClient.Result request(
                     OllamaModelConfiguration model, OllamaPrompt prompt) {
                 assertEquals("Summarize the reference.", prompt.text());
+                assertTrue(prompt.systemInstruction().contains("use http_get"));
+                assertTrue(prompt.systemInstruction().contains(
+                        "Do not claim web access is unavailable"));
                 return pending(new HttpGetRequest(URL));
             }
 

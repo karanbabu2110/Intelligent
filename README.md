@@ -186,9 +186,9 @@ or binary formats such as `.doc`, `.docx`, and `.pdf` remain unsupported. See
 Ask the local model about one resource on an explicitly allowed HTTPS host:
 
 ```powershell
-$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
+$env:KAOS_OLLAMA_MODEL = "qwen3.5:4b"
 $env:KAOS_HTTP_ALLOWED_HOSTS = "example.com,docs.oracle.com"
-./gradlew.bat --% run --args="http-get \"Summarize https://example.com/reference\""
+./gradlew.bat --% run --args="http-get \"Use http_get to fetch and summarize https://example.com/\""
 ```
 
 The model may answer directly or request exactly one `http_get` URL. KAOS

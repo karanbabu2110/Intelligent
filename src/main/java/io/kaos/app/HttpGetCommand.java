@@ -21,6 +21,10 @@ import java.util.function.Supplier;
 /** Runs one foreground, explicitly approved {@code http_get} interaction. */
 final class HttpGetCommand {
     private static final int MAX_APPROVAL_CHARACTERS = 32;
+    private static final String TOOL_USE_INSTRUCTION =
+            "When the user asks to retrieve or summarize a URL, use http_get. "
+                    + "Do not claim web access is unavailable before considering this tool. "
+                    + "Otherwise answer directly.";
 
     private final CommandContext context;
     private final Supplier<OllamaModelConfiguration> modelLoader;
@@ -45,7 +49,7 @@ final class HttpGetCommand {
     int execute(String question) {
         OllamaPrompt prompt;
         try {
-            prompt = new OllamaPrompt(question);
+            prompt = new OllamaPrompt(question, TOOL_USE_INSTRUCTION);
         } catch (IllegalArgumentException exception) {
             context.errorOutput().println(
                     "Expected one valid quoted web question. Run 'kaos help' for usage.");

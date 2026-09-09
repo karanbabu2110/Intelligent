@@ -213,7 +213,7 @@ Ask about one explicitly approved HTTPS resource:
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_HTTP_ALLOWED_HOSTS = "example.com,docs.oracle.com"
-./gradlew.bat --% run --args="http-get \"Summarize https://example.com/reference\""
+./gradlew.bat --% run --args="http-get \"Use http_get to fetch and summarize https://example.com/\""
 ```
 
 The higher-priority `kaos.tool.http.allowed-hosts` system property or
