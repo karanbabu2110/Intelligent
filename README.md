@@ -7,8 +7,8 @@ inside the verified single application.
 ## Current development state
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
-- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823), [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), and [Epic 006 — First Memory Capability](https://github.com/karanbabu2110/KAOS/issues/10)
-- Active epic: [Epic 007 — First Tool Integration](https://github.com/karanbabu2110/KAOS/issues/15), currently verifying the end-to-end `read_local_file` application path
+- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823), [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), [Epic 006 — First Memory Capability](https://github.com/karanbabu2110/KAOS/issues/10), and [Epic 007 — First Tool Integration](https://github.com/karanbabu2110/KAOS/issues/15)
+- Release checkpoint: Epic 007 implementation and evidence are complete; KAOS 1.5.0 is being prepared before the next epic is analyzed or activated
 - Repository state: one root Gradle/Java 21 application with one production entry point, explicit bounded memory creation, inspection, editing, deletion, and privacy reporting, exact validated retrieval, and one-shot AI-context use through version-1 local SQLite, bounded UTF-8 document admission, exact extraction and overlapping chunks, explicit local Ollama embeddings, atomic version-1 SQLite knowledge storage, deterministic top-three cosine retrieval, bounded injection-aware grounded prompt construction, streamed local grounded answers with stable source citations, deterministic cross-boundary evaluation, bounded persistent conversations, explicit model selection, and one foreground `read_local_file` command with a fixed contract, local-model invocation, explicit-root validation, exact-target single-use approval, one-attempt bounded strict UTF-8 execution, model-result continuation without tool chaining, content-free audit output, and stable capability-specific failure diagnostics, Jackson JSON and pinned SQLite JDBC runtime libraries, and classified privacy-safe failures
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
@@ -33,15 +33,16 @@ build outputs, troubleshooting, and the feature delivery workflow.
 
 ## Version
 
-The current cumulative release checkpoint is **1.4.0**, prepared for annotated
-tag and GitHub Release `v1.4.0` from verified merged `main`.
+The current cumulative release checkpoint is **1.5.0**, prepared for annotated
+tag and GitHub Release `v1.5.0` from verified merged `main`.
 
-This release represents all verified work through Epic 006, adding one explicit
-durable `answer-detail` preference with bounded one-shot local AI use, inspection,
-editing, deletion, privacy visibility, and complete lifecycle evaluation. It is
-a capability milestone, not a production-readiness, general-memory,
-answer-quality, or permanent database-compatibility claim. See the
-[1.4.0 release notes](docs/releases/v1.4.0.md).
+This release represents all verified work through Epic 007, adding the first
+foreground `read_local_file` path with model-selected input, exact-target user
+approval, bounded strict UTF-8 execution, no-chain model continuation,
+content-free audit output, and deterministic integration evidence. It is a
+capability milestone, not a production-readiness, unrestricted-filesystem,
+general-agent, or permanent API-compatibility claim. See the
+[1.5.0 release notes](docs/releases/v1.5.0.md).
 
 ## Run the application
 
