@@ -157,5 +157,5 @@ choosing which request paths may advertise it.
 
 The next ordered feature is
 [008.04 - Tool Selection](https://github.com/karanbabu2110/KAOS/issues/895).
-It should decide whether current model selection plus the direct dispatcher is
-already sufficient before changing routing or introducing shared types.
+The [selection decision](tool-selection.md) retains current model selection
+and direct dispatch, with explicit limits on source quality and HTTP retrieval.

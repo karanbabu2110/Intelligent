@@ -352,7 +352,9 @@ order with `configured` or `unavailable`. It validates only local configuration
 syntax. It does not display values, inspect a target file, resolve DNS, contact
 Ollama/SearXNG/the web, or grant execution permission. `configured` therefore
 does not promise that a selected target or external service is reachable. See
-[bounded tool discovery](../evolution/tool-discovery.md).
+[bounded tool discovery](../evolution/tool-discovery.md) and the
+[tool selection contract](../evolution/tool-selection.md) for allowed choices,
+approval boundaries, and selection-quality limitations.
 
 SearXNG runs as a separate service/container. Set `KAOS_WEB_SEARCH_SEARXNG_URL`
 to its trusted origin (for example `http://127.0.0.1:8080`); direct JVM property
