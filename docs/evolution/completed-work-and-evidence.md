@@ -443,7 +443,15 @@ milestone [v1.6.0 — HTTP GET Tool](https://github.com/karanbabu2110/KAOS/miles
 
 Release checkpoint: [KAOS 1.6.0 release notes](../releases/v1.6.0.md) and
 [validation and publication procedure](../releases/v1.6.0-validation.md).
-Epic 008 remains open; Feature 008.02 `web_search` is queued but not active.
+Epic 008 remains open. Subsequent merged checkpoints are
+[008.02 - Web Search](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/78),
+[008.03 - Tool Discovery](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/79),
+and [008.04 - Tool Selection](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/80).
+Feature [008.05 - Shared Tool Metadata](https://github.com/karanbabu2110/KAOS/issues/896)
+is prepared for review; its [ownership and validation record](shared-tool-metadata.md)
+documents reuse of concrete tool-name constants in the catalog. After merge,
+the next ordered feature is
+[008.06 - Tool Permission Policies](https://github.com/karanbabu2110/KAOS/issues/897).
 
 ## Maintenance rule
 

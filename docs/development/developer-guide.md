@@ -355,6 +355,8 @@ does not promise that a selected target or external service is reachable. See
 [bounded tool discovery](../evolution/tool-discovery.md) and the
 [tool selection contract](../evolution/tool-selection.md) for allowed choices,
 approval boundaries, and selection-quality limitations.
+The [shared metadata record](../evolution/shared-tool-metadata.md) identifies
+which tool metadata is reused and which remains specific to each consumer.
 
 SearXNG runs as a separate service/container. Set `KAOS_WEB_SEARCH_SEARXNG_URL`
 to its trusted origin (for example `http://127.0.0.1:8080`); direct JVM property

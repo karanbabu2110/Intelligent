@@ -81,8 +81,9 @@ packages, classes, files, services, or remote catalogs.
 `ToolCatalogCommand` owns the fixed user-facing list and configuration-status
 presentation. It does not supply definitions to `OllamaPromptClient` or map
 names to `LocalToolsCommand` executors. The catalog and model definitions remain
-explicit at their two distinct consumers. Feature 008.05 should introduce shared
-metadata only if demonstrated drift makes that duplication costly.
+explicit at their two distinct consumers. The
+[Shared Tool Metadata decision](shared-tool-metadata.md) reuses the concrete
+tool-name constants in the catalog while retaining consumer-specific descriptions.
 
 That direct compile-time enumeration is preferable now because there are only
 three concrete tools, their command availability differs, and their schemas do

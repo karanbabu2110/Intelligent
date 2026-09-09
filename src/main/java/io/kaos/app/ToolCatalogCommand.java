@@ -2,10 +2,13 @@ package io.kaos.app;
 
 import io.kaos.tool.httpget.HttpGetException;
 import io.kaos.tool.httpget.HttpGetPermissionValidator;
+import io.kaos.tool.httpget.HttpGetToolContract;
 import io.kaos.tool.readlocalfile.ReadLocalFilePermissionException;
 import io.kaos.tool.readlocalfile.ReadLocalFilePermissionValidator;
+import io.kaos.tool.readlocalfile.ReadLocalFileToolContract;
 import io.kaos.tool.websearch.SearxngClient;
 import io.kaos.tool.websearch.WebSearchException;
+import io.kaos.tool.websearch.WebSearchToolContract;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -28,11 +31,11 @@ final class ToolCatalogCommand {
 
     int execute() {
         context.output().println("KAOS tool catalog:");
-        entry("read_local_file", "Read one bounded local file",
+        entry(ReadLocalFileToolContract.NAME, "Read one bounded local file",
                 configuration(fileConfiguration));
-        entry("http_get", "Retrieve one allowed HTTPS resource",
+        entry(HttpGetToolContract.NAME, "Retrieve one allowed HTTPS resource",
                 configuration(httpConfiguration));
-        entry("web_search", "Discover public URLs through SearXNG",
+        entry(WebSearchToolContract.NAME, "Discover public URLs through SearXNG",
                 configuration(searchConfiguration));
         context.output().println(
                 "Configuration status is local-only; no file, DNS, service, or web request was made.");
