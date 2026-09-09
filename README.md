@@ -8,7 +8,7 @@ inside the verified single application.
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823), [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), [Epic 006 — First Memory Capability](https://github.com/karanbabu2110/KAOS/issues/10), and [Epic 007 — First Tool Integration](https://github.com/karanbabu2110/KAOS/issues/15)
-- Active epic: [Epic 008 — Multi-Tool Capability](https://github.com/karanbabu2110/KAOS/issues/63); the bounded [HTTP GET Tool](https://github.com/karanbabu2110/KAOS/issues/892) is complete, while `web_search` is the selected third tool but is not active
+- Active epic: [Epic 008 — Multi-Tool Capability](https://github.com/karanbabu2110/KAOS/issues/63); the bounded [HTTP GET Tool](https://github.com/karanbabu2110/KAOS/issues/892) is complete; [Web Search Tool](https://github.com/karanbabu2110/KAOS/issues/893) adds separately operated SearXNG and one-tool file/search selection
 - Release checkpoint: KAOS 1.6.0 is being prepared for the completed HTTP GET capability; the latest published release remains [KAOS 1.5.0](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v1.5.0)
 - Repository state: one root Gradle/Java 21 application with one production entry point, explicit bounded memory creation, inspection, editing, deletion, and privacy reporting, local SQLite conversations/knowledge/memory, bounded local Ollama chat and embeddings, grounded answers with citations, one foreground `read_local_file` path, and one foreground `http_get` path with exact-host configuration, exact-URL approval, public-destination validation, one bounded strict UTF-8 GET attempt, no-tool continuation, content-free audit, and stable privacy-safe failures
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
@@ -56,7 +56,7 @@ over its environment variable.
 | Environment variable | Accepted value and default | Used by |
 | --- | --- | --- |
 | `KAOS_APP_NAME` | Display name of at most 64 safe characters; defaults to `KAOS` | All commands and status output |
-| `KAOS_OLLAMA_MODEL` | Explicit installed Ollama chat model name; no default | `ollama-model`, `ollama-prompt`, `conversation`, `knowledge-ask`, `read-local-file`, `http-get` |
+| `KAOS_OLLAMA_MODEL` | Explicit installed Ollama chat model name; no default | `ollama-model`, `ollama-prompt`, `conversation`, `knowledge-ask`, `read-local-file`, `http-get`, `web-search` |
 | `KAOS_OLLAMA_CONTEXT_WINDOW` | Whole number from 2,048 through 65,536; defaults to `4096` | Commands using `KAOS_OLLAMA_MODEL` |
 | `KAOS_OLLAMA_THINKING` | `off` or `on`; defaults to `off` | Commands using `KAOS_OLLAMA_MODEL` |
 | `KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT` | Whole number from 64 through 4,096; defaults to `512` with thinking off or `2048` with thinking on | Commands using `KAOS_OLLAMA_MODEL` |
@@ -64,7 +64,8 @@ over its environment variable.
 | `KAOS_KNOWLEDGE_DATA_DIRECTORY` | Directory containing `knowledge.db`; defaults to the current user's `.kaos` directory | Knowledge commands |
 | `KAOS_CONVERSATION_DATA_DIRECTORY` | Directory containing `conversations.db`; defaults to the current user's `.kaos` directory | `conversation` |
 | `KAOS_MEMORY_DATA_DIRECTORY` | Directory containing `memory.db`; defaults to the current user's `.kaos` directory | Memory commands and `ollama-prompt` memory lookup |
-| `KAOS_TOOL_READ_ROOT` | Required absolute, non-filesystem-root directory; no default | `read-local-file`, after the model requests a file |
+| `KAOS_TOOL_READ_ROOT` | Required absolute, non-filesystem-root directory; no default | File selection in `read-local-file`, `web-search`, or `conversation` |
+| `KAOS_WEB_SEARCH_SEARXNG_URL` | Optional trusted HTTP(S) service origin, e.g. `http://127.0.0.1:8080`; no default. JVM override: `kaos.web-search.searxng-url` | Search selection in `web-search` or `conversation`; loaded only when needed |
 | `KAOS_HTTP_ALLOWED_HOSTS` | Required comma-separated exact host names; no default | `http-get`, before showing an approval request |
 
 ### Commands and arguments
@@ -87,6 +88,7 @@ quotes.
 | `kaos knowledge-ask "<question>"` | One quoted knowledge question | Generate one grounded answer with source citations |
 | `kaos read-local-file "<question>"` | One quoted question that identifies a relative file for the model | Ask about one model-requested, validated, explicitly approved file |
 | `kaos http-get "<question>"` | One quoted question from which the model may select an allowed HTTPS URL | Ask about one model-requested, explicitly approved web resource |
+| `kaos web-search "<question>"` | One quoted question; model chooses search, local file, or no tool | At most one approved tool, followed by one no-tools answer |
 | `kaos ollama-status` | None | Check the fixed local Ollama endpoint |
 | `kaos ollama-model` | None | Validate and display the configured chat model |
 | `kaos ollama-prompt "<prompt>"` | One quoted prompt | Generate one local Ollama answer |
@@ -263,11 +265,41 @@ the quoted prompt can remain in shell history or be visible as a process
 argument, so this developer CLI is not an appropriate input surface for
 secrets or other private prompts.
 
+Start Docker Desktop, then start the repository-provided separate SearXNG
+container from the KAOS root:
+
+```powershell
+docker compose up -d
+docker compose ps
+```
+
+Setting the URL does not start the service. Follow the numbered setup guide
+linked below, including its JSON readiness check. Use `--console=plain` for
+interactive runs so Gradle progress bars do not overwrite approval prompts.
+
+Then configure KAOS and run a search:
+
+```powershell
+$env:KAOS_WEB_SEARCH_SEARXNG_URL = "http://127.0.0.1:8080"
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
+./gradlew.bat --% --console=plain run --args="web-search \"What is the latest stable Spring Boot version?\""
+```
+
+The model can propose `web_search`, `read_local_file`, or answer directly, both
+here and in `conversation`. Search requires approval of the exact query.
+Although KAOS contacts configured SearXNG, that service may send the query to
+external search engines. Search returns at most five bounded titles, URLs, and
+snippets; URLs are data only and are never fetched. Results are untrusted data,
+not instructions or execution authority. There is no tool chaining or automatic
+retry. Missing SearXNG configuration does not prevent startup or other tools.
+See [separate SearXNG setup](docs/development/searxng-setup.md) and the
+[search contract and limits](docs/evolution/web-search-tool.md).
+
 Start one foreground session that actually retains and uses earlier clean turns:
 
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
-./gradlew.bat run --args=conversation
+./gradlew.bat --console=plain run --args=conversation
 ```
 
 On the first run, conversation `1` is created and selected automatically. Later
@@ -275,7 +307,10 @@ runs restore the newest bounded working set from local SQLite and select its
 newest conversation. Type prompts normally; use `/new` to create and select
 another conversation, `/select <id>` to switch, `/list` to inspect the loaded
 identifiers, `/help` for controls, and `/exit` to finish. Only clean
-user/assistant pairs are stored; failed or partial AI turns are not. Conversations
+user/assistant pairs from no-tool answers are stored; failed, partial, or tool-backed
+turns are not. Tool selection buffers output until a complete valid response;
+tool-backed turns are excluded from both SQLite and subsequent in-memory history.
+Conversations
 remain isolated and clean turns survive process exit. One foreground working set
 allows 8 conversations; each conversation allows 32 clean turns; every stored
 message allows 65,536 Unicode code points. KAOS rejects a ninth loaded
@@ -393,8 +428,7 @@ incremental check.
 
 ## Next checkpoint
 
-Epics 000–006 and all nine Epic 006 features are complete. Deterministic
-evaluation proves the complete memory lifecycle across public commands,
-temporary SQLite, application prompt composition, and loopback Ollama. See the
-[Epic 006 exit evidence](docs/evolution/epic-006-exit.md). Epic #15 is next and
-remains inactive.
+Epic 008 continues with bounded SearXNG-backed search and one-tool selection.
+See the [feature contract and validation](docs/evolution/web-search-tool.md).
+Search discovery and the existing explicit HTTP retrieval capability remain
+separate; autonomous chaining and search-provider abstractions are deferred.

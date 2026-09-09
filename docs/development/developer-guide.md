@@ -333,6 +333,27 @@ structured tool result but advertises no tools. There is no retry after visible 
 user-supplied system prompt, executable tool, image, remote-provider, or AI
 response persistence behavior.
 
+The `web-search` command and production `conversation` advertise `read_local_file`
+and `web_search` together. Selection is buffered; the model may answer directly
+or request exactly one tool. Tool-backed turns are foreground-only and are not
+saved in conversation history or SQLite. No-tool conversation turns still persist.
+One approval and execution permit one final continuation with no tools. Search
+result URLs are never fetched. The existing `http-get` command remains separate.
+
+SearXNG runs as a separate service/container. Set `KAOS_WEB_SEARCH_SEARXNG_URL`
+to its trusted origin (for example `http://127.0.0.1:8080`); direct JVM property
+`kaos.web-search.searxng-url` takes precedence, including an explicitly blank value.
+No default service, API key, Docker dependency, or startup connection is introduced.
+Setting the URL does not start the service: start Docker Desktop, run the root
+`docker compose up -d`, verify JSON, then run
+`./gradlew.bat --console=plain run --args=conversation`. The checked-in SearXNG
+settings enable JSON for this optional developer deployment.
+The plain console prevents Gradle progress updates from corrupting interactive prompts.
+Only selected search requires this setting. SearXNG must enable JSON output and
+may forward the approved query to external engines. See the
+[local setup](searxng-setup.md) and [bounded contract](../evolution/web-search-tool.md)
+for commands, privacy, limits, and safe failure recovery.
+
 The separate `http-get` operation advertises only `http_get`. It accepts one
 strict URL request or an ordinary answer. After approved execution, its
 continuation contains the exact assistant call and structured bounded result
@@ -343,7 +364,7 @@ The local-file tool validator requires one explicit read root from
 `kaos.tool.read-root` or `KAOS_TOOL_READ_ROOT`, with the system property taking
 precedence. There is no default, and a filesystem root is rejected as too
 broad. The configured value must be absolute so its authority does not depend
-on the process working directory. Only `read-local-file` loads this setting,
+on the process working directory. File selection loads this setting,
 and only after the local model has requested one structurally valid path.
 
 After validation, `ReadLocalFileApprovalRequest` can render the exact local
@@ -354,7 +375,7 @@ Denial, explicit cancellation, end of input, or any other response creates no
 grant. `ReadLocalFileExecutor` can consume an approved grant once, revalidate
 the target around a no-follow read, strictly decode at most 2,048 UTF-8 bytes,
 and return one complete result. The application wires these APIs only through
-`read-local-file` and sends a successful result to Ollama for one no-tools
+`read-local-file` and the shared file-or-search turn dispatcher, sending a successful result to Ollama for one no-tools
 continuation.
 
 `ReadLocalFileAuditContext` can assign the validated target a random

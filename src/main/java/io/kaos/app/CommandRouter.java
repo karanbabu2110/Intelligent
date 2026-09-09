@@ -17,6 +17,12 @@ final class CommandRouter {
     private final Command memoryPrivacyCommand;
     private final ArgumentCommand readLocalFileCommand;
     private final ArgumentCommand httpGetCommand;
+    private ArgumentCommand webSearchCommand = argument -> KaosApplication.USAGE_ERROR;
+
+    CommandRouter withWebSearch(ArgumentCommand command) {
+        webSearchCommand = Objects.requireNonNull(command);
+        return this;
+    }
     private final Command ollamaStatusCommand;
     private final Command ollamaModelCommand;
     private final ArgumentCommand ollamaPromptCommand;
@@ -249,6 +255,9 @@ final class CommandRouter {
         if (arguments.length == 2 && "http-get".equals(arguments[0])) {
             return httpGetCommand.execute(arguments[1]);
         }
+        if (arguments.length == 2 && "web-search".equals(arguments[0])) {
+            return webSearchCommand.execute(arguments[1]);
+        }
         if (isCommand(arguments, "ollama-status")) {
             return ollamaStatusCommand.execute();
         }
@@ -314,6 +323,10 @@ final class CommandRouter {
         if (arguments.length > 0 && "http-get".equals(arguments[0])) {
             context.errorOutput().println(
                     "Expected one quoted web question. Run 'kaos help' for usage.");
+            return KaosApplication.USAGE_ERROR;
+        }
+        if (arguments.length > 0 && "web-search".equals(arguments[0])) {
+            context.errorOutput().println("Expected one quoted search question. Run 'kaos help' for usage.");
             return KaosApplication.USAGE_ERROR;
         }
 

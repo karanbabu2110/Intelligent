@@ -11,7 +11,8 @@
  * instead advertise only {@code read_local_file} or only {@code http_get} and return at most one
  * validated concrete request without executing it. Matching continuation operations send the
  * assistant request and bounded result back to Ollama while advertising no further tools.
- * Ordinary prompt, conversation, and knowledge requests remain tool-free.
+ * Conversation and web-search selection may advertise file and search together,
+ * accepting only one concrete request. Ordinary prompt and knowledge requests remain tool-free.
  * Explicitly enabled thinking produces only a
  * content-free progress signal; raw reasoning remains separate from terminal
  * output. Streaming is backpressured one publisher item at a time, bounded by

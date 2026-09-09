@@ -1,0 +1,16 @@
+# KAOS local-development SearXNG configuration.
+# The official image defaults supply engines and other provider policy.
+use_default_settings: true
+
+general:
+  instance_name: "KAOS Local Search"
+
+search:
+  formats:
+    - html
+    - json
+
+server:
+  limiter: false
+  public_instance: false
+  image_proxy: false

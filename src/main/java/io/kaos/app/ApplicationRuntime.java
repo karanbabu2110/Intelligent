@@ -37,6 +37,12 @@ final class ApplicationRuntime {
     private final KnowledgeStorageSubmission knowledgeStorageSubmission;
     private final KnowledgeDocumentLoader knowledgeDocumentLoader;
     private final Supplier<Optional<AnswerDetail>> answerDetailLoader;
+    private Supplier<OllamaPromptClient> localToolsClient;
+
+    ApplicationRuntime withLocalToolsClient(Supplier<OllamaPromptClient> loader) {
+        this.localToolsClient = Objects.requireNonNull(loader);
+        return this;
+    }
 
     ApplicationRuntime(
             Supplier<OllamaConnectivity.Result> connectivityCheck,
@@ -146,7 +152,7 @@ final class ApplicationRuntime {
                 (configuration, chunks) ->
                         new OllamaEmbeddingClient().embed(configuration, chunks),
                 ApplicationRuntime::storeKnowledge, ApplicationRuntime::loadKnowledge,
-                ApplicationRuntime::loadAnswerDetail);
+                ApplicationRuntime::loadAnswerDetail).withLocalToolsClient(() -> new OllamaPromptClient());
     }
 
     int execute(
@@ -165,6 +171,11 @@ final class ApplicationRuntime {
                 context, modelConfigurationLoader, promptSubmission, answerDetailLoader);
         ConversationCommand conversationCommand = new ConversationCommand(
                 context, ollamaPromptCommand, conversationDatabasePathLoader);
+        LocalToolsCommand localToolsCommand = new LocalToolsCommand(context,
+                modelConfigurationLoader, localToolsClient != null ? localToolsClient : () -> new OllamaPromptClient(),
+                () -> io.kaos.tool.websearch.SearxngClient.load(),
+                ReadLocalFilePermissionValidator::load);
+        if (localToolsClient != null) conversationCommand.withLocalTools(localToolsCommand);
         KnowledgeRetrieveCommand knowledgeRetrieveCommand = new KnowledgeRetrieveCommand(
                 context, embeddingConfigurationLoader, embeddingSubmission,
                 knowledgeDocumentLoader);
@@ -258,6 +269,7 @@ final class ApplicationRuntime {
                 ollamaModelCommand::execute,
                 ollamaPromptCommand::execute,
                 conversationCommand::execute)
+                .withWebSearch(localToolsCommand::execute)
                 .route(arguments);
     }
 
