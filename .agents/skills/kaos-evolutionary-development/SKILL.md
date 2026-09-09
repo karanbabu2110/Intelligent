@@ -44,6 +44,24 @@ Before every commit, present:
 Wait for explicit approval before committing. After approval, push and open the
 single feature PR without adding another approval gate unless the user asks.
 
+## Synchronize a published release to the mirror
+
+When creating a release version or tag, first confirm that `source` is the
+authoritative KAOS repository and `target` is the intended full mirror. After
+the release is published successfully to `source`, run these commands in order:
+
+```powershell
+git fetch source --prune
+git push target --all
+git push target --tags
+```
+
+`git push target --all` publishes every local branch, so do not run this
+sequence against an unverified or unrelated `target` remote. Afterward, verify
+that the mirrored `main` commit and peeled annotated release-tag target match
+the authoritative repository. Mirror synchronization supplements rather than
+replaces the primary release audit.
+
 ## Validate proportionally
 
 - Run focused tests while relevant code is changing.
