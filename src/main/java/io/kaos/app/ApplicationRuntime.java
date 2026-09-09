@@ -14,6 +14,9 @@ import io.kaos.knowledge.SqliteKnowledgeStore;
 import io.kaos.memory.AnswerDetail;
 import io.kaos.memory.MemoryDatabasePath;
 import io.kaos.memory.SqliteAnswerDetailStore;
+import io.kaos.tool.httpget.HttpGetExecutor;
+import io.kaos.tool.httpget.HttpGetPermissionValidator;
+import io.kaos.tool.httpget.HttpGetResult;
 import io.kaos.tool.readlocalfile.ReadLocalFilePermissionValidator;
 import io.kaos.tool.readlocalfile.ReadLocalFileResult;
 import java.io.InputStream;
@@ -208,6 +211,35 @@ final class ApplicationRuntime {
                     }
                 },
                 ReadLocalFilePermissionValidator::load);
+        HttpGetCommand httpGetCommand = new HttpGetCommand(
+                context,
+                modelConfigurationLoader,
+                new HttpGetPromptSubmission() {
+                    private OllamaPromptClient client;
+
+                    @Override
+                    public OllamaPromptClient.Result request(
+                            OllamaModelConfiguration model, OllamaPrompt prompt) {
+                        return client().submitWithHttpGetTool(model, prompt);
+                    }
+
+                    @Override
+                    public OllamaPromptClient.Result continueWithResult(
+                            OllamaModelConfiguration model,
+                            OllamaPrompt prompt,
+                            OllamaPromptClient.Result toolCallResult,
+                            HttpGetResult result) {
+                        return client().continueWithHttpGetResult(
+                                model, prompt, toolCallResult, result);
+                    }
+
+                    private OllamaPromptClient client() {
+                        if (client == null) client = new OllamaPromptClient();
+                        return client;
+                    }
+                },
+                HttpGetPermissionValidator::load,
+                (validator, grant) -> new HttpGetExecutor(validator).execute(grant));
         return new CommandRouter(
                 context,
                 new KnowledgeIngestCommand(
@@ -221,6 +253,7 @@ final class ApplicationRuntime {
                 memoryDeleteCommand::execute,
                 memoryPrivacyCommand::execute,
                 readLocalFileCommand::execute,
+                httpGetCommand::execute,
                 ollamaStatusCommand::execute,
                 ollamaModelCommand::execute,
                 ollamaPromptCommand::execute,

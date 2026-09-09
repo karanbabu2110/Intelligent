@@ -201,6 +201,28 @@ class CommandRouterTest {
         assertEquals(1, toolCalls.get());
     }
 
+    @Test
+    void dispatchesOneQuotedQuestionOnlyToTheHttpGetCommand() {
+        AtomicInteger httpCalls = new AtomicInteger();
+        CommandRouter.Command command = () -> KaosApplication.SUCCESS;
+        CommandRouter router = new CommandRouter(
+                context(new ByteArrayOutputStream(), new ByteArrayOutputStream()),
+                argument -> command.execute(), argument -> command.execute(),
+                argument -> command.execute(), (key, value) -> command.execute(),
+                key -> command.execute(), (key, value) -> command.execute(),
+                key -> command.execute(), command, argument -> command.execute(),
+                question -> {
+                    assertEquals("Summarize the reference", question);
+                    httpCalls.incrementAndGet();
+                    return KaosApplication.SUCCESS;
+                },
+                command, command, argument -> command.execute(), command);
+
+        assertEquals(KaosApplication.SUCCESS,
+                router.route(new String[] {"http-get", "Summarize the reference"}));
+        assertEquals(1, httpCalls.get());
+    }
+
     private static CommandRouter router(
             ByteArrayOutputStream standardBytes,
             AtomicInteger commandCalls) {
