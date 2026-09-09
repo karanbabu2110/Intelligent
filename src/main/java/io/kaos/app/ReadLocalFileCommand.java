@@ -31,6 +31,12 @@ final class ReadLocalFileCommand {
     private final Supplier<OllamaModelConfiguration> modelConfigurationLoader;
     private final ReadLocalFilePromptSubmission promptSubmission;
     private final Supplier<ReadLocalFilePermissionValidator> validatorLoader;
+    private ApprovalInput approvalInput;
+
+    ReadLocalFileCommand withApprovalInput(ApprovalInput input) {
+        this.approvalInput = Objects.requireNonNull(input);
+        return this;
+    }
 
     ReadLocalFileCommand(
             CommandContext context,
@@ -158,6 +164,7 @@ final class ReadLocalFileCommand {
     }
 
     private String readApprovalResponse() throws IOException {
+        if (approvalInput != null) return approvalInput.read();
         BufferedReader reader = new BufferedReader(new InputStreamReader(
                 context.input(), StandardCharsets.UTF_8.newDecoder()
                         .onMalformedInput(CodingErrorAction.REPORT)

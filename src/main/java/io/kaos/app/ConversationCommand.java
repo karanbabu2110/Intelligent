@@ -26,6 +26,12 @@ final class ConversationCommand {
     private final CommandContext context;
     private final OllamaPromptCommand ollamaPromptCommand;
     private final Supplier<Path> databasePathLoader;
+    private LocalToolsCommand localToolsCommand;
+
+    ConversationCommand withLocalTools(LocalToolsCommand command) {
+        this.localToolsCommand = Objects.requireNonNull(command);
+        return this;
+    }
 
     ConversationCommand(CommandContext context, OllamaPromptCommand ollamaPromptCommand,
             Supplier<Path> databasePathLoader) {
@@ -130,8 +136,20 @@ final class ConversationCommand {
                         + "). Select another conversation with capacity or exit and restart.");
                 continue;
             }
-            OllamaPromptCommand.PromptOutcome outcome = ollamaPromptCommand.submit(
-                    line, session.activeHistory());
+            OllamaPromptCommand.PromptOutcome outcome;
+            if (localToolsCommand != null) {
+                var toolOutcome = localToolsCommand.submit(line, session.activeHistory(),
+                        () -> ApprovalInput.readBounded(reader));
+                if (!toolOutcome.persistable()) {
+                    sessionExitCode = mergeExitCode(sessionExitCode, toolOutcome.exitCode());
+                    if (Thread.currentThread().isInterrupted()) return sessionExitCode;
+                    continue;
+                }
+                outcome = new OllamaPromptCommand.PromptOutcome(
+                        toolOutcome.exitCode(), line, toolOutcome.response());
+            } else {
+                outcome = ollamaPromptCommand.submit(line, session.activeHistory());
+            }
             if (outcome.exitCode() != KaosApplication.SUCCESS) {
                 sessionExitCode = mergeExitCode(sessionExitCode, outcome.exitCode());
                 if (Thread.currentThread().isInterrupted()) {
