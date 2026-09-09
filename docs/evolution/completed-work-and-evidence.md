@@ -421,6 +421,30 @@ outcome is assigned to milestone
 Release checkpoint: [KAOS 1.5.0 release notes](../releases/v1.5.0.md) and
 [validation and publication procedure](../releases/v1.5.0-validation.md).
 
+## Epic 008 — Multi-Tool Capability (in progress)
+
+- Epic: [#63](https://github.com/karanbabu2110/KAOS/issues/63)
+- Completed feature: [#892](https://github.com/karanbabu2110/KAOS/issues/892)
+- Delivery: PR [#75](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/75)
+- Evidence: [HTTP GET Tool](http-get-tool.md)
+
+The verified foreground `http-get` path lets the local model either answer
+directly or request one configured standard-port HTTPS URL. KAOS validates the
+exact host and public destination, requests exact one-attempt approval before
+DNS or HTTP, executes one bounded strict UTF-8 GET without redirects or
+credentials, and supplies the untrusted result to one final no-tools model
+continuation. Failures and the content-free audit remain privacy-safe.
+
+The merged Feature 008.01 tree passed all 11 `verifyLocal` tasks with 393 tests
+across 55 suites, zero failures or errors, and four documented Windows symlink
+skips. A separately approved live demonstration fetched and summarized
+`https://example.com/` with `outcome=SUCCEEDED`. The feature is assigned to
+milestone [v1.6.0 — HTTP GET Tool](https://github.com/karanbabu2110/KAOS/milestone/6).
+
+Release checkpoint: [KAOS 1.6.0 release notes](../releases/v1.6.0.md) and
+[validation and publication procedure](../releases/v1.6.0-validation.md).
+Epic 008 remains open; Feature 008.02 `web_search` is queued but not active.
+
 ## Maintenance rule
 
 After each feature merge, add its feature, story/task, delivery, and evidence
