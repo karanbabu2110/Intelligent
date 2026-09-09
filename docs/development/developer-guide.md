@@ -208,6 +208,26 @@ binary/compound formats, multiple files, directories, retries, and remote
 providers are not supported. See
 [tool integration testing](../evolution/tool-integration-testing.md).
 
+Ask about one explicitly approved HTTPS resource:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
+$env:KAOS_HTTP_ALLOWED_HOSTS = "example.com,docs.oracle.com"
+./gradlew.bat --% run --args="http-get \"Use http_get to fetch and summarize https://example.com/\""
+```
+
+The higher-priority `kaos.tool.http.allowed-hosts` system property or
+`KAOS_HTTP_ALLOWED_HOSTS` environment variable must contain comma-separated
+exact host names. Wildcards, ports, paths, and empty entries are invalid. The
+command validates one model-requested standard-port HTTPS URL, displays it to
+the user, and resolves DNS only after exact `approve`. Execution rejects any
+non-public resolved address, follows no redirects, sends no credentials or
+cookies, and returns only a successful supported strict UTF-8 body of at most
+32,768 bytes. Entering `deny`, invalid input, cancellation, or end-of-input
+performs no DNS or HTTP request. Tests use injected deterministic boundaries
+and never contact the public internet. See
+[HTTP GET tool](../evolution/http-get-tool.md).
+
 The no-argument form is equivalent to `status`:
 
 ```powershell
@@ -313,6 +333,12 @@ structured tool result but advertises no tools. There is no retry after visible 
 user-supplied system prompt, executable tool, image, remote-provider, or AI
 response persistence behavior.
 
+The separate `http-get` operation advertises only `http_get`. It accepts one
+strict URL request or an ordinary answer. After approved execution, its
+continuation contains the exact assistant call and structured bounded result
+while advertising no tools. It does not automatically select, chain, search,
+open another URL, or persist response content.
+
 The local-file tool validator requires one explicit read root from
 `kaos.tool.read-root` or `KAOS_TOOL_READ_ROOT`, with the system property taking
 precedence. There is no default, and a filesystem root is rejected as too
@@ -327,8 +353,9 @@ one grant, and that grant can supply its target for one execution attempt.
 Denial, explicit cancellation, end of input, or any other response creates no
 grant. `ReadLocalFileExecutor` can consume an approved grant once, revalidate
 the target around a no-follow read, strictly decode at most 2,048 UTF-8 bytes,
-and return one complete result. These APIs are not wired to a command yet and
-do not send the result to Ollama.
+and return one complete result. The application wires these APIs only through
+`read-local-file` and sends a successful result to Ollama for one no-tools
+continuation.
 
 `ReadLocalFileAuditContext` can assign the validated target a random
 per-invocation UUID and produce one final content-free record of the approval

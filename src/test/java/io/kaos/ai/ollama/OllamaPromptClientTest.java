@@ -13,6 +13,9 @@ import com.sun.net.httpserver.HttpServer;
 import io.kaos.conversation.ConversationHistory;
 import io.kaos.conversation.ConversationMessage;
 import io.kaos.conversation.ConversationRole;
+import io.kaos.tool.httpget.HttpGetRequest;
+import io.kaos.tool.httpget.HttpGetResult;
+import io.kaos.tool.httpget.HttpGetToolContract;
 import io.kaos.tool.readlocalfile.ReadLocalFileToolContract;
 import io.kaos.tool.readlocalfile.ReadLocalFileRequest;
 import io.kaos.tool.readlocalfile.ReadLocalFileResult;
@@ -25,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -98,6 +102,52 @@ class OllamaPromptClientTest {
             JsonNode request = JSON.readTree(server.requestBody());
             assertEquals(1, request.get("tools").size());
             assertEquals(ReadLocalFileToolContract.definition(), request.get("tools").get(0));
+        }
+    }
+
+    @Test
+    void advertisesOnlyHttpGetAndReturnsOneValidatedRequest() throws Exception {
+        String url = "https://example.com/reference?q=java";
+        try (LocalChatServer server = LocalChatServer.streaming(
+                toolCallLine("http_get", "{\"url\":\"" + url + "\"}", ""),
+                TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint())
+                    .submitWithHttpGetTool(
+                            new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("Find the reference."));
+
+            assertTrue(result.successful());
+            assertTrue(result.httpGetRequested());
+            assertEquals(url, result.httpGetRequest().orElseThrow().url());
+            assertTrue(result.toolRequest().isEmpty());
+            JsonNode request = JSON.readTree(server.requestBody());
+            assertEquals(1, request.get("tools").size());
+            assertEquals(HttpGetToolContract.definition(), request.get("tools").get(0));
+        }
+    }
+
+    @Test
+    void continuesHttpGetWithUntrustedTextAndDisablesTools() throws Exception {
+        HttpGetRequest request = new HttpGetRequest("https://example.com/reference");
+        OllamaPromptClient.Result pending = new OllamaPromptClient.Result(
+                OllamaPromptClient.Status.SUCCESS, "", "", Optional.empty(),
+                Optional.of(request), OllamaPromptClient.CompletionReason.STOP,
+                new OllamaPromptClient.CompletionMetrics(1, 1, 1, 1));
+        try (LocalChatServer server = LocalChatServer.streaming(
+                jsonLine("The reference says bounded.", "", false), TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint())
+                    .continueWithHttpGetResult(
+                            new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("Summarize it."), pending,
+                            new HttpGetResult(request, "untrusted text", "text/plain"));
+
+            assertEquals("The reference says bounded.", result.response());
+            JsonNode encoded = JSON.readTree(server.requestBody());
+            assertFalse(encoded.has("tools"));
+            assertEquals("http_get",
+                    encoded.get("messages").get(2).get("tool_name").textValue());
+            assertTrue(encoded.get("messages").get(2).get("content")
+                    .textValue().contains("untrusted text"));
         }
     }
 
