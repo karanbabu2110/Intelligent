@@ -389,6 +389,38 @@ outcome is assigned to milestone
 Release checkpoint: [KAOS 1.4.0 release notes](../releases/v1.4.0.md) and
 [validation and publication procedure](../releases/v1.4.0-validation.md).
 
+## Epic 007 — First Tool Integration (complete)
+
+- Epic: [#15](https://github.com/karanbabu2110/KAOS/issues/15)
+- Features: [#884](https://github.com/karanbabu2110/KAOS/issues/884),
+  [#883](https://github.com/karanbabu2110/KAOS/issues/883),
+  [#886](https://github.com/karanbabu2110/KAOS/issues/886),
+  [#885](https://github.com/karanbabu2110/KAOS/issues/885),
+  [#888](https://github.com/karanbabu2110/KAOS/issues/888),
+  [#887](https://github.com/karanbabu2110/KAOS/issues/887),
+  [#890](https://github.com/karanbabu2110/KAOS/issues/890),
+  [#889](https://github.com/karanbabu2110/KAOS/issues/889), and
+  [#891](https://github.com/karanbabu2110/KAOS/issues/891)
+- Delivery: PRs [#65](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/65)
+  through [#73](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/73)
+- Evidence: [Epic 007 exit](epic-007-exit.md)
+
+The verified foreground path advertises exactly one `read_local_file` function
+to fixed-loopback Ollama, validates one model-selected relative path below an
+explicit root, requests exact one-attempt local-user approval, reads one
+bounded strict UTF-8 file, and returns it as untrusted tool data for one final
+answer without advertising another tool. Denial and failure remain observable
+without disclosing content, and one content-free audit value records the final
+decision and execution outcome.
+
+The merged Feature 007.09 tree passed all 11 `verifyLocal` tasks with 380 tests,
+zero failures or errors, and four existing/platform skips. The nine-feature
+outcome is assigned to milestone
+[v1.5.0 — First Tool Integration](https://github.com/karanbabu2110/KAOS/milestone/5).
+
+Release checkpoint: [KAOS 1.5.0 release notes](../releases/v1.5.0.md) and
+[validation and publication procedure](../releases/v1.5.0-validation.md).
+
 ## Maintenance rule
 
 After each feature merge, add its feature, story/task, delivery, and evidence

@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "io.kaos"
-version = "1.4.0"
+version = "1.5.0"
 
 java {
     toolchain {
