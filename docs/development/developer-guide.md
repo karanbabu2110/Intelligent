@@ -340,6 +340,20 @@ saved in conversation history or SQLite. No-tool conversation turns still persis
 One approval and execution permit one final continuation with no tools. Search
 result URLs are never fetched. The existing `http-get` command remains separate.
 
+Inspect the fixed user-facing catalog without loading a model or executing a
+tool:
+
+```powershell
+./gradlew.bat --console=plain run --args=tools
+```
+
+The catalog lists `read_local_file`, `http_get`, and `web_search` in stable
+order with `configured` or `unavailable`. It validates only local configuration
+syntax. It does not display values, inspect a target file, resolve DNS, contact
+Ollama/SearXNG/the web, or grant execution permission. `configured` therefore
+does not promise that a selected target or external service is reachable. See
+[bounded tool discovery](../evolution/tool-discovery.md).
+
 SearXNG runs as a separate service/container. Set `KAOS_WEB_SEARCH_SEARXNG_URL`
 to its trusted origin (for example `http://127.0.0.1:8080`); direct JVM property
 `kaos.web-search.searxng-url` takes precedence, including an explicitly blank value.

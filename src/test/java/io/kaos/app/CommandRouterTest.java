@@ -12,6 +12,26 @@ import org.junit.jupiter.api.Test;
 
 class CommandRouterTest {
     @Test
+    void dispatchesTheToolCatalogWithoutArguments() {
+        AtomicInteger catalogCalls = new AtomicInteger();
+        CommandRouter.Command command = () -> KaosApplication.SUCCESS;
+        CommandRouter router = new CommandRouter(
+                context(new ByteArrayOutputStream(), new ByteArrayOutputStream()),
+                argument -> command.execute(), command, command,
+                argument -> command.execute(), command)
+                .withToolCatalog(() -> {
+                    catalogCalls.incrementAndGet();
+                    return KaosApplication.SUCCESS;
+                });
+
+        assertEquals(KaosApplication.SUCCESS, router.route(new String[] {"tools"}));
+        assertEquals(1, catalogCalls.get());
+        assertEquals(KaosApplication.USAGE_ERROR,
+                router.route(new String[] {"tools", "private-argument"}));
+        assertEquals(1, catalogCalls.get());
+    }
+
+    @Test
     void dispatchesOnlyTheSelectedCommand() {
         ByteArrayOutputStream standardBytes = new ByteArrayOutputStream();
         AtomicInteger commandCalls = new AtomicInteger();
