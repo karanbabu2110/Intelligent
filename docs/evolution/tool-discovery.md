@@ -1,10 +1,41 @@
 # Bounded Tool Discovery
 
 Feature [008.03](https://github.com/karanbabu2110/KAOS/issues/894)
-defines tool discovery at KAOS's current scale. It records and verifies existing
-runtime behavior rather than adding a registry or dynamic loading mechanism.
+defines tool discovery at KAOS's current scale. It adds one read-only `tools`
+catalog command and records existing model-facing behavior without adding a
+registry or dynamic loading mechanism.
 
-## User-visible outcome
+## User-visible catalog
+
+Run:
+
+```powershell
+./gradlew.bat --console=plain run --args=tools
+```
+
+The stable output shape is:
+
+```text
+KAOS tool catalog:
+read_local_file | Read one bounded local file | approval: required | configuration: <configured|unavailable>
+http_get | Retrieve one allowed HTTPS resource | approval: required | configuration: <configured|unavailable>
+web_search | Discover public URLs through SearXNG | approval: required | configuration: <configured|unavailable>
+Configuration status is local-only; no file, DNS, service, or web request was made.
+Every execution still requires exact validation and approval.
+```
+
+The command succeeds even when every tool is unavailable. `configured` means
+the applicable local environment/JVM setting exists and passes its current
+syntax validation. It does not mean a file exists, a hostname resolves, Ollama
+supports the tool, or SearXNG/upstream engines are reachable. `unavailable`
+combines absent and invalid configuration without exposing the private value.
+
+The command performs no model call, target validation, DNS lookup, service
+probe, web request, approval, or execution. It never prints configured roots,
+hosts, or endpoints. The catalog is a command-owned fixed presentation, not an
+executor map.
+
+## Model-visible outcome
 
 When KAOS asks the configured local Ollama model to choose a tool, the request's
 standard `tools` field contains the exact semantic capabilities allowed for that
@@ -20,6 +51,7 @@ after the selected concrete request reaches its established boundary.
 
 | KAOS operation | Definitions advertised to Ollama | Reason |
 | --- | --- | --- |
+| `tools` | No model request | User-facing catalog only |
 | `ollama-prompt`, ordinary knowledge operations | None | These are not tool-selection operations |
 | `read-local-file` | `read_local_file` | Explicit single-capability command |
 | `http-get` | `http_get` | Explicit retrieval command with its distinct network policy |
@@ -46,6 +78,12 @@ concrete request method. `LocalToolsCommand` asks for the bounded two-tool set.
 No tool discovers or registers itself, and application startup does not scan
 packages, classes, files, services, or remote catalogs.
 
+`ToolCatalogCommand` owns the fixed user-facing list and configuration-status
+presentation. It does not supply definitions to `OllamaPromptClient` or map
+names to `LocalToolsCommand` executors. The catalog and model definitions remain
+explicit at their two distinct consumers. Feature 008.05 should introduce shared
+metadata only if demonstrated drift makes that duplication costly.
+
 That direct compile-time enumeration is preferable now because there are only
 three concrete tools, their command availability differs, and their schemas do
 not share a lifecycle or permission policy. A registry would move ownership out
@@ -53,7 +91,7 @@ of the concrete packages without eliminating a demonstrated source of drift.
 
 ## Configuration, privacy, and failure behavior
 
-Discovery does not test whether a configured read root exists or whether
+Model discovery does not test whether a configured read root exists or whether
 SearXNG is running. It does not expose configured roots, URLs, credentials, or
 service status to Ollama. A selected tool still performs its own lazy
 configuration validation and requests exact user approval before crossing its
@@ -64,21 +102,30 @@ model responses. They execute nothing. A direct textual answer remains valid
 when the model selects no tool. A continuation cannot discover another tool
 because KAOS omits the `tools` field and rejects a returned call.
 
-There is no new state, persistence, audit content, network call, retry,
-cancellation path, startup dependency, or user data introduced by this feature.
+The user catalog catches configuration-loader failures and reports only
+`unavailable`; it does not retain exception details. There is no new state,
+persistence, audit content, network call, retry, cancellation path, startup
+dependency, or user data introduced by this feature.
 
 ## Deterministic evidence
 
 Run:
 
 ```powershell
+./gradlew.bat test --tests 'io.kaos.app.ToolCatalogCommandTest' --tests 'io.kaos.app.CommandRouterTest' --tests 'io.kaos.app.KaosApplicationTest' --tests 'io.kaos.app.KaosApplicationProcessTest' --no-daemon --console=plain
 ./gradlew.bat test --tests 'io.kaos.app.WebSearchIntegrationTest' --tests 'io.kaos.ai.ollama.OllamaPromptClientTest' --no-daemon --console=plain
 ```
 
-On 2026-09-09 this passed 47 tests with zero failures, errors, or skips. The
-loopback tests prove:
+The model-discovery selection passed 47 tests before catalog implementation.
+After implementation, the focused catalog, routing, help, and real-process
+selection passed 83 tests with zero failures, errors, or skips. The public
+`tools` command also completed successfully through the Gradle application
+runner. Together this deterministic evidence proves:
 
 - ordinary prompt requests omit tools;
+- the catalog has stable order, reports configured/unavailable state, and never
+  prints injected private configuration values;
+- `tools` accepts no arguments and invokes only its catalog handler;
 - explicit file and HTTP commands advertise exactly their one definition;
 - shared selection advertises exactly file then search;
 - direct answers work without loading either selected tool's configuration;
@@ -90,12 +137,17 @@ loopback tests prove:
 No live model, filesystem read, SearXNG request, or public-network request is
 needed for this evidence.
 
+Final `clean verifyLocal --no-daemon --warning-mode=all --console=plain` passed
+all 11 tasks: compile, 418 tests (414 passed and four existing Windows symbolic-
+link skips), packaging, status, and help. The exact final tree added three
+catalog tests and one router test with no failures or errors.
+
 ## Deliberate exclusions and evolution trigger
 
 This feature does not add a `ToolRegistry`, common tool interface, generic
 metadata type, plugin manager, `ServiceLoader`, reflection/classpath scan,
-configuration-driven loader, remote catalog, marketplace, hot reload, arbitrary
-tool installation, or a `tools` listing command. Shared metadata, permission
+configuration-driven loader, remote catalog, marketplace, hot reload, or arbitrary
+tool installation. Shared metadata, permission
 policy, and execution history remain separate later hypotheses.
 
 Reconsider a registry only when a supported runtime-installed tool exists or

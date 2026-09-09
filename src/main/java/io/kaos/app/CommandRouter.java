@@ -18,9 +18,15 @@ final class CommandRouter {
     private final ArgumentCommand readLocalFileCommand;
     private final ArgumentCommand httpGetCommand;
     private ArgumentCommand webSearchCommand = argument -> KaosApplication.USAGE_ERROR;
+    private Command toolCatalogCommand = () -> KaosApplication.USAGE_ERROR;
 
     CommandRouter withWebSearch(ArgumentCommand command) {
         webSearchCommand = Objects.requireNonNull(command);
+        return this;
+    }
+
+    CommandRouter withToolCatalog(Command command) {
+        toolCatalogCommand = Objects.requireNonNull(command);
         return this;
     }
     private final Command ollamaStatusCommand;
@@ -225,6 +231,9 @@ final class CommandRouter {
             context.output().print(KaosApplication.helpText());
             return KaosApplication.SUCCESS;
         }
+        if (isCommand(arguments, "tools")) {
+            return toolCatalogCommand.execute();
+        }
         if (arguments.length == 2 && "knowledge-ingest".equals(arguments[0])) {
             return knowledgeIngestCommand.execute(arguments[1]);
         }
@@ -327,6 +336,10 @@ final class CommandRouter {
         }
         if (arguments.length > 0 && "web-search".equals(arguments[0])) {
             context.errorOutput().println("Expected one quoted search question. Run 'kaos help' for usage.");
+            return KaosApplication.USAGE_ERROR;
+        }
+        if (arguments.length > 0 && "tools".equals(arguments[0])) {
+            context.errorOutput().println("Expected tools without arguments. Run 'kaos help' for usage.");
             return KaosApplication.USAGE_ERROR;
         }
 

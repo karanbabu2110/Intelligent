@@ -175,6 +175,10 @@ final class ApplicationRuntime {
                 modelConfigurationLoader, localToolsClient != null ? localToolsClient : () -> new OllamaPromptClient(),
                 () -> io.kaos.tool.websearch.SearxngClient.load(),
                 ReadLocalFilePermissionValidator::load);
+        ToolCatalogCommand toolCatalogCommand = new ToolCatalogCommand(context,
+                ReadLocalFilePermissionValidator::load,
+                HttpGetPermissionValidator::load,
+                () -> io.kaos.tool.websearch.SearxngClient.load());
         if (localToolsClient != null) conversationCommand.withLocalTools(localToolsCommand);
         KnowledgeRetrieveCommand knowledgeRetrieveCommand = new KnowledgeRetrieveCommand(
                 context, embeddingConfigurationLoader, embeddingSubmission,
@@ -270,6 +274,7 @@ final class ApplicationRuntime {
                 ollamaPromptCommand::execute,
                 conversationCommand::execute)
                 .withWebSearch(localToolsCommand::execute)
+                .withToolCatalog(toolCatalogCommand::execute)
                 .route(arguments);
     }
 
