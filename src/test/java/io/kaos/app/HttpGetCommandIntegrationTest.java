@@ -72,6 +72,45 @@ class HttpGetCommandIntegrationTest {
     }
 
     @Test
+    void invalidApprovalAndEndOfInputDoNotExecuteOrContinue() {
+        for (String input : new String[] {"yes\n", "APPROVE\n", "approve twice\n", ""}) {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            ByteArrayOutputStream errors = new ByteArrayOutputStream();
+            HttpGetCommand command = command(input, output, errors,
+                    requestOnly(new HttpGetRequest(URL)), (validator, grant) -> {
+                        throw new AssertionError("Unapproved request must not execute.");
+                    });
+
+            assertEquals(KaosApplication.SUCCESS,
+                    command.execute("Summarize the reference."));
+            String decision = input.isEmpty() ? "END_OF_INPUT" : "INVALID_RESPONSE";
+            assertTrue(output.toString(StandardCharsets.UTF_8)
+                    .contains("decision=" + decision + " outcome=NOT_EXECUTED"));
+            assertEquals("", errors.toString(StandardCharsets.UTF_8));
+        }
+    }
+
+    @Test
+    void interruptedApprovalDoesNotExecuteOrContinueEvenWithApproveInput() {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        HttpGetCommand command = command("approve\n", output, new ByteArrayOutputStream(),
+                requestOnly(new HttpGetRequest(URL)), (validator, grant) -> {
+                    throw new AssertionError("Cancelled request must not execute.");
+                });
+
+        Thread.currentThread().interrupt();
+        try {
+            assertEquals(KaosApplication.SUCCESS,
+                    command.execute("Summarize the reference."));
+            assertTrue(Thread.currentThread().isInterrupted());
+            assertTrue(output.toString(StandardCharsets.UTF_8)
+                    .contains("decision=CANCELLED outcome=NOT_EXECUTED"));
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test
     void disallowedHostFailsBeforeApprovalOrExecution() {
         ByteArrayOutputStream errors = new ByteArrayOutputStream();
         HttpGetPromptSubmission submission = requestOnly(
