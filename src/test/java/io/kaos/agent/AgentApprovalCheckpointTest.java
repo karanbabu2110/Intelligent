@@ -51,6 +51,8 @@ class AgentApprovalCheckpointTest {
 
         assertEquals(ToolPermissionDecision.DENIED, executor.decideCurrent("deny"));
         assertEquals(AgentExecution.Status.FAILED, executor.execution().status());
+        assertEquals(AgentFailureReason.PERMISSION_DENIED,
+                executor.execution().terminalReason().orElseThrow());
         assertEquals(List.of(fileResult), executor.execution().completedResults());
         assertExecutorStopped(executor);
     }
@@ -65,6 +67,8 @@ class AgentApprovalCheckpointTest {
         assertEquals(ToolPermissionDecision.DENIED, executor.decideCurrent("deny"));
 
         assertEquals(AgentExecution.Status.FAILED, executor.execution().status());
+        assertEquals(AgentFailureReason.PERMISSION_DENIED,
+                executor.execution().terminalReason().orElseThrow());
         assertTrue(executor.execution().completedResults().isEmpty());
         assertEquals(1, executor.execution().currentStep().orElseThrow().sequence());
         assertFalse(executor.toString().contains(privateContent));
@@ -79,6 +83,8 @@ class AgentApprovalCheckpointTest {
         assertEquals(ToolPermissionDecision.INVALID_RESPONSE,
                 invalid.decideCurrent("yes"));
         assertEquals(AgentExecution.Status.FAILED, invalid.execution().status());
+        assertEquals(AgentFailureReason.INVALID_APPROVAL,
+                invalid.execution().terminalReason().orElseThrow());
         assertTrue(invalid.execution().completedResults().isEmpty());
         assertExecutorStopped(invalid);
 
@@ -86,6 +92,8 @@ class AgentApprovalCheckpointTest {
         eof.currentApprovalPrompt();
         assertEquals(ToolPermissionDecision.END_OF_INPUT, eof.decideCurrent(null));
         assertEquals(AgentExecution.Status.CANCELLED, eof.execution().status());
+        assertEquals(AgentFailureReason.END_OF_INPUT,
+                eof.execution().terminalReason().orElseThrow());
         assertTrue(eof.execution().completedResults().isEmpty());
         assertExecutorStopped(eof);
     }
@@ -105,6 +113,8 @@ class AgentApprovalCheckpointTest {
         }
 
         assertEquals(AgentExecution.Status.CANCELLED, executor.execution().status());
+        assertEquals(AgentFailureReason.INTERRUPTED,
+                executor.execution().terminalReason().orElseThrow());
         assertTrue(executor.execution().completedResults().isEmpty());
         assertExecutorStopped(executor);
     }
@@ -116,6 +126,8 @@ class AgentApprovalCheckpointTest {
         cancelled.currentApprovalPrompt();
         assertEquals(ToolPermissionDecision.CANCELLED, cancelled.cancelCurrent());
         assertEquals(AgentExecution.Status.CANCELLED, cancelled.execution().status());
+        assertEquals(AgentFailureReason.CANCELLED,
+                cancelled.execution().terminalReason().orElseThrow());
         assertExecutorStopped(cancelled);
 
         AgentExecutor repeated = new AgentExecutor(localPlan());
@@ -125,6 +137,8 @@ class AgentApprovalCheckpointTest {
         assertThrows(IllegalStateException.class,
                 () -> repeated.decideCurrent("approve"));
         assertEquals(AgentExecution.Status.FAILED, repeated.execution().status());
+        assertEquals(AgentFailureReason.INVALID_APPROVAL,
+                repeated.execution().terminalReason().orElseThrow());
         assertTrue(repeated.execution().completedResults().isEmpty());
         assertExecutorStopped(repeated);
     }

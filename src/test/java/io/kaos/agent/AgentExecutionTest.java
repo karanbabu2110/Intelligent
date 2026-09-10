@@ -92,6 +92,8 @@ class AgentExecutionTest {
         execution.fail();
 
         assertEquals(AgentExecution.Status.FAILED, execution.status());
+        assertEquals(AgentFailureReason.TOOL_EXECUTION_FAILED,
+                execution.terminalReason().orElseThrow());
         assertEquals(List.of(AgentExecution.StepStatus.COMPLETED,
                         AgentExecution.StepStatus.FAILED, AgentExecution.StepStatus.PENDING),
                 statuses(execution));
@@ -108,6 +110,8 @@ class AgentExecutionTest {
         AgentExecution planned = new AgentExecution(mixedPlan());
         planned.cancel();
         assertEquals(AgentExecution.Status.CANCELLED, planned.status());
+        assertEquals(AgentFailureReason.CANCELLED,
+                planned.terminalReason().orElseThrow());
         assertEquals(AgentExecution.StepStatus.CANCELLED,
                 planned.currentStep().orElseThrow().status());
         assertExecutionReason(AgentExecutionException.Reason.TERMINAL_EXECUTION,
@@ -117,6 +121,8 @@ class AgentExecutionTest {
         running.beginCurrentTool();
         running.cancel();
         assertEquals(AgentExecution.Status.CANCELLED, running.status());
+        assertEquals(AgentFailureReason.CANCELLED,
+                running.terminalReason().orElseThrow());
         assertEquals(List.of(AgentExecution.StepStatus.CANCELLED,
                         AgentExecution.StepStatus.PENDING, AgentExecution.StepStatus.PENDING),
                 statuses(running));
@@ -152,6 +158,27 @@ class AgentExecutionTest {
 
         assertEquals(AgentExecution.Status.COMPLETED, execution.status());
         assertTrue(execution.completedResults().isEmpty());
+        assertTrue(execution.terminalReason().isEmpty());
+    }
+
+    @Test
+    void modelProviderFailureStopsSynthesisWithContentFreeReason() {
+        AgentPlan plan = planner().plan(goal("Explain a stable concept."),
+                proposal("STABLE_INTERNAL", synthesis(1)));
+        AgentExecution execution = new AgentExecution(plan);
+        execution.beginSynthesis();
+
+        execution.fail(AgentFailureReason.MODEL_PROVIDER_FAILED);
+
+        assertEquals(AgentExecution.Status.FAILED, execution.status());
+        assertEquals(AgentExecution.StepStatus.FAILED,
+                execution.currentStep().orElseThrow().status());
+        assertEquals(AgentFailureReason.MODEL_PROVIDER_FAILED,
+                execution.terminalReason().orElseThrow());
+        assertEquals(AgentFailureReason.MODEL_PROVIDER_FAILED,
+                execution.currentStep().orElseThrow().terminalReason().orElseThrow());
+        assertExecutionReason(AgentExecutionException.Reason.TERMINAL_EXECUTION,
+                execution::beginSynthesis);
     }
 
     @Test

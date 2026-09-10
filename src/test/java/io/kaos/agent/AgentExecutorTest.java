@@ -18,6 +18,7 @@ import io.kaos.tool.ToolResult;
 import io.kaos.tool.httpget.HttpGetPermissionValidator;
 import io.kaos.tool.permission.ToolPermissionDecision;
 import io.kaos.tool.permission.ToolPermissionPolicy;
+import io.kaos.tool.readlocalfile.ReadLocalFilePermissionException;
 import io.kaos.tool.readlocalfile.ReadLocalFilePermissionValidator;
 import io.kaos.tool.readlocalfile.ReadLocalFileRequest;
 import io.kaos.tool.readlocalfile.ReadLocalFileResult;
@@ -109,10 +110,32 @@ class AgentExecutorTest {
 
         assertEquals(WebSearchException.Reason.SEARCH_SERVICE_NOT_CONFIGURED, failure.reason());
         assertEquals(AgentExecution.Status.FAILED, executor.execution().status());
+        assertEquals(AgentFailureReason.TOOL_CONFIGURATION_UNAVAILABLE,
+                executor.execution().terminalReason().orElseThrow());
         assertEquals(1, loads.get());
         assertExecutorReason(AgentExecutorException.Reason.EXECUTION_STOPPED,
                 executor::prepareCurrent);
         assertEquals(1, loads.get());
+    }
+
+    @Test
+    void invalidLocalTargetStopsWithoutRetryOrFallback() {
+        AgentPlan plan = new AgentPlanner(registry(SearxngClient::load)).plan(
+                goal("Inspect missing local evidence."),
+                proposal("LOCAL_EVIDENCE",
+                        tool(1, "read_local_file", "{\"path\":\"missing.md\"}"),
+                        synthesis(2)));
+        AgentExecutor executor = new AgentExecutor(plan);
+
+        ReadLocalFilePermissionException failure = assertThrows(
+                ReadLocalFilePermissionException.class, executor::prepareCurrent);
+
+        assertEquals(ReadLocalFilePermissionException.Reason.UNAVAILABLE, failure.reason());
+        assertEquals(AgentExecution.Status.FAILED, executor.execution().status());
+        assertEquals(AgentFailureReason.TOOL_VALIDATION_FAILED,
+                executor.execution().terminalReason().orElseThrow());
+        assertExecutorReason(AgentExecutorException.Reason.EXECUTION_STOPPED,
+                executor::prepareCurrent);
     }
 
     @Test
@@ -128,6 +151,8 @@ class AgentExecutorTest {
 
             assertEquals(WebSearchException.Reason.INVALID_RESPONSE, failure.reason());
             assertEquals(AgentExecution.Status.FAILED, executor.execution().status());
+            assertEquals(AgentFailureReason.TOOL_EXECUTION_FAILED,
+                    executor.execution().terminalReason().orElseThrow());
             assertEquals(1, search.requests());
             assertExecutorReason(AgentExecutorException.Reason.EXECUTION_STOPPED,
                     executor::prepareCurrent);
@@ -148,6 +173,8 @@ class AgentExecutorTest {
 
         assertExecutorReason(AgentExecutorException.Reason.INVALID_TOOL_RESULT,
                 executor::executeCurrent);
+        assertEquals(AgentFailureReason.INVALID_TOOL_RESULT,
+                executor.execution().terminalReason().orElseThrow());
         assertExecutorReason(AgentExecutorException.Reason.EXECUTION_STOPPED,
                 executor::prepareCurrent);
     }
