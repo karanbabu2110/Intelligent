@@ -8,7 +8,7 @@ inside the verified single application.
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823), [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), [Epic 006 — First Memory Capability](https://github.com/karanbabu2110/KAOS/issues/10), [Epic 007 — First Tool Integration](https://github.com/karanbabu2110/KAOS/issues/15), and [Epic 008 — Multi-Tool Capability](https://github.com/karanbabu2110/KAOS/issues/63)
-- Next epic: [Epic 009 — First Agent Workflow](https://github.com/karanbabu2110/KAOS/issues/53), beginning with [009.01 — Bounded Agent Use Case](https://github.com/karanbabu2110/KAOS/issues/900); it remains inactive until explicitly started
+- Active epic: [Epic 009 — First Agent Workflow](https://github.com/karanbabu2110/KAOS/issues/53), beginning with [009.01 — Bounded Agent Use Case](https://github.com/karanbabu2110/KAOS/issues/900)
 - Release checkpoint: [KAOS 1.7.0 — Multi-Tool Capability](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v1.7.0)
 - Repository state: one root Gradle/Java 21 application with one production entry point, explicit bounded memory, local SQLite conversations/knowledge/memory/tool history, bounded local Ollama chat and embeddings, grounded answers with citations, three concrete approval-gated tools, SearXNG-backed discovery, and a read-only `tools` catalog with privacy-safe configuration status
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
@@ -433,6 +433,8 @@ incremental check.
 
 Epic 008 is complete. Its [exit record](docs/evolution/epic-008-exit.md) and
 [tool contract refinement](docs/evolution/tool-contract-refinement.md) preserve
-the proven small runtime boundary. The next ordered work is
+the proven small runtime boundary. Epic 009 is active, and its
+[bounded agent use-case definition](docs/evolution/bounded-agent-use-case.md)
+sets the contract for
 [009.01 - Bounded Agent Use Case](https://github.com/karanbabu2110/KAOS/issues/900),
-which remains inactive until explicitly started.
+before runtime implementation begins with the next ordered feature.
