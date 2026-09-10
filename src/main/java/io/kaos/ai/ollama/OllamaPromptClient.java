@@ -102,6 +102,16 @@ public final class OllamaPromptClient {
         return submit(model, ConversationHistory.empty(), prompt, () -> { }, ignored -> { });
     }
 
+    /** Generates one response constrained by a caller-owned JSON Schema and advertises no tools. */
+    public Result submitWithStructuredOutput(OllamaModelConfiguration model, OllamaPrompt prompt,
+            JsonNode format) {
+        if (format == null || !format.isObject() || format.isEmpty()) {
+            throw new IllegalArgumentException("structured output format must be a JSON object");
+        }
+        return submit(model, ConversationHistory.empty(), prompt, () -> { }, ignored -> { },
+                new ToolSelector(tools, List.of()), format.deepCopy());
+    }
+
     /** Synthesizes from one validated agent run with no advertised tool authority. */
     public Result submitWithAgentEvidence(OllamaModelConfiguration model, OllamaPrompt prompt,
             List<ToolResult<?>> evidence) {
@@ -120,7 +130,7 @@ public final class OllamaPromptClient {
             }
             BoundedRequestOutputStream output = new BoundedRequestOutputStream(MAX_REQUEST_BYTES);
             JSON.writeValue(output, new ChatRequest(model.modelName(), List.copyOf(messages),
-                    List.of(), true, model.thinkingMode().enabled(),
+                    List.of(), true, model.thinkingMode().enabled(), null,
                     new GenerateOptions(model.contextWindow(), model.responseTokenLimit())));
             return submitRequest(output.toByteArray(), model.thinkingMode(),
                     () -> { }, ignored -> { }, new ToolSelector(tools, List.of()));
@@ -181,7 +191,7 @@ public final class OllamaPromptClient {
             messages.add(ChatMessage.toolResult(selection.name(), JSON.writeValueAsString(result.modelContent())));
             BoundedRequestOutputStream output = new BoundedRequestOutputStream(MAX_REQUEST_BYTES);
             JSON.writeValue(output, new ChatRequest(model.modelName(), List.copyOf(messages),
-                    List.of(), true, model.thinkingMode().enabled(),
+                    List.of(), true, model.thinkingMode().enabled(), null,
                     new GenerateOptions(model.contextWindow(), model.responseTokenLimit())));
             return submitRequest(output.toByteArray(), model.thinkingMode(),
                     () -> { }, ignored -> { }, new ToolSelector(tools, List.of()));
@@ -261,6 +271,12 @@ public final class OllamaPromptClient {
     private Result submit(OllamaModelConfiguration model, ConversationHistory history,
             OllamaPrompt prompt, Runnable thinkingStarted,
             Consumer<String> answerChunkConsumer, ToolSelector selector) {
+        return submit(model, history, prompt, thinkingStarted, answerChunkConsumer, selector, null);
+    }
+
+    private Result submit(OllamaModelConfiguration model, ConversationHistory history,
+            OllamaPrompt prompt, Runnable thinkingStarted,
+            Consumer<String> answerChunkConsumer, ToolSelector selector, JsonNode format) {
         Objects.requireNonNull(model, "model");
         Objects.requireNonNull(history, "history");
         Objects.requireNonNull(prompt, "prompt");
@@ -269,7 +285,7 @@ public final class OllamaPromptClient {
 
         byte[] requestBody = encodeRequest(model.modelName(), history, prompt,
                 model.contextWindow(), model.thinkingMode(), model.responseTokenLimit(),
-                selector);
+                selector, format);
         if (requestBody == null) {
             return Result.failed(Status.LOCAL_LIMIT_REACHED);
         }
@@ -328,7 +344,7 @@ public final class OllamaPromptClient {
     private static byte[] encodeRequest(String model, ConversationHistory history,
             OllamaPrompt prompt,
             int contextWindow, OllamaThinkingMode thinkingMode, int responseTokenLimit,
-            ToolSelector selector) {
+            ToolSelector selector, JsonNode format) {
         try {
             int instructionCount = prompt.systemInstruction().isEmpty() ? 0 : 1;
             List<ChatMessage> messages = new ArrayList<>(
@@ -349,6 +365,7 @@ public final class OllamaPromptClient {
                     tools,
                     true,
                     thinkingMode.enabled(),
+                    format,
                     new GenerateOptions(contextWindow, responseTokenLimit)));
             return output.toByteArray();
         } catch (RequestLimitException exception) {
@@ -577,6 +594,7 @@ public final class OllamaPromptClient {
     private record ChatRequest(String model, List<ChatMessage> messages,
             @JsonInclude(JsonInclude.Include.NON_EMPTY) List<JsonNode> tools,
             boolean stream, boolean think,
+            @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode format,
             GenerateOptions options) { }
 
     private record ChatMessage(

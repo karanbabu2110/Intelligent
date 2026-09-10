@@ -194,8 +194,9 @@ final class ApplicationRuntime {
 
                     @Override
                     public OllamaPromptClient.Result propose(
-                            OllamaModelConfiguration model, OllamaPrompt prompt) {
-                        return client().submit(model, prompt);
+                            OllamaModelConfiguration model, OllamaPrompt prompt,
+                            com.fasterxml.jackson.databind.JsonNode format) {
+                        return client().submitWithStructuredOutput(model, prompt, format);
                     }
 
                     @Override

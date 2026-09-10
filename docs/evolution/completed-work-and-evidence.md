@@ -488,7 +488,8 @@ is [KAOS 1.7.0](../releases/v1.7.0.md), assigned to
   [#906](https://github.com/karanbabu2110/KAOS/issues/906),
   [#907](https://github.com/karanbabu2110/KAOS/issues/907),
   [#908](https://github.com/karanbabu2110/KAOS/issues/908), and post-exit
-  hardening [#1092](https://github.com/karanbabu2110/KAOS/issues/1092)
+  hardening [#1092](https://github.com/karanbabu2110/KAOS/issues/1092) and
+  [#1093](https://github.com/karanbabu2110/KAOS/issues/1093)
 - Merged delivery through Feature 009.09: PRs
   [#87](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/87)
   through [#95](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/95)
@@ -511,7 +512,12 @@ The Feature 009.09 tree passed all 11 `verifyLocal` tasks with 515 tests across
 69 suites: 511 passed, zero failed or errored, and four documented
 platform-specific symlink checks were skipped. Feature 009.10 adds the
 [deterministic freshness policy](freshness-policy-hardening.md) and corrects
-empty-search evidence semantics while keeping Epic 009 closed.
+empty-search evidence semantics. Feature 009.11 adds the
+[structured-output plan contract](structured-agent-planning.md) and safe
+reason-specific diagnostics while keeping Epic 009 closed. Its exact clean tree
+passed all 11 `verifyLocal` tasks with 540 tests across 72 suites: 536 passed,
+zero failed or errored, and four existing platform-specific symlink scenarios
+were skipped.
 
 ## Maintenance rule
 

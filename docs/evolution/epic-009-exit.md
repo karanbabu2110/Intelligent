@@ -92,3 +92,8 @@ current evidence is now a plan invariant, recommended evidence remains
 observable and nonblocking, and an empty search result cannot count as verified
 or proceed to synthesis. The original workflow and tool-authority limits remain
 unchanged.
+
+Post-exit Feature 009.11 adds an exact
+[structured-output plan contract](structured-agent-planning.md) at the Ollama
+boundary and safe reason-specific rejection messages. It improves model
+interoperability without adding retries, repair, fallback, tools, or authority.

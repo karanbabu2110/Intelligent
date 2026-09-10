@@ -152,9 +152,11 @@ public final class AgentExecutor {
 
     private static AgentFailureReason classifyPreparation(Throwable failure) {
         if (failure instanceof ReadLocalFilePermissionException exception) {
-            return exception.reason() == ReadLocalFilePermissionException.Reason.INVALID_CONFIGURATION
-                    ? AgentFailureReason.TOOL_CONFIGURATION_UNAVAILABLE
-                    : AgentFailureReason.TOOL_VALIDATION_FAILED;
+            return switch (exception.reason()) {
+                case INVALID_CONFIGURATION -> AgentFailureReason.TOOL_CONFIGURATION_UNAVAILABLE;
+                case TOO_LARGE -> AgentFailureReason.LOCAL_FILE_TOO_LARGE;
+                default -> AgentFailureReason.TOOL_VALIDATION_FAILED;
+            };
         }
         if (failure instanceof WebSearchException exception
                 && (exception.reason() == WebSearchException.Reason.SEARCH_SERVICE_NOT_CONFIGURED
@@ -174,6 +176,17 @@ public final class AgentExecutor {
                 == io.kaos.tool.ToolExecutionOutcome.CANCELLED) {
             return Thread.currentThread().isInterrupted()
                     ? AgentFailureReason.INTERRUPTED : AgentFailureReason.CANCELLED;
+        }
+        if (failure instanceof WebSearchException search) {
+            return switch (search.reason()) {
+                case SEARCH_SERVICE_UNAVAILABLE -> AgentFailureReason.SEARCH_SERVICE_UNAVAILABLE;
+                case SEARCH_TIMEOUT -> AgentFailureReason.SEARCH_TIMEOUT;
+                case INVALID_RESPONSE -> AgentFailureReason.SEARCH_INVALID_RESPONSE;
+                case RESULT_TOO_LARGE -> AgentFailureReason.SEARCH_RESULT_TOO_LARGE;
+                case CANCELLED -> Thread.currentThread().isInterrupted()
+                        ? AgentFailureReason.INTERRUPTED : AgentFailureReason.CANCELLED;
+                default -> AgentFailureReason.TOOL_EXECUTION_FAILED;
+            };
         }
         return failure instanceof AgentExecutorException exception
                 && exception.reason() == AgentExecutorException.Reason.INVALID_TOOL_RESULT

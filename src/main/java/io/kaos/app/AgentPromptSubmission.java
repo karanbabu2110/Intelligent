@@ -1,5 +1,6 @@
 package io.kaos.app;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.kaos.ai.ollama.OllamaModelConfiguration;
 import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
@@ -9,7 +10,7 @@ import java.util.List;
 /** Application port for one plan proposal and one final bounded synthesis. */
 interface AgentPromptSubmission {
     OllamaPromptClient.Result propose(
-            OllamaModelConfiguration model, OllamaPrompt planningPrompt);
+            OllamaModelConfiguration model, OllamaPrompt planningPrompt, JsonNode format);
 
     OllamaPromptClient.Result synthesize(OllamaModelConfiguration model,
             OllamaPrompt synthesisPrompt, List<ToolResult<?>> evidence);

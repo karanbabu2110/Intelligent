@@ -139,6 +139,25 @@ class AgentExecutorTest {
     }
 
     @Test
+    void oversizedLocalTargetHasAContentFreeSpecificReason() throws Exception {
+        Files.write(root.resolve("large.md"),
+                new byte[ReadLocalFileResult.MAX_CONTENT_UTF8_BYTES + 1]);
+        AgentPlan plan = new AgentPlanner(registry(SearxngClient::load)).plan(
+                goal("Inspect large.md."), proposal("LOCAL_EVIDENCE",
+                        tool(1, "read_local_file", "{\"path\":\"large.md\"}"),
+                        synthesis(2)));
+        AgentExecutor executor = new AgentExecutor(plan);
+
+        ReadLocalFilePermissionException failure = assertThrows(
+                ReadLocalFilePermissionException.class, executor::prepareCurrent);
+
+        assertEquals(ReadLocalFilePermissionException.Reason.TOO_LARGE, failure.reason());
+        assertEquals(AgentFailureReason.LOCAL_FILE_TOO_LARGE,
+                executor.execution().terminalReason().orElseThrow());
+        assertFalse(executor.toString().contains("large.md"));
+    }
+
+    @Test
     void concreteToolFailureStopsWithoutRetryOrLaterExecution() throws Exception {
         try (SearchFixture search = SearchFixture.failure()) {
             AgentExecutor executor = new AgentExecutor(currentPlan(
@@ -151,13 +170,30 @@ class AgentExecutorTest {
 
             assertEquals(WebSearchException.Reason.INVALID_RESPONSE, failure.reason());
             assertEquals(AgentExecution.Status.FAILED, executor.execution().status());
-            assertEquals(AgentFailureReason.TOOL_EXECUTION_FAILED,
+            assertEquals(AgentFailureReason.SEARCH_INVALID_RESPONSE,
                     executor.execution().terminalReason().orElseThrow());
             assertEquals(1, search.requests());
             assertExecutorReason(AgentExecutorException.Reason.EXECUTION_STOPPED,
                     executor::prepareCurrent);
             assertEquals(1, search.requests());
         }
+    }
+
+    @Test
+    void unreachableSearchServiceRetainsItsSafeFailureCategory() throws Exception {
+        SearchFixture stopped = SearchFixture.success();
+        String endpoint = stopped.endpoint();
+        stopped.close();
+        AgentExecutor executor = new AgentExecutor(currentPlan(
+                registry(() -> new SearxngClient(endpoint))));
+        executor.prepareCurrent().decide("approve");
+
+        WebSearchException failure = assertThrows(
+                WebSearchException.class, executor::executeCurrent);
+
+        assertEquals(WebSearchException.Reason.SEARCH_SERVICE_UNAVAILABLE, failure.reason());
+        assertEquals(AgentFailureReason.SEARCH_SERVICE_UNAVAILABLE,
+                executor.execution().terminalReason().orElseThrow());
     }
 
     @Test

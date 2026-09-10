@@ -72,3 +72,21 @@ explicit currentness, softer recommendations, stable-domain false positives,
 required-plan rejection, and empty versus nonempty search evidence. See
 [Freshness Policy Hardening](freshness-policy-hardening.md) for its current
 rules and verification evidence.
+
+Feature 009.11 adds deterministic request-boundary coverage for Ollama
+structured output, all four exact bounded plan shapes, freshness-required
+schema narrowing, and content-free reason-specific rejection diagnostics. The
+strict Java parser and all execution limits remain authoritative. Oversized
+local evidence also has an explicit pre-approval result that preserves the
+existing 2,048-byte whole-file bound. Its planning instruction also permits a
+model-selected search for insufficient or unreliable internal knowledge. A
+deterministic scenario proves that `CURRENT_PUBLIC_EVIDENCE` remains valid when
+`FreshnessPolicy` reports `NOT_REQUIRED`; this adds no Java knowledge
+classifier and does not weaken required-freshness rejection. See
+[Structured Agent Planning](structured-agent-planning.md).
+
+The Feature 009.11 checkpoint executed 540 tests across 72 suites: 536 passed,
+zero failed or errored, and four existing platform-specific symlink scenarios
+were skipped. A live `qwen3:4b-instruct` run also reached the exact bounded
+approval checkpoint for the path-free tool-architecture scenario; approval was
+denied, so no file or search executed.

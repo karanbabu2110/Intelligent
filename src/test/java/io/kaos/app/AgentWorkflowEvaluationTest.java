@@ -66,6 +66,7 @@ class AgentWorkflowEvaluationTest {
                 fixture.command.execute("What is dependency injection?"));
         assertEquals(1, prompts.planCalls.get());
         assertEquals(1, prompts.synthesisCalls.get());
+        assertEquals(4, prompts.formats.getFirst().path("oneOf").size());
         assertTrue(prompts.evidence.getFirst().isEmpty());
         assertTrue(fixture.history.records().isEmpty());
         assertTrue(fixture.output().contains("Current evidence: NOT_REQUIRED"));
@@ -88,12 +89,54 @@ class AgentWorkflowEvaluationTest {
             assertEquals(1, search.calls.get());
             assertEquals(1, prompts.planCalls.get());
             assertEquals(1, prompts.synthesisCalls.get());
+            assertEquals(2, prompts.formats.getFirst().path("oneOf").size());
             assertEquals(List.of("web_search"), toolNames(prompts.evidence.getFirst()));
             assertEquals(ToolExecutionOutcome.SUCCEEDED,
                     fixture.history.records().getFirst().outcome());
             assertTrue(fixture.output().contains("Current evidence: VERIFIED"));
             assertTrue(fixture.output().contains("Current verified release is 2.0."));
         }
+    }
+
+    @Test
+    void knowledgeGapProposalCanSearchWithoutADeterministicFreshnessClassification()
+            throws Exception {
+        String goal = "Who are the Bigg Boss Tamil Season 10 contestants?";
+        assertEquals(io.kaos.agent.FreshnessRequirement.NOT_REQUIRED,
+                new io.kaos.agent.FreshnessPolicy().assess(
+                        new AgentGoal(UUID.randomUUID(), goal)));
+        try (SearchFixture search = SearchFixture.success(
+                "Season 10 contestants", "Deterministic fixture evidence")) {
+            RecordingPrompts prompts = new RecordingPrompts(
+                    proposal("CURRENT_PUBLIC_EVIDENCE", tool(1, "web_search",
+                            "{\"query\":\"Bigg Boss Tamil Season 10 contestants\"}"),
+                            synthesis(2)),
+                    evidence -> success("Answer from supplied public evidence."));
+            CommandFixture fixture = command("approve\n", prompts,
+                    registry(() -> new ReadLocalFilePermissionValidator(root),
+                            () -> new SearxngClient(search.endpoint())));
+
+            assertEquals(KaosApplication.SUCCESS, fixture.command.execute(goal));
+            assertEquals(4, prompts.formats.getFirst().path("oneOf").size());
+            assertEquals(1, search.calls.get());
+            assertEquals(List.of("web_search"), toolNames(prompts.evidence.getFirst()));
+            assertTrue(fixture.output().contains("Current evidence: VERIFIED"));
+        }
+    }
+
+    @Test
+    void planningInstructionSeparatesKnowledgeGapSearchFromTheFreshnessGuard() {
+        String instruction = AgentCommand.PLANNING_INSTRUCTION;
+
+        assertTrue(instruction.contains(
+                "STABLE_INTERNAL only for sufficient, reliable, reasonably stable internal"));
+        assertTrue(instruction.contains("freshness can materially affect the answer"));
+        assertTrue(instruction.contains(
+                "insufficient, uncertain, incomplete, obscure, or unlikely to be reliable"));
+        assertTrue(instruction.contains("Do not invent missing information"));
+        assertTrue(instruction.contains("prefer CURRENT_PUBLIC_EVIDENCE"));
+        assertTrue(instruction.contains("prefer MIXED_EVIDENCE"));
+        assertTrue(instruction.contains("return no reasoning or confidence score"));
     }
 
     @Test
@@ -112,6 +155,27 @@ class AgentWorkflowEvaluationTest {
         assertEquals(List.of("read_local_file"), toolNames(prompts.evidence.getFirst()));
         assertTrue(fixture.output().contains("Current evidence: NOT_REQUIRED"));
         assertTrue(fixture.output().contains("The local architecture reuses Epic 008."));
+    }
+
+    @Test
+    void oversizedLocalEvidenceReportsTheBoundWithoutPromptingOrReading() throws Exception {
+        Files.write(root.resolve("large.md"),
+                new byte[io.kaos.tool.readlocalfile.ReadLocalFileResult.MAX_CONTENT_UTF8_BYTES + 1]);
+        RecordingPrompts prompts = new RecordingPrompts(
+                proposal("LOCAL_EVIDENCE", tool(1, "read_local_file",
+                        "{\"path\":\"large.md\"}"), synthesis(2)),
+                ignored -> { throw new AssertionError("must not synthesize"); });
+        CommandFixture fixture = command("approve\n", prompts,
+                registry(() -> new ReadLocalFilePermissionValidator(root),
+                        () -> { throw new AssertionError("search must not load"); }));
+
+        assertEquals(KaosApplication.APPLICATION_ERROR,
+                fixture.command.execute("Read large.md."));
+        assertEquals(0, prompts.synthesisCalls.get());
+        assertTrue(fixture.output().contains("reason=LOCAL_FILE_TOO_LARGE"));
+        assertTrue(fixture.output().contains("2048-byte read limit"));
+        assertTrue(fixture.output().contains("No file was read."));
+        assertFalse(fixture.output().contains("Type 'approve'"));
     }
 
     @Test
@@ -137,8 +201,10 @@ class AgentWorkflowEvaluationTest {
             assertEquals(2, boundaries.modelRequests.size());
             JsonNode planning = boundaries.modelRequests.getFirst();
             assertFalse(planning.has("tools"));
+            assertEquals(1, planning.path("format").path("oneOf").size());
             assertTrue(planning.path("messages").get(0).path("content").asText()
-                    .contains("freshness can materially affect"));
+                    .contains("If public evidence is also needed for a local goal, prefer "
+                            + "MIXED_EVIDENCE"));
             JsonNode synthesis = boundaries.modelRequests.getLast();
             assertFalse(synthesis.has("tools"));
             List<JsonNode> toolMessages = new ArrayList<>();
@@ -306,7 +372,10 @@ class AgentWorkflowEvaluationTest {
         assertEquals(KaosApplication.APPLICATION_ERROR,
                 fixture.command.execute("Check current information."));
         assertEquals(0, prompts.synthesisCalls.get());
-        assertTrue(fixture.output().contains("reason=TOOL_EXECUTION_FAILED"));
+        assertTrue(fixture.output().contains("reason=SEARCH_SERVICE_UNAVAILABLE"));
+        assertTrue(fixture.output().contains("SearXNG service could not be reached"));
+        assertTrue(fixture.output().contains("try a new agent run"));
+        assertFalse(fixture.output().contains("127.0.0.1:" + port));
         assertTrue(fixture.output().contains("Current-public verification could not be completed."));
         assertFalse(fixture.output().contains("Current answer."));
     }
@@ -349,18 +418,57 @@ class AgentWorkflowEvaluationTest {
                 tool(1, "unknown", "{}"), synthesis(2));
         String disallowed = proposal("LOCAL_EVIDENCE",
                 tool(1, "http_get", "{\"url\":\"https://example.com\"}"), synthesis(2));
-        for (String invalid : List.of("not-json", tooManySteps, tooManyTools, unknown, disallowed)) {
-            RecordingPrompts prompts = new RecordingPrompts(invalid,
+        String invalidStructure = proposal("STABLE_INTERNAL", synthesis(1), synthesis(2));
+        String malformedArguments = proposal("LOCAL_EVIDENCE",
+                tool(1, "read_local_file", "{}"), synthesis(2));
+        String invalidSequence = proposal("LOCAL_EVIDENCE",
+                tool(2, "read_local_file", "{\"path\":\"one.md\"}"), synthesis(1));
+        String missesFreshness = proposal("LOCAL_EVIDENCE",
+                tool(1, "read_local_file", "{\"path\":\"one.md\"}"), synthesis(2));
+        record Failure(String goal, String proposal, String code, String message) { }
+        List<Failure> failures = List.of(
+                new Failure("One bounded goal.", "private malformed response",
+                        "MALFORMED-RESPONSE", "did not match KAOS's bounded plan JSON contract"),
+                new Failure("One bounded goal.", invalidStructure,
+                        "INVALID-STRUCTURE", "did not match the declared evidence need"),
+                new Failure("One bounded goal.", tooManySteps,
+                        "TOO-MANY-STEPS", "exceeded the three-step limit"),
+                new Failure("One bounded goal.", tooManyTools,
+                        "TOO-MANY-TOOL-STEPS", "exceeded the two-tool-step limit"),
+                new Failure("One bounded goal.", unknown,
+                        "UNKNOWN-TOOL", "named an unknown tool"),
+                new Failure("One bounded goal.", disallowed,
+                        "DISALLOWED-TOOL", "outside the bounded agent allowlist"),
+                new Failure("One bounded goal.", malformedArguments,
+                        "MALFORMED-ARGUMENTS", "did not match the exact tool contract"),
+                new Failure("One bounded goal.", invalidSequence,
+                        "INVALID-SEQUENCE", "not in the required sequential order"),
+                new Failure("Compare local evidence with current security guidance.",
+                        missesFreshness, "FRESHNESS-REQUIRED",
+                        "required current public evidence"),
+                new Failure("Read README.md and explain the project.",
+                        proposal("STABLE_INTERNAL", synthesis(1)),
+                        "LOCAL-EVIDENCE-REQUIRED", "required local project evidence"),
+                new Failure("Read README.md and explain the project.",
+                        proposal("LOCAL_EVIDENCE", tool(1, "read_local_file",
+                                "{\"path\":\"docs/other.md\"}"), synthesis(2)),
+                        "LOCAL-EVIDENCE-MISMATCH", "did not preserve the exact bounded evidence path"));
+        for (Failure failure : failures) {
+            RecordingPrompts prompts = new RecordingPrompts(failure.proposal(),
                     ignored -> { throw new AssertionError("must not synthesize"); });
             CommandFixture fixture = command("approve\n", prompts,
                     registry(() -> { throw new AssertionError("file must not prepare"); },
                             () -> { throw new AssertionError("search must not prepare"); }));
 
             assertEquals(KaosApplication.APPLICATION_ERROR,
-                    fixture.command.execute("One bounded goal."));
+                    fixture.command.execute(failure.goal()));
             assertEquals(1, prompts.planCalls.get());
             assertEquals(0, prompts.synthesisCalls.get());
-            assertTrue(fixture.errors().contains("rejected before execution"));
+            assertTrue(fixture.errors().contains("KAOS-AGENT-PLAN-" + failure.code()));
+            assertTrue(fixture.errors().contains(failure.message()));
+            assertTrue(fixture.errors().contains("No tool ran."));
+            assertFalse(fixture.errors().contains(failure.goal()));
+            assertFalse(fixture.errors().contains(failure.proposal()));
         }
     }
 
@@ -434,7 +542,7 @@ class AgentWorkflowEvaluationTest {
         String privateGoal = "private planning goal";
         AgentPromptSubmission failure = new AgentPromptSubmission() {
             @Override public OllamaPromptClient.Result propose(
-                    OllamaModelConfiguration model, OllamaPrompt prompt) {
+                    OllamaModelConfiguration model, OllamaPrompt prompt, JsonNode format) {
                 return new OllamaPromptClient.Result(OllamaPromptClient.Status.UNAVAILABLE, "", "");
             }
             @Override public OllamaPromptClient.Result synthesize(OllamaModelConfiguration model,
@@ -449,6 +557,34 @@ class AgentWorkflowEvaluationTest {
         assertEquals(KaosApplication.APPLICATION_ERROR, fixture.command.execute(privateGoal));
         assertFalse(fixture.errors().contains(privateGoal));
         assertTrue(fixture.errors().contains("KAOS-AGENT-MODEL-PLANNING"));
+        assertTrue(fixture.errors().contains("unavailable at its fixed local endpoint"));
+        assertTrue(fixture.errors().contains("No tool ran."));
+    }
+
+    @Test
+    void planningTokenLimitExplainsTheSafeProviderStatusWithoutGeneratedContent() {
+        String privateGoal = "private token-limited goal";
+        String privateGeneratedText = "private partial model output";
+        AgentPromptSubmission failure = new AgentPromptSubmission() {
+            @Override public OllamaPromptClient.Result propose(
+                    OllamaModelConfiguration model, OllamaPrompt prompt, JsonNode format) {
+                return new OllamaPromptClient.Result(
+                        OllamaPromptClient.Status.TOKEN_LIMIT_REACHED, "", "");
+            }
+            @Override public OllamaPromptClient.Result synthesize(OllamaModelConfiguration model,
+                    OllamaPrompt prompt, List<ToolResult<?>> evidence) {
+                throw new AssertionError();
+            }
+        };
+        CommandFixture fixture = command("", failure,
+                registry(() -> { throw new AssertionError(); },
+                        () -> { throw new AssertionError(); }));
+
+        assertEquals(KaosApplication.APPLICATION_ERROR, fixture.command.execute(privateGoal));
+        assertTrue(fixture.errors().contains("KAOS-AGENT-MODEL-PLANNING"));
+        assertTrue(fixture.errors().contains("configured response-token limit"));
+        assertFalse(fixture.errors().contains(privateGoal));
+        assertFalse(fixture.errors().contains(privateGeneratedText));
     }
 
     @Test
@@ -537,6 +673,7 @@ class AgentWorkflowEvaluationTest {
         private final AtomicInteger planCalls = new AtomicInteger();
         private final AtomicInteger synthesisCalls = new AtomicInteger();
         private final List<List<ToolResult<?>>> evidence = new ArrayList<>();
+        private final List<JsonNode> formats = new ArrayList<>();
 
         private RecordingPrompts(String proposal,
                 Function<List<ToolResult<?>>, OllamaPromptClient.Result> synthesis) {
@@ -546,8 +683,9 @@ class AgentWorkflowEvaluationTest {
 
         @Override
         public OllamaPromptClient.Result propose(
-                OllamaModelConfiguration model, OllamaPrompt planningPrompt) {
+                OllamaModelConfiguration model, OllamaPrompt planningPrompt, JsonNode format) {
             planCalls.incrementAndGet();
+            formats.add(format.deepCopy());
             return success(proposal);
         }
 
@@ -651,8 +789,9 @@ class AgentWorkflowEvaluationTest {
             OllamaPromptClient client = client();
             return new AgentPromptSubmission() {
                 @Override public OllamaPromptClient.Result propose(
-                        OllamaModelConfiguration configuration, OllamaPrompt prompt) {
-                    return client.submit(configuration, prompt);
+                        OllamaModelConfiguration configuration, OllamaPrompt prompt,
+                        JsonNode format) {
+                    return client.submitWithStructuredOutput(configuration, prompt, format);
                 }
                 @Override public OllamaPromptClient.Result synthesize(
                         OllamaModelConfiguration configuration, OllamaPrompt prompt,

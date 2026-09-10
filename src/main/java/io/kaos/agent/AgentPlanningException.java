@@ -13,6 +13,8 @@ public final class AgentPlanningException extends RuntimeException {
         INVALID_SEQUENCE,
         INVALID_STRUCTURE,
         FRESHNESS_REQUIRED,
+        LOCAL_EVIDENCE_REQUIRED,
+        LOCAL_EVIDENCE_MISMATCH,
         UNKNOWN_TOOL,
         DISALLOWED_TOOL,
         MALFORMED_ARGUMENTS

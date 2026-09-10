@@ -159,6 +159,38 @@ class OllamaPromptClientTest {
     }
 
     @Test
+    void structuredOutputSendsTheExactJsonSchemaWithoutAdvertisingTools() throws Exception {
+        JsonNode format = JSON.readTree("{\"type\":\"object\",\"required\":[\"steps\"]}");
+        String plan = "{\"informationNeed\":\"STABLE_INTERNAL\",\"steps\":[]}";
+        try (LocalChatServer server = LocalChatServer.streaming(
+                jsonLine(plan, "", false), TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint())
+                    .submitWithStructuredOutput(new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("Plan one goal."), format);
+
+            assertEquals(plan, result.response());
+            JsonNode request = JSON.readTree(server.requestBody());
+            assertEquals(format, request.path("format"));
+            assertFalse(request.has("tools"));
+            assertTrue(request.path("stream").asBoolean());
+        }
+    }
+
+    @Test
+    void structuredOutputRejectsMissingOrNonObjectFormatsBeforeNetwork() throws Exception {
+        OllamaPromptClient client = client(URI.create("http://127.0.0.1:1/api/chat"));
+        OllamaModelConfiguration model = new OllamaModelConfiguration("qwen3");
+        OllamaPrompt prompt = new OllamaPrompt("Plan one goal.");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> client.submitWithStructuredOutput(model, prompt, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> client.submitWithStructuredOutput(model, prompt, JSON.readTree("[]")));
+        assertThrows(IllegalArgumentException.class,
+                () -> client.submitWithStructuredOutput(model, prompt, JSON.readTree("{}")));
+    }
+
+    @Test
     void advertisesOnlyReadLocalFileAndReturnsOneValidatedRequest() throws Exception {
         String privatePath = "src/private/Customer.java";
         try (LocalChatServer server = LocalChatServer.streaming(

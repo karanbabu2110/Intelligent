@@ -63,7 +63,11 @@ only when all code-level rules pass:
 
 This exact four-shape contract is sufficient for the first agent use case and
 avoids a workflow language. In particular, a freshness-sensitive proposal must
-include `web_search`; stable explanatory work cannot add an unnecessary search.
+include `web_search`; stable explanatory work should not add an unnecessary
+search. The model may also propose `CURRENT_PUBLIC_EVIDENCE` when its internal
+knowledge is insufficient or unreliable even though deterministic freshness is
+not required. KAOS does not attempt to detect that model knowledge gap with
+keywords, scores, embeddings, or another model call.
 Mixed evidence cannot reverse the required local-then-current order.
 
 `ToolSelector` resolves each tool step to a defensive `ToolSelection`. That
