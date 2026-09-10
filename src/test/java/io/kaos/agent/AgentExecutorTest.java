@@ -49,12 +49,16 @@ class AgentExecutorTest {
         try (SearchFixture search = SearchFixture.success()) {
             AgentPlan plan = mixedPlan(registry(() -> new SearxngClient(search.endpoint())));
             AgentExecutor executor = new AgentExecutor(plan);
+            AgentExecution execution = executor.execution();
 
             var filePermission = executor.prepareCurrent();
             assertSame(filePermission, executor.prepareCurrent());
             assertEquals(ToolPermissionDecision.APPROVED, filePermission.decide("approve"));
             ReadLocalFileResult file = (ReadLocalFileResult) executor.executeCurrent();
             assertEquals(injectedEvidence, file.content());
+            assertEquals(AgentExecution.StepStatus.COMPLETED,
+                    execution.steps().getFirst().status());
+            assertEquals(List.of(file), execution.completedResults());
             assertExecutorReason(AgentExecutorException.Reason.NOT_PREPARED,
                     executor::executeCurrent);
 
@@ -65,6 +69,7 @@ class AgentExecutorTest {
             WebSearchResult result = (WebSearchResult) executor.executeCurrent();
             assertEquals("Current guidance", result.results().getFirst().title());
             assertEquals(1, search.requests());
+            assertEquals(List.of(file, result), execution.completedResults());
 
             assertExecutorReason(AgentExecutorException.Reason.NOT_TOOL_STEP,
                     executor::prepareCurrent);
@@ -83,6 +88,7 @@ class AgentExecutorTest {
 
             assertEquals(ToolPermissionDecision.DENIED, permission.decide("deny"));
             assertThrows(IllegalStateException.class, executor::executeCurrent);
+            assertEquals(AgentExecution.Status.FAILED, executor.execution().status());
             assertEquals(0, search.requests());
             assertExecutorReason(AgentExecutorException.Reason.EXECUTION_STOPPED,
                     executor::prepareCurrent);
@@ -102,6 +108,7 @@ class AgentExecutorTest {
                 executor::prepareCurrent);
 
         assertEquals(WebSearchException.Reason.SEARCH_SERVICE_NOT_CONFIGURED, failure.reason());
+        assertEquals(AgentExecution.Status.FAILED, executor.execution().status());
         assertEquals(1, loads.get());
         assertExecutorReason(AgentExecutorException.Reason.EXECUTION_STOPPED,
                 executor::prepareCurrent);
@@ -120,6 +127,7 @@ class AgentExecutorTest {
                     executor::executeCurrent);
 
             assertEquals(WebSearchException.Reason.INVALID_RESPONSE, failure.reason());
+            assertEquals(AgentExecution.Status.FAILED, executor.execution().status());
             assertEquals(1, search.requests());
             assertExecutorReason(AgentExecutorException.Reason.EXECUTION_STOPPED,
                     executor::prepareCurrent);

@@ -10,7 +10,6 @@ public final class AgentExecutorException extends RuntimeException {
         NOT_TOOL_STEP,
         DISALLOWED_TOOL,
         NOT_PREPARED,
-        PLAN_COMPLETE,
         EXECUTION_STOPPED,
         INVALID_TOOL_RESULT
     }
