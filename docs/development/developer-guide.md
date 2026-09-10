@@ -386,7 +386,10 @@ $env:KAOS_WEB_SEARCH_SEARXNG_URL = "http://127.0.0.1:8080"
 ```
 
 The model returns one small JSON plan for stable/internal, local, current
-public, or mixed evidence. `AgentPlanner` rejects malformed structures,
+public, or mixed evidence. Before execution, `FreshnessPolicy` independently
+records `NOT_REQUIRED`, `RECOMMENDED`, or `REQUIRED`; required freshness rejects
+an otherwise valid plan that omits current-public evidence, while recommended
+freshness remains observable without rejecting the plan. `AgentPlanner` rejects malformed structures,
 unknown tools, registered but disallowed `http_get`, duplicate or out-of-order
 steps, more than three total steps, and more than two tool steps before any
 execution. An accepted plan runs sequentially. Each file or search step displays
@@ -397,13 +400,15 @@ tool snapshots are written through the existing content-free tool history.
 Synthesis is one no-tools Ollama request containing only the goal and ordered
 completed evidence. Evidence is untrusted data, cannot change the validated
 plan, and is not executable instruction authority. A denial, invalid approval,
-EOF, interruption, unavailable service, execution/history failure, or provider
+EOF, interruption, unavailable service, an empty successful search,
+execution/history failure, or provider
 failure stops the workflow without retry, fallback, or replanning. Earlier
 successful evidence remains visible in the incomplete summary, while the final
 answer is absent. If required current-public evidence is unavailable, KAOS says
 so explicitly instead of presenting model memory as verified current fact. See
 [agent evaluation](../evolution/agent-evaluation.md) and the
-[Epic 009 exit record](../evolution/epic-009-exit.md).
+[Epic 009 exit record](../evolution/epic-009-exit.md), plus
+[freshness policy hardening](../evolution/freshness-policy-hardening.md).
 
 The separate `http-get` operation advertises only `http_get`. It accepts one
 strict URL request or an ordinary answer. After approved execution, its
@@ -963,6 +968,7 @@ requiring rollback. KAOS does not start or own the local Ollama process.
 - [Ollama prompt submission](../evolution/ollama-prompt-submission.md)
 - [Agent evaluation](../evolution/agent-evaluation.md)
 - [Epic 009 exit](../evolution/epic-009-exit.md)
+- [Freshness policy hardening](../evolution/freshness-policy-hardening.md)
 
 The detailed references retain acceptance evidence, internal contracts, and
 historical validation. This guide owns the current developer-facing commands

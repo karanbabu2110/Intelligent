@@ -59,7 +59,7 @@ public final class AgentResult {
                 .flatMap(result -> result.results().stream())
                 .map(entry -> new SourceReference(entry.title(), entry.url()))
                 .toList();
-        currentEvidenceStatus = currentEvidenceStatus(execution, steps);
+        currentEvidenceStatus = currentEvidenceStatus(execution);
         terminalReason = execution.terminalReason();
         this.answer = answer;
     }
@@ -109,18 +109,17 @@ public final class AgentResult {
                 + answer.isPresent() + "]";
     }
 
-    private static CurrentEvidenceStatus currentEvidenceStatus(AgentExecution execution,
-            List<AgentExecution.StepSnapshot> steps) {
+    private static CurrentEvidenceStatus currentEvidenceStatus(AgentExecution execution) {
         boolean required = execution.plan().informationNeed()
                 == AgentPlan.InformationNeed.CURRENT_PUBLIC_EVIDENCE
                 || execution.plan().informationNeed() == AgentPlan.InformationNeed.MIXED_EVIDENCE;
         if (!required) {
             return CurrentEvidenceStatus.NOT_REQUIRED;
         }
-        boolean verified = steps.stream().anyMatch(step ->
-                step.status() == AgentExecution.StepStatus.COMPLETED
-                        && step.toolName().filter("web_search"::equals).isPresent()
-                        && step.resultAvailable());
+        boolean verified = execution.completedResults().stream()
+                .filter(WebSearchResult.class::isInstance)
+                .map(WebSearchResult.class::cast)
+                .anyMatch(result -> !result.results().isEmpty());
         return verified ? CurrentEvidenceStatus.VERIFIED
                 : CurrentEvidenceStatus.REQUIRED_BUT_UNAVAILABLE;
     }

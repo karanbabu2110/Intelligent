@@ -310,16 +310,21 @@ $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 
 The model proposes exactly one of four evidence shapes: stable/internal,
 local-file, current-public search, or local plus current-public. KAOS validates
-the proposal before execution, allows at most three ordered steps and two tool
-steps, and permits only `read_local_file` followed optionally by `web_search`.
+the proposal before execution. A small deterministic freshness policy records
+`NOT_REQUIRED`, `RECOMMENDED`, or `REQUIRED` on the plan; `REQUIRED` rejects a
+plan that omits current-public evidence, while `RECOMMENDED` remains observable
+without hard failure. KAOS allows at most three ordered steps and two tool steps,
+and permits only `read_local_file` followed optionally by `web_search`.
 Every tool step shows its own existing Epic 008 approval prompt and requires a
 new single-use grant. A denial, invalid response, EOF, interruption, tool or
 history failure, or provider failure stops the run without retry, fallback, or
-replanning. Completed evidence is retained for the truthful incomplete summary,
-but no final answer is produced unless synthesis succeeds. Tool results remain
+replanning. A successful search with zero results stops before synthesis as
+unverified current evidence. Completed evidence is retained for the truthful
+incomplete summary, but no final answer is produced unless synthesis succeeds. Tool results remain
 untrusted data and cannot add or reorder steps. See the
 [agent evaluation](docs/evolution/agent-evaluation.md) and
-[Epic 009 exit record](docs/evolution/epic-009-exit.md).
+[Epic 009 exit record](docs/evolution/epic-009-exit.md), plus the
+[freshness hardening record](docs/evolution/freshness-policy-hardening.md).
 
 Start one foreground session that actually retains and uses earlier clean turns:
 

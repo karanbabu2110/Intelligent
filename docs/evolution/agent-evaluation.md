@@ -66,3 +66,9 @@ zero errored, and four existing platform-specific symlink scenarios were
 skipped. The architecture page was also rendered at 1,440 by 900 and 390 by
 844 CSS pixels: it had no page-level horizontal overflow, exactly one current
 feature marker, and no browser console warnings or errors.
+
+Feature 009.10 subsequently added deterministic freshness-policy coverage for
+explicit currentness, softer recommendations, stable-domain false positives,
+required-plan rejection, and empty versus nonempty search evidence. See
+[Freshness Policy Hardening](freshness-policy-hardening.md) for its current
+rules and verification evidence.
