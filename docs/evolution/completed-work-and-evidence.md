@@ -421,7 +421,7 @@ outcome is assigned to milestone
 Release checkpoint: [KAOS 1.5.0 release notes](../releases/v1.5.0.md) and
 [validation and publication procedure](../releases/v1.5.0-validation.md).
 
-## Epic 008 — Multi-Tool Capability (in progress)
+## Epic 008 — Multi-Tool Capability (complete)
 
 - Epic: [#63](https://github.com/karanbabu2110/KAOS/issues/63)
 - Completed feature: [#892](https://github.com/karanbabu2110/KAOS/issues/892)
@@ -471,7 +471,10 @@ contract and records why no additional executor hierarchy, invocation wrapper,
 dynamic discovery, module, or plugin framework is justified. This is the final
 ordered Epic 008 feature; Epic 009 begins with
 [009.01 - Bounded Agent Use Case](https://github.com/karanbabu2110/KAOS/issues/900)
-after merge.
+after the release checkpoint. The complete epic outcome and safety boundary are
+recorded in the [Epic 008 exit record](epic-008-exit.md). The cumulative release
+is [KAOS 1.7.0](../releases/v1.7.0.md), assigned to
+[milestone 7](https://github.com/karanbabu2110/KAOS/milestone/7).
 
 ## Maintenance rule
 
