@@ -14,6 +14,9 @@ public final class FreshnessPolicy {
                     + "events?|ceo|president|prime minister|governor|chair))\\b");
     private static final Pattern AVAILABLE_NOW = Pattern.compile(
             "\\b(available (now|today)|available right now)\\b");
+    private static final Pattern QUALIFIED_CURRENT_SECURITY_GUIDANCE = Pattern.compile(
+            "\\bcurrent(?: [\\p{Alnum}_.+-]+){1,3} security "
+                    + "(?:guidance|best practices?|recommendations?)\\b");
     private static final Pattern RECOMMENDATION_INTENT = Pattern.compile(
             "\\b(should (i|we) use|recommend(ed|ation)?|best)\\b");
     private static final Pattern TECHNOLOGY_OR_PRODUCT = Pattern.compile(
@@ -36,7 +39,8 @@ public final class FreshnessPolicy {
         String objective = normalize(goal.objective());
         if (EXPLICIT_RECENCY.matcher(objective).find()
                 || EXPLICIT_CURRENT_CONTEXT.matcher(objective).find()
-                || AVAILABLE_NOW.matcher(objective).find()) {
+                || AVAILABLE_NOW.matcher(objective).find()
+                || QUALIFIED_CURRENT_SECURITY_GUIDANCE.matcher(objective).find()) {
             return FreshnessRequirement.REQUIRED;
         }
         if ((RECOMMENDATION_INTENT.matcher(objective).find()

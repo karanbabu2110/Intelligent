@@ -382,17 +382,33 @@ the goal may need:
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_TOOL_READ_ROOT = (Resolve-Path ".").Path
 $env:KAOS_WEB_SEARCH_SEARXNG_URL = "http://127.0.0.1:8080"
-./gradlew.bat --% --console=plain run --args="agent \"Compare local KAOS tool boundaries with current SearXNG security guidance.\""
+./gradlew.bat --% --console=plain run --args="agent \"Read src/main/java/io/kaos/agent/package-info.java and compare the local agent boundaries with current SearXNG security guidance.\""
 ```
 
-The model returns one small JSON plan for stable/internal, local, current
-public, or mixed evidence. Before execution, `FreshnessPolicy` independently
+The planning request sends an exact JSON Schema through Ollama's structured
+output `format`, allowing only stable/internal, local, current-public, or mixed
+evidence shapes. `AgentPlanner` independently validates the returned plan.
+The instruction tells the model to select current-public evidence for either
+freshness or insufficient, uncertain, incomplete, obscure, or unreliable
+internal knowledge. It reserves `STABLE_INTERNAL` for sufficient, reliable,
+reasonably stable knowledge and asks for no reasoning trace or confidence
+percentage. KAOS deliberately has no deterministic knowledge or confidence
+classifier; this evidence choice remains part of the single model proposal.
+Before execution, `FreshnessPolicy` independently
 records `NOT_REQUIRED`, `RECOMMENDED`, or `REQUIRED`; required freshness rejects
 an otherwise valid plan that omits current-public evidence, while recommended
-freshness remains observable without rejecting the plan. `AgentPlanner` rejects malformed structures,
+freshness remains observable without rejecting the plan.
+Explicit read, inspection, or comparison requests involving local KAOS project
+evidence are likewise constrained to a plan containing `read_local_file`.
+Path-free agent-architecture and tool-architecture requests use only their
+existing package summaries; other local requests may still need an explicit
+relative file path.
+`AgentPlanner` rejects malformed structures,
 unknown tools, registered but disallowed `http_get`, duplicate or out-of-order
 steps, more than three total steps, and more than two tool steps before any
-execution. An accepted plan runs sequentially. Each file or search step displays
+execution. Rejections identify the failed invariant and state that no tool ran,
+without printing raw model output, the goal, paths, queries, or prompts. An
+accepted plan runs sequentially. Each file or search step displays
 its own existing Epic 008 disclosure and consumes its own exact `approve` or
 `deny` input; one approval never authorizes another step. Completed terminal
 tool snapshots are written through the existing content-free tool history.
@@ -408,7 +424,25 @@ answer is absent. If required current-public evidence is unavailable, KAOS says
 so explicitly instead of presenting model memory as verified current fact. See
 [agent evaluation](../evolution/agent-evaluation.md) and the
 [Epic 009 exit record](../evolution/epic-009-exit.md), plus
-[freshness policy hardening](../evolution/freshness-policy-hardening.md).
+[freshness policy hardening](../evolution/freshness-policy-hardening.md) and
+[structured planning](../evolution/structured-agent-planning.md).
+
+The local read remains a whole-file operation capped at 2,048 UTF-8 bytes. A
+larger target stops before approval with `LOCAL_FILE_TOO_LARGE` and prints the
+limit without exposing the path or reading content. Choose a smaller relevant
+project file; KAOS does not truncate, split, retry, or silently substitute a
+different file.
+
+Agent failures retain bounded, content-free diagnostics. Planning failures
+distinguish an unreachable Ollama endpoint, invalid response, token or local
+limit, stream failure, total timeout, inactivity timeout, and interruption;
+they never print the goal, prompt, or generated response. Approved search
+failures distinguish an unreachable SearXNG service, timeout, invalid JSON, and
+an oversized result. `SEARCH_SERVICE_UNAVAILABLE` means that setting
+`KAOS_WEB_SEARCH_SEARXNG_URL` was syntactically valid but no usable service
+answered. Run `docker info`, `docker compose ps`, and the JSON check in
+[the SearXNG setup](searxng-setup.md), then start a new agent run. KAOS does not
+start the container or retry the approved query.
 
 The separate `http-get` operation advertises only `http_get`. It accepts one
 strict URL request or an ordinary answer. After approved execution, its

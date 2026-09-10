@@ -17,8 +17,10 @@ retained on the validated `AgentPlan`.
 Hard-required phrases include explicit terms such as `latest`, `currently`,
 `today`, `recent`, `right now`, `as of`, `this week`, and `this month`, plus
 bounded combinations such as `current price`, `current version`, `best current`,
-`current security guidance`, and `available now`. Softer rules require context
-combinations rather than isolated domain words. Consequently `semantic
+`current security guidance`, and `available now`. A short product qualifier is
+allowed between `current` and `security guidance`, so `current SearXNG security
+guidance` remains required. Softer rules require context combinations rather
+than isolated domain words. Consequently `semantic
 versioning`, `price elasticity`, `security token`, and `event sourcing` do not
 trigger freshness by themselves.
 

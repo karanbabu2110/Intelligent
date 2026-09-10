@@ -27,6 +27,7 @@ public final class AgentPlanner {
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private final ToolSelector selector;
     private final FreshnessPolicy freshnessPolicy = new FreshnessPolicy();
+    private final LocalEvidencePolicy localEvidencePolicy = new LocalEvidencePolicy();
 
     public AgentPlanner(ToolRegistry registry) {
         selector = new ToolSelector(Objects.requireNonNull(registry), StandardTools.LOCAL);
@@ -54,6 +55,7 @@ public final class AgentPlanner {
         FreshnessRequirement freshness = freshnessPolicy.assess(goal);
         AgentPlan plan = new AgentPlan(UUID.randomUUID(), goal, need, freshness, steps);
         freshnessPolicy.validate(plan);
+        localEvidencePolicy.validate(plan);
         return plan;
     }
 

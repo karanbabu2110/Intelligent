@@ -21,6 +21,10 @@
  * <p>A small deterministic freshness policy independently marks each goal as
  * not requiring, recommending, or requiring current-public evidence. Required
  * freshness is enforced during planning; empty search results cannot count as
- * verified current evidence.</p>
+ * verified current evidence. The Ollama planning request now carries the exact
+ * bounded JSON Schema, and explicit local-project goals cannot omit local
+ * evidence. Two path-free architecture phrases map to existing bounded package
+ * summaries; no filesystem discovery is performed. Provider formatting remains
+ * a proposal subject to the same strict Java validation.</p>
  */
 package io.kaos.agent;

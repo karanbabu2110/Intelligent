@@ -17,6 +17,8 @@ class FreshnessPolicyTest {
                 "Which products are currently available?",
                 "What is the best current local AI assistant?",
                 "What are current security best practices for SearXNG?",
+                "Compare KAOS with current SearXNG security guidance.",
+                "Review current self-hosted SearXNG security recommendations.",
                 "Who is the current president of Exampleland?",
                 "What changed this month?"
         }) {

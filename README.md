@@ -305,15 +305,22 @@ Run one bounded foreground agent goal:
 $env:KAOS_TOOL_READ_ROOT = (Resolve-Path .).Path
 $env:KAOS_WEB_SEARCH_SEARXNG_URL = "http://127.0.0.1:8080"
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
-./gradlew.bat --% --console=plain run --args="agent \"Compare KAOS's local tool architecture with current SearXNG security guidance.\""
+./gradlew.bat --% --console=plain run --args="agent \"Read src/main/java/io/kaos/agent/package-info.java and compare the local agent boundaries with current SearXNG security guidance.\""
 ```
 
-The model proposes exactly one of four evidence shapes: stable/internal,
-local-file, current-public search, or local plus current-public. KAOS validates
-the proposal before execution. A small deterministic freshness policy records
+The model proposes exactly one of four evidence shapes through an Ollama
+structured-output JSON Schema: stable/internal, local-file, current-public
+search, or local plus current-public. KAOS independently validates the proposal
+before execution. The planning instruction reserves stable/internal answers for
+sufficient, reliable, reasonably stable model knowledge and asks the model to
+choose search when freshness matters or its knowledge is insufficient,
+uncertain, incomplete, obscure, or unreliable. This knowledge-gap choice is
+model-driven; KAOS does not guess model knowledge with keywords or request a
+confidence score. A separate small deterministic freshness policy records
 `NOT_REQUIRED`, `RECOMMENDED`, or `REQUIRED` on the plan; `REQUIRED` rejects a
 plan that omits current-public evidence, while `RECOMMENDED` remains observable
-without hard failure. KAOS allows at most three ordered steps and two tool steps,
+without hard failure. Explicit requests to read or compare local KAOS project
+evidence likewise cannot omit the local-file step. KAOS allows at most three ordered steps and two tool steps,
 and permits only `read_local_file` followed optionally by `web_search`.
 Every tool step shows its own existing Epic 008 approval prompt and requires a
 new single-use grant. A denial, invalid response, EOF, interruption, tool or
@@ -324,7 +331,12 @@ incomplete summary, but no final answer is produced unless synthesis succeeds. T
 untrusted data and cannot add or reorder steps. See the
 [agent evaluation](docs/evolution/agent-evaluation.md) and
 [Epic 009 exit record](docs/evolution/epic-009-exit.md), plus the
-[freshness hardening record](docs/evolution/freshness-policy-hardening.md).
+[freshness hardening](docs/evolution/freshness-policy-hardening.md) and
+[structured planning](docs/evolution/structured-agent-planning.md) records.
+
+`read_local_file` remains a whole-file operation capped at 2,048 UTF-8 bytes.
+For example, the repository `README.md` is currently larger than that boundary;
+requesting it produces `LOCAL_FILE_TOO_LARGE` before approval and reads nothing.
 
 Start one foreground session that actually retains and uses earlier clean turns:
 
