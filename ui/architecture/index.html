@@ -14,6 +14,7 @@
     <div class="nav-inner">
       <a class="brand" href="#overview">KAOS Architecture</a>
       <ul class="nav-links">
+        <li><a href="#agent-workflow">Agent workflow</a></li>
         <li><a href="#tool-runtime">Tool runtime</a></li>
         <li><a href="#runtime">Runtime</a></li>
         <li><a href="#flow">Code flow</a></li>
@@ -32,21 +33,21 @@
         <p class="lede">This website records what exists, what is approved next, and which boundaries remain only candidates. It is updated alongside implementation—not designed years ahead of it.</p>
       </div>
       <div class="stamp">
-        <strong>Baseline review 2026-09-08</strong>
-        Version 1.4.0 · Epic 006 release checkpoint<br>
+        <strong>Baseline review 2026-09-10</strong>
+        Version 1.7.0 · Epic 009 repository checkpoint<br>
         Java 21 · one Gradle project · one process
       </div>
     </header>
 
     <div class="legend" aria-label="Architecture status legend">
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
-      <span class="pill"><span class="dot next"></span>Next approved work</span>
+      <span class="pill"><span class="dot next"></span>Next evolutionary stage, inactive</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>Updated through Feature 008.08</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>Updated through Feature 009.09</span>
     </div>
-    <p class="change-note"><strong>Tool runtime update through Feature 008.08:</strong> Registry-backed metadata, bounded model selection, a shared approval/execution lifecycle, and content-free local execution history are implemented. Contract refinement retained this proven boundary without another runtime abstraction. The diagram below covers this update; the remaining baseline views retain their earlier review scope.</p>
+    <p class="change-note"><strong>Agent workflow update through Feature 009.09:</strong> One goal now reaches one model-proposed, KAOS-validated plan, sequential Epic 008 tool execution with independent approvals, and one no-tools evidence synthesis. The new view marks this update; the shared tool runtime remains unchanged.</p>
 
-    <section id="tool-runtime" class="panel change-current" aria-labelledby="tool-runtime-heading">
+    <section id="tool-runtime" class="panel" aria-labelledby="tool-runtime-heading">
       <h2 id="tool-runtime-heading">Shared multi-tool runtime</h2>
       <p><span class="status implemented">Implemented / Features 008.04-008.08</span> One Java 21 application, explicit constructor composition, three concrete tools, and one bounded local history store. The Feature 008.08 review retained this contract. This is not a plugin framework; dynamic discovery is not implemented.</p>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable shared tool runtime diagram">
@@ -96,6 +97,22 @@
       <p><code>read_local_file</code>, <code>http_get</code>, and <code>web_search</code> are registered. Shared conversation/search selection advertises only file and search; registration never grants authority. File containment and revalidation, HTTPS host/DNS rules, and the configured SearXNG endpoint remain tool-specific.</p>
       <p><span class="status implemented">Implemented / Feature 008.07</span> Every terminal validated tool attempt writes one content-free record. <code>tool-history</code> reads the newest 20. Direct answers and pre-validation failures do not create records; conversation message persistence remains unchanged.</p>
       <p>Evidence: <a href="../../docs/evolution/shared-tool-metadata.md">runtime architecture</a>, <a href="../../docs/evolution/tool-selection.md">selection</a>, <a href="../../docs/evolution/tool-permission-policies.md">permission policies</a>, <a href="../../docs/evolution/tool-execution-history.md">execution history</a>, <a href="../../docs/evolution/tool-contract-refinement.md">contract refinement</a>, and <a href="../../src/test/java/io/kaos/tool/history/SqliteToolExecutionHistoryTest.java">deterministic history tests</a>.</p>
+    </section>
+
+    <section id="agent-workflow" class="panel change-current" aria-labelledby="agent-workflow-heading">
+      <h2 id="agent-workflow-heading">First bounded agent workflow</h2>
+      <p><span class="status implemented">Implemented and evaluated / Feature 009.09</span> The foreground <code>agent</code> command adds orchestration above the retained Epic 008 runtime. A model can propose evidence acquisition, but only KAOS validation and a user's exact per-step approval can authorize execution.</p>
+      <div class="grid" aria-label="Bounded agent flow in execution order">
+        <article class="card"><div class="status implemented">1 · input</div><h3>AgentGoal</h3><p>Exactly one immutable, nonblank objective, bounded to 4,096 Unicode code points. It grants no tool authority.</p></article>
+        <article class="card"><div class="status implemented">2 · proposal</div><h3>AgentPlanner</h3><p>One tool-free Ollama JSON response is validated into exactly one of four permitted evidence shapes before execution.</p></article>
+        <article class="card"><div class="status implemented">3 · execution</div><h3>AgentExecutor</h3><p>Only the current sequential step can run. File and search resolve through <code>ToolRegistry</code>, concrete <code>KaosTool</code>, and exact <code>ToolPermissionPolicy</code>.</p></article>
+        <article class="card"><div class="status implemented">4 · authority</div><h3>Independent approval</h3><p>Each protected step renders its own resource disclosure and consumes one single-use grant. An earlier approval cannot authorize a later step.</p></article>
+        <article class="card"><div class="status implemented">5 · evidence</div><h3>No-tools synthesis</h3><p>Ordered results are untrusted data. Only empty, file, search, or file-then-search evidence is serialized; no tool is advertised to synthesis.</p></article>
+        <article class="card"><div class="status implemented">6 · terminal state</div><h3>AgentResult</h3><p>Success carries one answer. Failure or cancellation preserves completed evidence, marks unavailable current verification, and carries no answer.</p></article>
+      </div>
+      <p><strong>Hard boundary:</strong> one goal, one plan, at most three total steps, at most two tool steps, file before search, sequential foreground execution, and no retry, fallback, replanning, parallelism, persistence/resume, nested agent, destructive tool, URL fetching, or browser automation.</p>
+      <p><span class="status next">Next evolutionary stage / inactive</span> Epic 010 may introduce bounded browser automation only after explicit approval. No browser tool or browser authority exists in the current agent.</p>
+      <p>Evidence: <a href="../../src/main/java/io/kaos/app/AgentCommand.java"><code>AgentCommand.java</code></a>, <a href="../../src/main/java/io/kaos/agent/AgentPlanner.java"><code>AgentPlanner.java</code></a>, <a href="../../src/main/java/io/kaos/agent/AgentExecutor.java"><code>AgentExecutor.java</code></a>, <a href="../../src/test/java/io/kaos/app/AgentWorkflowEvaluationTest.java">end-to-end evaluation</a>, and <a href="../../docs/evolution/epic-009-exit.md">Epic 009 exit</a>.</p>
     </section>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
@@ -845,7 +862,7 @@
         <article class="card">
           <div class="status implemented">Epic 006 · release checkpoint</div>
           <h3>First Memory Capability complete</h3>
-          <p>Release 1.4.0 snapshots the nine-feature explicit memory outcome. The application remains one Gradle project and one process; Epic 007 is the next inactive checkpoint.</p>
+          <p>Release 1.4.0 snapshots the historical nine-feature explicit memory outcome. The application remains one Gradle project and one process.</p>
         </article>
         <article class="card">
           <div class="status future">Not justified today</div>
@@ -862,7 +879,7 @@
         <div class="capability"><strong>AI runtime</strong>Provider-neutral interaction after real provider learning.</div>
         <div class="capability"><strong>Knowledge / RAG</strong>Ingestion, retrieval, and grounded responses.</div>
         <div class="capability"><strong>Memory</strong>Useful retained context with explicit ownership.</div>
-        <div class="capability"><strong>Agents and tools</strong>Bounded action and orchestration capabilities.</div>
+        <div class="capability"><strong>Agents and tools</strong>The first bounded foreground workflow is implemented; broader autonomy remains a future candidate.</div>
         <div class="capability"><strong>Browser automation</strong>Web interaction when a real workflow requires it.</div>
         <div class="capability"><strong>Desktop automation</strong>Local operating-system interaction and controls.</div>
         <div class="capability"><strong>KAI developer assistant</strong>Development workflows built from proven KAOS capabilities.</div>
@@ -886,6 +903,7 @@
         <tbody>
           <tr><td>One build and application</td><td><a href="../../settings.gradle.kts"><code>settings.gradle.kts</code></a> and <a href="../../build.gradle.kts"><code>build.gradle.kts</code></a></td><td>Implemented</td></tr>
           <tr><td>Single process entry point</td><td><a href="../../src/main/java/io/kaos/app/KaosApplication.java"><code>KaosApplication.java</code></a></td><td>Implemented</td></tr>
+          <tr><td>Bounded goal-to-result agent workflow</td><td><a href="../../src/main/java/io/kaos/app/AgentCommand.java"><code>AgentCommand.java</code></a>, <a href="../../src/main/java/io/kaos/agent/AgentPlan.java"><code>AgentPlan.java</code></a>, <a href="../../src/test/java/io/kaos/app/AgentWorkflowEvaluationTest.java"><code>AgentWorkflowEvaluationTest.java</code></a>, and <a href="../../docs/evolution/agent-evaluation.md">evaluation record</a></td><td>Implemented and verified through Feature 009.09</td></tr>
           <tr><td>Explicit application composition and command responsibilities</td><td><a href="../../src/main/java/io/kaos/app/ApplicationRuntime.java"><code>ApplicationRuntime.java</code></a>, <a href="../../src/main/java/io/kaos/app/CommandRouter.java"><code>CommandRouter.java</code></a>, <a href="../../src/main/java/io/kaos/app/ConversationCommand.java"><code>ConversationCommand.java</code></a>, <a href="../../src/main/java/io/kaos/app/OllamaPromptCommand.java"><code>OllamaPromptCommand.java</code></a>, and <a href="../../docs/development/developer-guide.md#application-code-organization">coding responsibility rules</a></td><td>Implemented and verified on main</td></tr>
           <tr><td>Local validated configuration</td><td><a href="../../src/main/java/io/kaos/app/config/ApplicationConfiguration.java"><code>ApplicationConfiguration.java</code></a></td><td>Implemented</td></tr>
           <tr><td>Package-first growth</td><td><a href="../../docs/evolution/package-first-application-structure.md">Package-first structure</a></td><td>Active rule</td></tr>

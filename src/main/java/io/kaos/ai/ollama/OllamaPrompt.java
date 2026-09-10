@@ -3,7 +3,7 @@ package io.kaos.ai.ollama;
 /** One bounded prompt and optional KAOS-controlled instruction for local Ollama. */
 public record OllamaPrompt(String text, String systemInstruction) {
     public static final int MAX_PROMPT_CODE_POINTS = 4096;
-    public static final int MAX_SYSTEM_INSTRUCTION_CODE_POINTS = 256;
+    public static final int MAX_SYSTEM_INSTRUCTION_CODE_POINTS = 1_024;
 
     public OllamaPrompt(String text) {
         this(text, "");

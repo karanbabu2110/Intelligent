@@ -12,7 +12,10 @@
  * validated concrete request without executing it. Matching continuation operations send the
  * assistant request and bounded result back to Ollama while advertising no further tools.
  * Conversation and web-search selection may advertise file and search together,
- * accepting only one concrete request. Ordinary prompt and knowledge requests remain tool-free.
+ * accepting only one concrete request. Agent planning remains a tool-free structured
+ * response; its synthesis operation accepts only the validated empty, file, search,
+ * or file-then-search evidence shape and advertises no tools. Ordinary prompt and
+ * knowledge requests remain tool-free.
  * Explicitly enabled thinking produces only a
  * content-free progress signal; raw reasoning remains separate from terminal
  * output. Streaming is backpressured one publisher item at a time, bounded by

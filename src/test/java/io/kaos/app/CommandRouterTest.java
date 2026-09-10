@@ -12,6 +12,28 @@ import org.junit.jupiter.api.Test;
 
 class CommandRouterTest {
     @Test
+    void dispatchesOneQuotedGoalOnlyToTheBoundedAgent() {
+        AtomicInteger agentCalls = new AtomicInteger();
+        CommandRouter.Command command = () -> KaosApplication.SUCCESS;
+        CommandRouter router = new CommandRouter(
+                context(new ByteArrayOutputStream(), new ByteArrayOutputStream()),
+                argument -> command.execute(), command, command,
+                argument -> command.execute(), command)
+                .withAgent(goal -> {
+                    assertEquals("Compare local and current evidence", goal);
+                    agentCalls.incrementAndGet();
+                    return KaosApplication.SUCCESS;
+                });
+
+        assertEquals(KaosApplication.SUCCESS,
+                router.route(new String[] {"agent", "Compare local and current evidence"}));
+        assertEquals(KaosApplication.USAGE_ERROR, router.route(new String[] {"agent"}));
+        assertEquals(KaosApplication.USAGE_ERROR,
+                router.route(new String[] {"agent", "one", "two"}));
+        assertEquals(1, agentCalls.get());
+    }
+
+    @Test
     void dispatchesToolHistoryWithoutArguments() {
         AtomicInteger historyCalls = new AtomicInteger();
         CommandRouter.Command command = () -> KaosApplication.SUCCESS;

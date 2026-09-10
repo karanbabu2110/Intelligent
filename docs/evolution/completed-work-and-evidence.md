@@ -476,6 +476,41 @@ recorded in the [Epic 008 exit record](epic-008-exit.md). The cumulative release
 is [KAOS 1.7.0](../releases/v1.7.0.md), assigned to
 [milestone 7](https://github.com/karanbabu2110/KAOS/milestone/7).
 
+## Epic 009 - First Agent Workflow (repository complete)
+
+- Epic: [#53](https://github.com/karanbabu2110/KAOS/issues/53)
+- Features: [#900](https://github.com/karanbabu2110/KAOS/issues/900),
+  [#901](https://github.com/karanbabu2110/KAOS/issues/901),
+  [#902](https://github.com/karanbabu2110/KAOS/issues/902),
+  [#903](https://github.com/karanbabu2110/KAOS/issues/903),
+  [#904](https://github.com/karanbabu2110/KAOS/issues/904),
+  [#905](https://github.com/karanbabu2110/KAOS/issues/905),
+  [#906](https://github.com/karanbabu2110/KAOS/issues/906),
+  [#907](https://github.com/karanbabu2110/KAOS/issues/907), and
+  [#908](https://github.com/karanbabu2110/KAOS/issues/908)
+- Merged delivery through Feature 009.08: PRs
+  [#87](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/87)
+  through [#94](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/94)
+- Exit evidence: [Epic 009 exit](epic-009-exit.md) and
+  [agent evaluation](agent-evaluation.md)
+
+The foreground `agent` command now turns one immutable goal into one
+model-proposed, KAOS-validated plan. It executes only the current sequential
+step, reuses the Epic 008 registry, concrete tools, permission policies, grants,
+results, and history, and sends ordered untrusted evidence to one no-tools
+synthesis. Freshness-sensitive plans acquire current public evidence; missing
+required verification produces an incomplete result without an answer.
+
+The deterministic exit suite proves stable, current, local, and mixed paths;
+independent denial, invalid input, EOF, cancellation, unavailability, history,
+tool, and provider failures; malformed and unbounded plans; disallowed tools;
+prompt-injection isolation; current-evidence precedence; and one successful
+end-to-end workflow across actual temporary-file and loopback HTTP boundaries.
+The Feature 009.09 tree passed all 11 `verifyLocal` tasks with 515 tests across
+69 suites: 511 passed, zero failed or errored, and four documented
+platform-specific symlink checks were skipped. Final delivery is recorded in
+its pull request after the approved commit is created.
+
 ## Maintenance rule
 
 After each feature merge, add its feature, story/task, delivery, and evidence
