@@ -1,5 +1,6 @@
 package io.kaos.tool.readlocalfile;
 
+import io.kaos.tool.permission.ToolPermissionDecision;
 import io.kaos.tool.readlocalfile.ReadLocalFileAuditRecord.Decision;
 import io.kaos.tool.readlocalfile.ReadLocalFileAuditRecord.Outcome;
 import java.util.Objects;
@@ -20,7 +21,7 @@ public final class ReadLocalFileAuditContext {
         return new ReadLocalFileAuditContext(target, UUID.randomUUID());
     }
 
-    static ReadLocalFileAuditContext start(
+    public static ReadLocalFileAuditContext start(
             ReadLocalFileTarget target, UUID targetIdentity) {
         return new ReadLocalFileAuditContext(target, targetIdentity);
     }
@@ -29,7 +30,12 @@ public final class ReadLocalFileAuditContext {
     public synchronized ReadLocalFileAuditRecord recordNotExecuted(
             ReadLocalFileApprovalOutcome approval) {
         Objects.requireNonNull(approval, "approval");
-        Decision decision = switch (approval.status()) {
+        return recordNotExecuted(ToolPermissionDecision.valueOf(approval.status().name()));
+    }
+
+    public synchronized ReadLocalFileAuditRecord recordNotExecuted(
+            ToolPermissionDecision approval) {
+        Decision decision = switch (approval) {
             case DENIED -> Decision.DENIED;
             case CANCELLED -> Decision.CANCELLED;
             case INVALID_RESPONSE -> Decision.INVALID_RESPONSE;

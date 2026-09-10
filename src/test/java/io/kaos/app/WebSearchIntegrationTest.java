@@ -50,7 +50,7 @@ class WebSearchIntegrationTest {
         }
     }
     @Test void denialMalformedInputAndEofNeverSearchOrContinue() throws Exception {
-        for (String input : List.of("deny\n", "yes\n", "", "approve".repeat(20) + "\n")) {
+        for (String input : List.of("deny\n", "yes\n", "", "approve", "approve".repeat(20) + "\n")) {
             try (Fixture f = new Fixture(tool("web_search", "{\"query\":\"private query\"}"))) {
                 assertEquals(0, f.command(input).execute("Current facts?"));
                 assertEquals(0, f.searchCalls.get());
@@ -58,6 +58,28 @@ class WebSearchIntegrationTest {
             }
         }
     }
+    @Test void interruptedInputAndIoFailureCancelWithoutSearchOrContinuation() throws Exception {
+        for (boolean interrupt : List.of(false, true)) {
+            try (Fixture f = new Fixture(tool("web_search", "{\"query\":\"private query\"}"))) {
+                var command = f.command("");
+                try {
+                    var outcome = command.submit("Current facts?", ConversationHistory.empty(), () -> {
+                        if (interrupt) {
+                            Thread.currentThread().interrupt();
+                            return "approve";
+                        }
+                        throw new IOException("private input failure");
+                    });
+                    assertEquals(0, outcome.exitCode());
+                    assertFalse(outcome.persistable());
+                    assertTrue(f.output().contains("decision=CANCELLED outcome=NOT_EXECUTED"));
+                    assertEquals(0, f.searchCalls.get());
+                    assertEquals(1, f.messages.size());
+                } finally { Thread.interrupted(); }
+            }
+        }
+    }
+
     @Test void directAnswerDoesNotLoadSearchOrFileConfiguration() throws Exception {
         try (Fixture f = new Fixture(answer("Dependency injection explanation"))) {
             var command = new LocalToolsCommand(f.context(""), () -> new OllamaModelConfiguration("test"),

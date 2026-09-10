@@ -16,7 +16,7 @@ interface ApprovalInput {
             if (value.length() < 33) value.append((char) character);
             else excessive = true;
         }
-        if (character < 0 && value.isEmpty()) return null;
+        if (character < 0) return null;
         return excessive ? "" : value.toString();
     }
 }

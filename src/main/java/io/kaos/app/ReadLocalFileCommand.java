@@ -3,18 +3,19 @@ package io.kaos.app;
 import io.kaos.ai.ollama.OllamaModelConfiguration;
 import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
-import io.kaos.tool.readlocalfile.ReadLocalFileApprovalOutcome;
-import io.kaos.tool.readlocalfile.ReadLocalFileApprovalRequest;
+import io.kaos.tool.StandardTools;
+import io.kaos.tool.permission.ToolPermissionDecision;
+import io.kaos.tool.readlocalfile.ReadLocalFile;
 import io.kaos.tool.readlocalfile.ReadLocalFileAuditContext;
 import io.kaos.tool.readlocalfile.ReadLocalFileAuditRecord;
 import io.kaos.tool.readlocalfile.ReadLocalFileExecutionException;
-import io.kaos.tool.readlocalfile.ReadLocalFileExecutor;
 import io.kaos.tool.readlocalfile.ReadLocalFileFailure;
 import io.kaos.tool.readlocalfile.ReadLocalFileFailureMapper;
 import io.kaos.tool.readlocalfile.ReadLocalFilePermissionException;
 import io.kaos.tool.readlocalfile.ReadLocalFilePermissionValidator;
 import io.kaos.tool.readlocalfile.ReadLocalFileRequest;
 import io.kaos.tool.readlocalfile.ReadLocalFileResult;
+import io.kaos.tool.readlocalfile.ReadLocalFileTarget;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -84,6 +85,11 @@ final class ReadLocalFileCommand {
             return KaosApplication.SUCCESS;
         }
 
+        if (initial.selection().isEmpty()
+                || !StandardTools.READ_LOCAL_FILE.contains(initial.selection().orElseThrow().name())) {
+            report(ReadLocalFileFailureMapper.invalidRequest());
+            return KaosApplication.APPLICATION_ERROR;
+        }
         ReadLocalFileRequest request = initial.toolRequest().orElseThrow();
         ReadLocalFilePermissionValidator validator;
         try {
@@ -93,9 +99,6 @@ final class ReadLocalFileCommand {
         } catch (ReadLocalFilePermissionException exception) {
             report(ReadLocalFileFailureMapper.from(exception));
             return KaosApplication.APPLICATION_ERROR;
-        } catch (IllegalArgumentException exception) {
-            report(ReadLocalFileFailureMapper.invalidRequest());
-            return KaosApplication.APPLICATION_ERROR;
         }
     }
 
@@ -104,12 +107,13 @@ final class ReadLocalFileCommand {
             OllamaPrompt prompt,
             OllamaPromptClient.Result initial,
             ReadLocalFilePermissionValidator validator,
-            io.kaos.tool.readlocalfile.ReadLocalFileTarget target) {
-        ReadLocalFileAuditContext audit = ReadLocalFileAuditContext.start(target);
-        ReadLocalFileApprovalRequest approvalRequest = new ReadLocalFileApprovalRequest(target);
+            ReadLocalFileTarget target) {
+        var approvalRequest = ReadLocalFile.permission(validator, target);
+        ReadLocalFileAuditContext audit = ReadLocalFileAuditContext.start(
+                target, approvalRequest.snapshot().operationId());
         context.output().println(approvalRequest.prompt());
 
-        ReadLocalFileApprovalOutcome approval;
+        ToolPermissionDecision approval;
         try {
             if (Thread.currentThread().isInterrupted()) {
                 approval = approvalRequest.cancel();
@@ -120,17 +124,16 @@ final class ReadLocalFileCommand {
             approval = approvalRequest.cancel();
         }
 
-        if (!approval.approved()) {
+        if (approval != ToolPermissionDecision.APPROVED) {
             ReadLocalFileAuditRecord record = audit.recordNotExecuted(approval);
-            context.output().println(notApprovedMessage(approval.status()));
+            context.output().println(approvalRequest.notApprovedMessage());
             reportAudit(record);
             return KaosApplication.SUCCESS;
         }
 
         ReadLocalFileResult result;
         try {
-            result = new ReadLocalFileExecutor(validator)
-                    .execute(approval.grant().orElseThrow());
+            result = approvalRequest.execute();
         } catch (ReadLocalFileExecutionException exception) {
             ReadLocalFileAuditRecord record =
                     exception.reason() == ReadLocalFileExecutionException.Reason.CANCELLED
@@ -180,7 +183,7 @@ final class ReadLocalFileCommand {
             }
             response.append((char) character);
         }
-        return character < 0 && response.isEmpty() ? null : response.toString();
+        return character < 0 ? null : response.toString();
     }
 
     private int reportProviderFailure(OllamaPromptClient.Status status) {
@@ -227,18 +230,6 @@ final class ReadLocalFileCommand {
         context.output().println("AUDIT [" + record.operation() + "] target="
                 + record.targetIdentity() + " decision=" + record.decision()
                 + " outcome=" + record.outcome());
-    }
-
-    private static String notApprovedMessage(ReadLocalFileApprovalOutcome.Status status) {
-        return switch (status) {
-            case DENIED -> "Tool request denied. No file was read.";
-            case CANCELLED -> "Tool request cancelled. No file was read.";
-            case INVALID_RESPONSE ->
-                    "Tool request not approved. Expected 'approve' or 'deny'; no file was read.";
-            case END_OF_INPUT -> "Tool request ended without approval. No file was read.";
-            case APPROVED -> throw new IllegalStateException(
-                    "Approved tool request must be executed.");
-        };
     }
 
     private record ProviderFailure(String code, String message) { }

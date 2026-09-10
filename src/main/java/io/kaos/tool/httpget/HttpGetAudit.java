@@ -1,16 +1,27 @@
 package io.kaos.tool.httpget;
 
+import io.kaos.tool.permission.ToolPermissionDecision;
 import java.util.Objects;
 import java.util.UUID;
 
 /** Produces one URL-free final audit value for one HTTP GET tool request. */
 public final class HttpGetAudit {
-    private final UUID targetIdentity = UUID.randomUUID();
+    private final UUID targetIdentity;
+
+    public HttpGetAudit() { this(UUID.randomUUID()); }
+
+    public HttpGetAudit(UUID targetIdentity) {
+        this.targetIdentity = Objects.requireNonNull(targetIdentity, "targetIdentity");
+    }
     private boolean recorded;
 
     public Record notExecuted(HttpGetApproval.Outcome approval) {
         Objects.requireNonNull(approval, "approval");
-        Decision decision = switch (approval.status()) {
+        return notExecuted(ToolPermissionDecision.valueOf(approval.status().name()));
+    }
+
+    public Record notExecuted(ToolPermissionDecision approval) {
+        Decision decision = switch (approval) {
             case DENIED -> Decision.DENIED;
             case CANCELLED -> Decision.CANCELLED;
             case INVALID_RESPONSE -> Decision.INVALID_RESPONSE;

@@ -45,6 +45,61 @@ class OllamaPromptClientTest {
             + "\"done_reason\":\"stop\",\"total_duration\":900,"
             + "\"prompt_eval_count\":12,\"eval_count\":7,\"eval_duration\":600}\n";
 
+    @Test void additionalRegisteredToolSelectsExecutesAndContinuesWithoutConcreteDispatch() throws Exception {
+        var tool = new io.kaos.tool.FixtureTool();
+        var registry = new io.kaos.tool.ToolRegistry(List.of(tool));
+        var model = new OllamaModelConfiguration("fixture");
+        var prompt = new OllamaPrompt("Echo once");
+        OllamaPromptClient.Result pending;
+        try (var server = LocalChatServer.streaming(
+                toolCallLine(io.kaos.tool.FixtureTool.NAME, "{\"value\":\"private argument\"}", ""), TERMINAL)) {
+            pending = client(server.endpoint()).submitWithTools(model, ConversationHistory.empty(),
+                    prompt, registry, List.of(io.kaos.tool.FixtureTool.NAME));
+            assertTrue(pending.successful());
+            assertTrue(pending.toolRequested());
+            assertTrue(pending.toolRequest().isEmpty());
+            assertEquals(tool.definition(), JSON.readTree(server.requestBody()).path("tools").get(0));
+            assertEquals(0, tool.executions());
+        }
+        var permission = pending.selection().orElseThrow().prepare();
+        assertThrows(IllegalStateException.class, permission::execute);
+        permission.decide("approve");
+        var result = permission.execute();
+        assertEquals(1, tool.executions());
+        try (var server = LocalChatServer.streaming(jsonLine("Done", "", false), TERMINAL)) {
+            var completion = client(server.endpoint()).continueWithToolResult(model, prompt, pending, result);
+            assertTrue(completion.successful());
+            var request = JSON.readTree(server.requestBody());
+            assertFalse(request.has("tools"));
+            assertEquals("fixture_tool", request.path("messages").get(2).path("tool_name").asText());
+            assertEquals("private argument", JSON.readTree(request.path("messages").get(2)
+                    .path("content").asText()).path("echo").asText());
+            var other = new io.kaos.tool.FixtureTool.FixtureResult("different request");
+            assertThrows(IllegalArgumentException.class,
+                    () -> client(server.endpoint()).continueWithToolResult(model, prompt, pending, other));
+        }
+        try (var server = LocalChatServer.streaming(
+                toolCallLine("fixture_tool", "{\"value\":\"second\"}", ""), TERMINAL)) {
+            assertFalse(client(server.endpoint()).continueWithToolResult(model, prompt, pending, result).successful());
+            assertEquals(1, tool.executions());
+        }
+    }
+
+    @Test void retainsSafeSelectionFailureCategoriesThroughProviderBoundary() throws Exception {
+        for (var entry : java.util.Map.of(
+                "unknown", io.kaos.tool.ToolSelectionException.Reason.UNKNOWN_TOOL,
+                "http_get", io.kaos.tool.ToolSelectionException.Reason.DISALLOWED_TOOL,
+                "read_local_file", io.kaos.tool.ToolSelectionException.Reason.MALFORMED_ARGUMENTS).entrySet()) {
+            try (var server = LocalChatServer.streaming(toolCallLine(entry.getKey(), "{}", ""), TERMINAL)) {
+                var result = client(server.endpoint()).submitWithLocalTools(new OllamaModelConfiguration("fixture"),
+                        ConversationHistory.empty(), new OllamaPrompt("Question"));
+                assertEquals(OllamaPromptClient.Status.INVALID_RESPONSE, result.status());
+                assertEquals(entry.getValue(), result.selectionFailure().orElseThrow());
+                assertTrue(result.selection().isEmpty());
+            }
+        }
+    }
+
     @Test
     void requestsStreamingAndEmitsValidatedChunksOnceInOrder() throws Exception {
         try (LocalChatServer server = LocalChatServer.streaming(

@@ -73,7 +73,7 @@ class HttpGetCommandIntegrationTest {
 
     @Test
     void invalidApprovalAndEndOfInputDoNotExecuteOrContinue() {
-        for (String input : new String[] {"yes\n", "APPROVE\n", "approve twice\n", ""}) {
+        for (String input : new String[] {"yes\n", "APPROVE\n", "approve twice\n", "", "approve"}) {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             ByteArrayOutputStream errors = new ByteArrayOutputStream();
             HttpGetCommand command = command(input, output, errors,
@@ -83,7 +83,7 @@ class HttpGetCommandIntegrationTest {
 
             assertEquals(KaosApplication.SUCCESS,
                     command.execute("Summarize the reference."));
-            String decision = input.isEmpty() ? "END_OF_INPUT" : "INVALID_RESPONSE";
+            String decision = !input.endsWith("\n") ? "END_OF_INPUT" : "INVALID_RESPONSE";
             assertTrue(output.toString(StandardCharsets.UTF_8)
                     .contains("decision=" + decision + " outcome=NOT_EXECUTED"));
             assertEquals("", errors.toString(StandardCharsets.UTF_8));

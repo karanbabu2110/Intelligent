@@ -1,5 +1,6 @@
 package io.kaos.tool.httpget;
 
+import io.kaos.tool.permission.ToolPermissionDecision;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -13,7 +14,7 @@ public final class HttpGetApproval {
     }
 
     public String prompt() {
-        return "Tool: http_get\n"
+        return "Tool: " + HttpGetToolContract.NAME + "\n"
                 + "Exact URL: " + target.uri() + "\n"
                 + "If approved, KAOS will contact this external host and supply its bounded "
                 + "text response to the configured local Ollama model for this answer only.\n"
@@ -23,12 +24,10 @@ public final class HttpGetApproval {
     public synchronized Outcome decide(String response) {
         requirePending();
         decided = true;
-        if (response == null) return Outcome.notApproved(Status.END_OF_INPUT);
-        return switch (response.strip()) {
-            case "approve" -> Outcome.approved(new Grant(target));
-            case "deny" -> Outcome.notApproved(Status.DENIED);
-            default -> Outcome.notApproved(Status.INVALID_RESPONSE);
-        };
+        var status = ToolPermissionDecision.parse(response);
+        return status == ToolPermissionDecision.APPROVED
+                ? Outcome.approved(new Grant(target))
+                : Outcome.notApproved(Status.valueOf(status.name()));
     }
 
     public synchronized Outcome cancel() {

@@ -1,5 +1,7 @@
 package io.kaos.tool.httpget;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import io.kaos.tool.ToolResult;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -8,7 +10,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /** One complete bounded UTF-8 HTTP response associated with its approved request. */
-public record HttpGetResult(HttpGetRequest request, String content, String mediaType) {
+public record HttpGetResult(HttpGetRequest request, String content, String mediaType) implements ToolResult<HttpGetRequest> {
+    @Override public String toolName() { return HttpGetToolContract.NAME; }
+    @Override public JsonNode modelContent() {
+        return HttpGetToolContract.encodeResult(this);
+    }
+
     public static final int MAX_CONTENT_UTF8_BYTES = 32_768;
 
     public HttpGetResult {

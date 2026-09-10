@@ -5,19 +5,24 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.kaos.tool.websearch.WebSearchRequest;
-import io.kaos.tool.websearch.WebSearchResult;
-import io.kaos.tool.websearch.WebSearchToolContract;
-import io.kaos.tool.websearch.WebSearchException;
 import io.kaos.conversation.ConversationHistory;
 import io.kaos.conversation.ConversationMessage;
 import io.kaos.conversation.ConversationRole;
+import io.kaos.tool.StandardTools;
+import io.kaos.tool.ToolRegistry;
+import io.kaos.tool.ToolResult;
+import io.kaos.tool.ToolSelection;
+import io.kaos.tool.ToolSelectionException;
+import io.kaos.tool.ToolSelector;
 import io.kaos.tool.httpget.HttpGetRequest;
 import io.kaos.tool.httpget.HttpGetResult;
 import io.kaos.tool.httpget.HttpGetToolContract;
 import io.kaos.tool.readlocalfile.ReadLocalFileRequest;
 import io.kaos.tool.readlocalfile.ReadLocalFileResult;
 import io.kaos.tool.readlocalfile.ReadLocalFileToolContract;
+import io.kaos.tool.websearch.WebSearchRequest;
+import io.kaos.tool.websearch.WebSearchResult;
+import io.kaos.tool.websearch.WebSearchToolContract;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -59,16 +64,19 @@ public final class OllamaPromptClient {
     private static final Duration INACTIVITY_TIMEOUT = Duration.ofMinutes(1);
     private static final ObjectMapper JSON = new ObjectMapper()
             .enable(com.fasterxml.jackson.core.JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+    private final ToolRegistry tools;
     private final HttpClient httpClient;
     private final URI chatEndpoint;
     private final Duration requestTimeout;
     private final Duration inactivityTimeout;
 
     /** Creates a client restricted to the fixed local Ollama chat endpoint. */
-    public OllamaPromptClient() {
+    public OllamaPromptClient() { this(StandardTools.create()); }
+
+    public OllamaPromptClient(ToolRegistry tools) {
         this(HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT)
                         .followRedirects(HttpClient.Redirect.NEVER).build(),
-                LOCAL_CHAT_ENDPOINT, REQUEST_TIMEOUT, INACTIVITY_TIMEOUT);
+                LOCAL_CHAT_ENDPOINT, REQUEST_TIMEOUT, INACTIVITY_TIMEOUT, tools);
     }
 
     OllamaPromptClient(HttpClient httpClient, URI chatEndpoint, Duration requestTimeout) {
@@ -77,6 +85,12 @@ public final class OllamaPromptClient {
 
     OllamaPromptClient(HttpClient httpClient, URI chatEndpoint, Duration requestTimeout,
             Duration inactivityTimeout) {
+        this(httpClient, chatEndpoint, requestTimeout, inactivityTimeout, StandardTools.create());
+    }
+
+    OllamaPromptClient(HttpClient httpClient, URI chatEndpoint, Duration requestTimeout,
+            Duration inactivityTimeout, ToolRegistry tools) {
+        this.tools = Objects.requireNonNull(tools, "tools");
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
         this.chatEndpoint = requireLoopbackHttpEndpoint(chatEndpoint);
         this.requestTimeout = requirePositiveTimeout(requestTimeout);
@@ -92,32 +106,41 @@ public final class OllamaPromptClient {
     public Result submitWithReadLocalFileTool(
             OllamaModelConfiguration model, OllamaPrompt prompt) {
         return submit(model, ConversationHistory.empty(), prompt,
-                () -> { }, ignored -> { }, true, false, false);
+                () -> { }, ignored -> { }, StandardTools.READ_LOCAL_FILE);
     }
 
     /** Advertises only {@code http_get} and returns its request without executing it. */
     public Result submitWithHttpGetTool(
             OllamaModelConfiguration model, OllamaPrompt prompt) {
         return submit(model, ConversationHistory.empty(), prompt,
-                () -> { }, ignored -> { }, false, true, false);
+                () -> { }, ignored -> { }, StandardTools.HTTP_GET);
     }
 
 
     /** Advertises file and search together; accepts at most one call across the stream. */
     public Result submitWithLocalTools(OllamaModelConfiguration model,
             ConversationHistory history, OllamaPrompt prompt) {
-        return submit(model, history, prompt, () -> { }, ignored -> { }, true, false, true);
+        return submit(model, history, prompt, () -> { }, ignored -> { }, StandardTools.LOCAL);
     }
 
-    /** Continues the exact approved search result; no tools are advertised. */
-    public Result continueWithWebSearchResult(OllamaModelConfiguration model,
-            OllamaPrompt prompt, Result pending, WebSearchResult result) {
-        if (!pending.successful() || !pending.webSearchRequest().filter(result.request()::equals).isPresent()) {
-            throw new IllegalArgumentException("Search continuation requires a matching pending request.");
+    /** Advertises only the caller's explicit operation scope. */
+    public Result submitWithTools(OllamaModelConfiguration model, ConversationHistory history,
+            OllamaPrompt prompt, ToolRegistry registry, List<String> allowedTools) {
+        // The same registry supplies both advertisement and resolution for this request.
+        return submit(model, history, prompt, () -> { }, ignored -> { }, new ToolSelector(registry, allowedTools));
+    }
+
+    /** Continues one matching result with no advertised tools and no execution loop. */
+    public Result continueWithToolResult(OllamaModelConfiguration model, OllamaPrompt prompt,
+            Result pending, ToolResult<?> result) {
+        ToolSelection selection = pending.selection().orElseThrow(() ->
+                new IllegalArgumentException("Continuation requires a pending tool selection."));
+        if (!pending.successful() || !selection.matches(result)) {
+            throw new IllegalArgumentException("Continuation requires the matching tool result.");
         }
         try {
-            var function = JSON.createObjectNode().put("name", WebSearchToolContract.NAME)
-                    .set("arguments", JSON.createObjectNode().put("query", result.request().query()));
+            var function = JSON.createObjectNode().put("name", selection.name())
+                    .set("arguments", selection.arguments());
             var call = JSON.createObjectNode().put("type", "function").set("function", function);
             List<ChatMessage> messages = new ArrayList<>();
             if (!prompt.systemInstruction().isEmpty()) {
@@ -125,17 +148,25 @@ public final class OllamaPromptClient {
             }
             messages.add(ChatMessage.text("user", prompt.text()));
             messages.add(ChatMessage.toolCall(pending.thinking(), call));
-            messages.add(ChatMessage.toolResult(WebSearchToolContract.NAME,
-                    JSON.writeValueAsString(WebSearchToolContract.encodeResult(result))));
+            messages.add(ChatMessage.toolResult(selection.name(), JSON.writeValueAsString(result.modelContent())));
             BoundedRequestOutputStream output = new BoundedRequestOutputStream(MAX_REQUEST_BYTES);
             JSON.writeValue(output, new ChatRequest(model.modelName(), List.copyOf(messages),
                     List.of(), true, model.thinkingMode().enabled(),
                     new GenerateOptions(model.contextWindow(), model.responseTokenLimit())));
             return submitRequest(output.toByteArray(), model.thinkingMode(),
-                    () -> { }, ignored -> { }, false, false, false);
-        } catch (IOException exception) {
+                    () -> { }, ignored -> { }, new ToolSelector(tools, List.of()));
+        } catch (RequestLimitException exception) {
             return Result.failed(Status.LOCAL_LIMIT_REACHED);
+        } catch (IOException exception) {
+            if (isCausedByRequestLimit(exception)) return Result.failed(Status.LOCAL_LIMIT_REACHED);
+            throw new IllegalStateException("Unable to encode validated tool continuation.", exception);
         }
+    }
+
+    /** Continues the exact approved search result; no tools are advertised. */
+    public Result continueWithWebSearchResult(OllamaModelConfiguration model,
+            OllamaPrompt prompt, Result pending, WebSearchResult result) {
+        return continueWithToolResult(model, prompt, pending, result);
     }
 
     /** Continues one exact tool request with its bounded result and permits no further tool call. */
@@ -144,28 +175,7 @@ public final class OllamaPromptClient {
             OllamaPrompt prompt,
             Result toolCallResult,
             ReadLocalFileResult result) {
-        Objects.requireNonNull(model, "model");
-        Objects.requireNonNull(prompt, "prompt");
-        Objects.requireNonNull(toolCallResult, "toolCallResult");
-        Objects.requireNonNull(result, "result");
-        if (!toolCallResult.successful() || !toolCallResult.toolRequested()) {
-            throw new IllegalArgumentException(
-                    "Tool continuation requires one successful pending tool request.");
-        }
-        ReadLocalFileRequest request = toolCallResult.toolRequest().orElseThrow();
-        if (!request.equals(result.request())) {
-            throw new IllegalArgumentException(
-                    "Tool result must belong to the requested local file.");
-        }
-
-        byte[] requestBody = encodeToolContinuation(
-                model.modelName(), prompt, toolCallResult.thinking(), request, result,
-                model.contextWindow(), model.thinkingMode(), model.responseTokenLimit());
-        if (requestBody == null) {
-            return Result.failed(Status.LOCAL_LIMIT_REACHED);
-        }
-        return submitRequest(requestBody, model.thinkingMode(),
-                () -> { }, ignored -> { }, false, false, false);
+        return continueWithToolResult(model, prompt, toolCallResult, result);
     }
 
     /** Continues one exact HTTP GET request and permits no further tool call. */
@@ -174,25 +184,7 @@ public final class OllamaPromptClient {
             OllamaPrompt prompt,
             Result toolCallResult,
             HttpGetResult result) {
-        Objects.requireNonNull(model, "model");
-        Objects.requireNonNull(prompt, "prompt");
-        Objects.requireNonNull(toolCallResult, "toolCallResult");
-        Objects.requireNonNull(result, "result");
-        if (!toolCallResult.successful() || !toolCallResult.httpGetRequested()) {
-            throw new IllegalArgumentException(
-                    "Tool continuation requires one successful pending HTTP GET request.");
-        }
-        HttpGetRequest request = toolCallResult.httpGetRequest().orElseThrow();
-        if (!request.equals(result.request())) {
-            throw new IllegalArgumentException(
-                    "Tool result must belong to the requested HTTP resource.");
-        }
-        byte[] requestBody = encodeHttpGetContinuation(
-                model.modelName(), prompt, toolCallResult.thinking(), request, result,
-                model.contextWindow(), model.thinkingMode(), model.responseTokenLimit());
-        if (requestBody == null) return Result.failed(Status.LOCAL_LIMIT_REACHED);
-        return submitRequest(requestBody, model.thinkingMode(),
-                () -> { }, ignored -> { }, false, false, false);
+        return continueWithToolResult(model, prompt, toolCallResult, result);
     }
 
     /** Generates one streamed response and emits every validated answer chunk exactly once. */
@@ -226,13 +218,19 @@ public final class OllamaPromptClient {
     public Result submit(OllamaModelConfiguration model, ConversationHistory history,
             OllamaPrompt prompt, Runnable thinkingStarted,
             Consumer<String> answerChunkConsumer) {
-        return submit(model, history, prompt, thinkingStarted, answerChunkConsumer, false, false, false);
+        return submit(model, history, prompt, thinkingStarted, answerChunkConsumer, List.of());
     }
 
     private Result submit(OllamaModelConfiguration model, ConversationHistory history,
             OllamaPrompt prompt, Runnable thinkingStarted,
-            Consumer<String> answerChunkConsumer, boolean advertiseReadLocalFileTool,
-            boolean advertiseHttpGetTool, boolean advertiseWebSearchTool) {
+            Consumer<String> answerChunkConsumer, List<String> allowedTools) {
+        return submit(model, history, prompt, thinkingStarted, answerChunkConsumer,
+                new ToolSelector(tools, allowedTools));
+    }
+
+    private Result submit(OllamaModelConfiguration model, ConversationHistory history,
+            OllamaPrompt prompt, Runnable thinkingStarted,
+            Consumer<String> answerChunkConsumer, ToolSelector selector) {
         Objects.requireNonNull(model, "model");
         Objects.requireNonNull(history, "history");
         Objects.requireNonNull(prompt, "prompt");
@@ -241,17 +239,17 @@ public final class OllamaPromptClient {
 
         byte[] requestBody = encodeRequest(model.modelName(), history, prompt,
                 model.contextWindow(), model.thinkingMode(), model.responseTokenLimit(),
-                advertiseReadLocalFileTool, advertiseHttpGetTool, advertiseWebSearchTool);
+                selector);
         if (requestBody == null) {
             return Result.failed(Status.LOCAL_LIMIT_REACHED);
         }
         return submitRequest(requestBody, model.thinkingMode(), thinkingStarted,
-                answerChunkConsumer, advertiseReadLocalFileTool, advertiseHttpGetTool, advertiseWebSearchTool);
+                answerChunkConsumer, selector);
     }
 
     private Result submitRequest(byte[] requestBody, OllamaThinkingMode thinkingMode,
             Runnable thinkingStarted, Consumer<String> answerChunkConsumer,
-            boolean allowReadLocalFileTool, boolean allowHttpGetTool, boolean allowWebSearchTool) {
+            ToolSelector selector) {
         HttpRequest request = HttpRequest.newBuilder(chatEndpoint)
                 .timeout(requestTimeout)
                 .header("Accept", "application/x-ndjson")
@@ -280,7 +278,7 @@ public final class OllamaPromptClient {
                 return Result.failed(Status.INVALID_RESPONSE);
             }
             return decodeStream(responseBody, thinkingMode, thinkingStarted,
-                    answerChunkConsumer, allowReadLocalFileTool, allowHttpGetTool, allowWebSearchTool);
+                    answerChunkConsumer, selector);
         } catch (StreamInterruptedException exception) {
             Thread.currentThread().interrupt();
             return Result.failed(Status.INTERRUPTED);
@@ -300,7 +298,7 @@ public final class OllamaPromptClient {
     private static byte[] encodeRequest(String model, ConversationHistory history,
             OllamaPrompt prompt,
             int contextWindow, OllamaThinkingMode thinkingMode, int responseTokenLimit,
-            boolean advertiseReadLocalFileTool, boolean advertiseHttpGetTool, boolean advertiseWebSearchTool) {
+            ToolSelector selector) {
         try {
             int instructionCount = prompt.systemInstruction().isEmpty() ? 0 : 1;
             List<ChatMessage> messages = new ArrayList<>(
@@ -314,10 +312,7 @@ public final class OllamaPromptClient {
             messages.add(ChatMessage.text("user", prompt.text()));
             BoundedRequestOutputStream output =
                     new BoundedRequestOutputStream(MAX_REQUEST_BYTES);
-            List<JsonNode> tools = new ArrayList<>();
-            if (advertiseReadLocalFileTool) tools.add(ReadLocalFileToolContract.definition());
-            if (advertiseHttpGetTool) tools.add(HttpGetToolContract.definition());
-            if (advertiseWebSearchTool) tools.add(WebSearchToolContract.definition());
+            List<JsonNode> tools = selector.definitions();
             JSON.writeValue(output, new ChatRequest(
                     model,
                     List.copyOf(messages),
@@ -337,78 +332,6 @@ public final class OllamaPromptClient {
         }
     }
 
-    private static byte[] encodeToolContinuation(
-            String model,
-            OllamaPrompt prompt,
-            String assistantThinking,
-            ReadLocalFileRequest request,
-            ReadLocalFileResult result,
-            int contextWindow,
-            OllamaThinkingMode thinkingMode,
-            int responseTokenLimit) {
-        try {
-            List<ChatMessage> messages = new ArrayList<>(4);
-            if (!prompt.systemInstruction().isEmpty()) {
-                messages.add(ChatMessage.text("system", prompt.systemInstruction()));
-            }
-            messages.add(ChatMessage.text("user", prompt.text()));
-            messages.add(ChatMessage.toolCall(
-                    assistantThinking, encodeToolCall(request)));
-            messages.add(ChatMessage.toolResult(ReadLocalFileToolContract.NAME,
-                    JSON.writeValueAsString(ReadLocalFileToolContract.encodeResult(result))));
-
-            BoundedRequestOutputStream output =
-                    new BoundedRequestOutputStream(MAX_REQUEST_BYTES);
-            JSON.writeValue(output, new ChatRequest(
-                    model, List.copyOf(messages), List.of(), true,
-                    thinkingMode.enabled(),
-                    new GenerateOptions(contextWindow, responseTokenLimit)));
-            return output.toByteArray();
-        } catch (RequestLimitException exception) {
-            return null;
-        } catch (IOException exception) {
-            if (isCausedByRequestLimit(exception)) {
-                return null;
-            }
-            throw new IllegalStateException(
-                    "Unable to encode validated Ollama tool continuation.", exception);
-        }
-    }
-
-    private static byte[] encodeHttpGetContinuation(
-            String model,
-            OllamaPrompt prompt,
-            String assistantThinking,
-            HttpGetRequest request,
-            HttpGetResult result,
-            int contextWindow,
-            OllamaThinkingMode thinkingMode,
-            int responseTokenLimit) {
-        try {
-            List<ChatMessage> messages = new ArrayList<>(4);
-            if (!prompt.systemInstruction().isEmpty()) {
-                messages.add(ChatMessage.text("system", prompt.systemInstruction()));
-            }
-            messages.add(ChatMessage.text("user", prompt.text()));
-            messages.add(ChatMessage.toolCall(assistantThinking, encodeToolCall(request)));
-            messages.add(ChatMessage.toolResult(HttpGetToolContract.NAME,
-                    JSON.writeValueAsString(HttpGetToolContract.encodeResult(result))));
-            BoundedRequestOutputStream output =
-                    new BoundedRequestOutputStream(MAX_REQUEST_BYTES);
-            JSON.writeValue(output, new ChatRequest(
-                    model, List.copyOf(messages), List.of(), true,
-                    thinkingMode.enabled(),
-                    new GenerateOptions(contextWindow, responseTokenLimit)));
-            return output.toByteArray();
-        } catch (RequestLimitException exception) {
-            return null;
-        } catch (IOException exception) {
-            if (isCausedByRequestLimit(exception)) return null;
-            throw new IllegalStateException(
-                    "Unable to encode validated Ollama HTTP tool continuation.", exception);
-        }
-    }
-
     private static boolean isCausedByRequestLimit(Throwable failure) {
         for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
             if (cause instanceof RequestLimitException) {
@@ -416,25 +339,6 @@ public final class OllamaPromptClient {
             }
         }
         return false;
-    }
-
-    private static JsonNode encodeToolCall(ReadLocalFileRequest request) {
-        return JSON.createObjectNode()
-                .put("type", "function")
-                .set("function", JSON.createObjectNode()
-                        .put("name", ReadLocalFileToolContract.NAME)
-                        .set("arguments", JSON.createObjectNode()
-                                .put(ReadLocalFileToolContract.PATH_ARGUMENT,
-                                        request.path())));
-    }
-
-    private static JsonNode encodeToolCall(HttpGetRequest request) {
-        return JSON.createObjectNode()
-                .put("type", "function")
-                .set("function", JSON.createObjectNode()
-                        .put("name", HttpGetToolContract.NAME)
-                        .set("arguments", JSON.createObjectNode()
-                                .put(HttpGetToolContract.URL_ARGUMENT, request.url())));
     }
 
     private static String chatRole(ConversationRole role) {
@@ -446,14 +350,12 @@ public final class OllamaPromptClient {
 
     private static Result decodeStream(InputStream body, OllamaThinkingMode thinkingMode,
             Runnable thinkingStarted, Consumer<String> answerChunkConsumer,
-            boolean allowReadLocalFileTool, boolean allowHttpGetTool, boolean allowWebSearchTool) throws IOException {
+            ToolSelector selector) throws IOException {
         StringBuilder answer = new StringBuilder();
         StringBuilder thinking = new StringBuilder();
         boolean thinkingSignaled = false;
         boolean answerStarted = false;
-        ReadLocalFileRequest toolRequest = null;
-        HttpGetRequest httpGetRequest = null;
-        WebSearchRequest webSearchRequest = null;
+        ToolSelection selection = null;
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(body, StandardCharsets.UTF_8.newDecoder()
                         .onMalformedInput(CodingErrorAction.REPORT)
@@ -463,33 +365,22 @@ public final class OllamaPromptClient {
                 if (line.isBlank()) {
                     return Result.failed(Status.INVALID_RESPONSE);
                 }
-                StreamRecord record = decodeRecord(
-                        line, allowReadLocalFileTool, allowHttpGetTool, allowWebSearchTool);
+                StreamRecord record;
+                try {
+                    record = decodeRecord(line, selector);
+                } catch (ToolSelectionException exception) {
+                    return Result.selectionFailed(exception.reason());
+                }
                 if (record == null) {
                     return Result.failed(Status.INVALID_RESPONSE);
                 }
                 appendGeneratedText(thinking, record.thinking(), MAX_THINKING_CODE_POINTS);
                 appendGeneratedText(answer, record.response(), MAX_RESPONSE_CODE_POINTS);
-                if (record.toolRequest() != null) {
-                    if (toolRequest != null || httpGetRequest != null || webSearchRequest != null
-                            || answerStarted || !record.response().isEmpty()) {
+                if (record.selection() != null) {
+                    if (selection != null || answerStarted || !record.response().isEmpty()) {
                         return Result.failed(Status.INVALID_RESPONSE);
                     }
-                    toolRequest = record.toolRequest();
-                }
-                if (record.httpGetRequest() != null) {
-                    if (toolRequest != null || httpGetRequest != null || webSearchRequest != null
-                            || answerStarted || !record.response().isEmpty()) {
-                        return Result.failed(Status.INVALID_RESPONSE);
-                    }
-                    httpGetRequest = record.httpGetRequest();
-                }
-                if (record.webSearchRequest() != null) {
-                    if (toolRequest != null || httpGetRequest != null || webSearchRequest != null
-                            || answerStarted || !record.response().isEmpty()) {
-                        return Result.failed(Status.INVALID_RESPONSE);
-                    }
-                    webSearchRequest = record.webSearchRequest();
+                    selection = record.selection();
                 }
                 if (!record.thinking().isEmpty()) {
                     if (thinkingMode == OllamaThinkingMode.OFF || answerStarted) {
@@ -503,7 +394,7 @@ public final class OllamaPromptClient {
                 if (record.done()) {
                     Result completed = complete(
                             record, thinkingMode, thinking, answer,
-                            toolRequest, httpGetRequest, webSearchRequest);
+                            selection);
                     if (completed.successful() && !record.response().isEmpty()) {
                         answerChunkConsumer.accept(record.response());
                     }
@@ -513,7 +404,7 @@ public final class OllamaPromptClient {
                     return completed;
                 }
                 if (!record.response().isEmpty()) {
-                    if (toolRequest != null || httpGetRequest != null || webSearchRequest != null) {
+                    if (selection != null) {
                         return Result.failed(Status.INVALID_RESPONSE);
                     }
                     answerStarted = true;
@@ -524,8 +415,7 @@ public final class OllamaPromptClient {
         return Result.failed(Status.INVALID_RESPONSE);
     }
 
-    private static StreamRecord decodeRecord(String line, boolean allowReadLocalFileTool,
-            boolean allowHttpGetTool, boolean allowWebSearchTool) {
+    private static StreamRecord decodeRecord(String line, ToolSelector selector) {
         try {
             JsonNode root = JSON.readTree(line);
             JsonNode message = root == null ? null : root.get("message");
@@ -542,61 +432,18 @@ public final class OllamaPromptClient {
                     || (toolCalls != null && !toolCalls.isArray())) {
                 return null;
             }
-            DecodedToolRequest decoded = decodeToolRequest(toolCalls);
-            ReadLocalFileRequest toolRequest = decoded.readLocalFileRequest();
-            HttpGetRequest httpGetRequest = decoded.httpGetRequest();
-            WebSearchRequest webSearchRequest = decoded.webSearchRequest();
-            if (webSearchRequest != null && !allowWebSearchTool) return null;
-            if (toolRequest != null && !allowReadLocalFileTool) {
-                return null;
-            }
-            if (httpGetRequest != null && !allowHttpGetTool) {
-                return null;
-            }
-            boolean requested = toolRequest != null || httpGetRequest != null || webSearchRequest != null;
-            if (toolCalls != null && toolCalls.size() != (requested ? 1 : 0)) {
-                return null;
-            }
+            ToolSelection selection = selector.select(toolCalls).orElse(null);
             return new StreamRecord(root, response.textValue(),
                     thinking == null ? "" : thinking.textValue(), done.booleanValue(),
-                    toolRequest, httpGetRequest, webSearchRequest);
-        } catch (JsonProcessingException | IllegalArgumentException | WebSearchException exception) {
+                    selection);
+        } catch (JsonProcessingException exception) {
             return null;
         }
     }
 
-    private static DecodedToolRequest decodeToolRequest(JsonNode toolCalls) {
-        if (toolCalls == null || toolCalls.isEmpty()) {
-            return new DecodedToolRequest(null, null, null);
-        }
-        if (toolCalls.size() != 1) {
-            throw new IllegalArgumentException("Expected at most one tool call.");
-        }
-        JsonNode call = toolCalls.get(0);
-        JsonNode function = call == null ? null : call.get("function");
-        JsonNode name = function == null ? null : function.get("name");
-        JsonNode arguments = function == null ? null : function.get("arguments");
-        if (call == null || !call.isObject() || function == null || !function.isObject()
-                || name == null || !name.isTextual()) {
-            throw new IllegalArgumentException("Unsupported tool call.");
-        }
-        if (ReadLocalFileToolContract.NAME.equals(name.textValue())) {
-            return new DecodedToolRequest(
-                    ReadLocalFileToolContract.decodeArguments(arguments), null, null);
-        }
-        if (HttpGetToolContract.NAME.equals(name.textValue())) {
-            return new DecodedToolRequest(null,
-                    HttpGetToolContract.decodeArguments(arguments), null);
-        }
-        if (WebSearchToolContract.NAME.equals(name.textValue())) {
-            return new DecodedToolRequest(null, null, WebSearchToolContract.decodeArguments(arguments));
-        }
-        throw new IllegalArgumentException("Unsupported tool call.");
-    }
-
     private static Result complete(StreamRecord record, OllamaThinkingMode thinkingMode,
             StringBuilder thinking, StringBuilder answer,
-            ReadLocalFileRequest toolRequest, HttpGetRequest httpGetRequest, WebSearchRequest webSearchRequest) {
+            ToolSelection selection) {
         JsonNode reason = record.root().get("done_reason");
         CompletionMetrics metrics = decodeMetrics(record.root());
         if (reason == null || !reason.isTextual() || metrics == null) {
@@ -610,20 +457,9 @@ public final class OllamaPromptClient {
             return Result.failed(Status.INVALID_RESPONSE);
         }
         String retainedThinking = thinkingMode == OllamaThinkingMode.ON ? thinking.toString() : "";
-        if (toolRequest != null) {
-            if (!answer.isEmpty()) {
-                return Result.failed(Status.INVALID_RESPONSE);
-            }
-            return Result.toolRequested(retainedThinking, toolRequest, metrics);
-        }
-        if (httpGetRequest != null) {
+        if (selection != null) {
             if (!answer.isEmpty()) return Result.failed(Status.INVALID_RESPONSE);
-            return Result.httpGetRequested(retainedThinking, httpGetRequest, metrics);
-        }
-        if (webSearchRequest != null) {
-            if (!answer.isEmpty()) return Result.failed(Status.INVALID_RESPONSE);
-            return new Result(Status.SUCCESS, retainedThinking, "", Optional.empty(),
-                    Optional.empty(), Optional.of(webSearchRequest), CompletionReason.STOP, metrics);
+            return Result.selected(retainedThinking, selection, metrics);
         }
         if (answer.toString().isBlank()) {
             return Result.failed(Status.INVALID_RESPONSE);
@@ -726,10 +562,7 @@ public final class OllamaPromptClient {
             @JsonProperty("num_predict") int responseTokenLimit) { }
 
     private record StreamRecord(JsonNode root, String response, String thinking, boolean done,
-            ReadLocalFileRequest toolRequest, HttpGetRequest httpGetRequest, WebSearchRequest webSearchRequest) { }
-
-    private record DecodedToolRequest(
-            ReadLocalFileRequest readLocalFileRequest, HttpGetRequest httpGetRequest, WebSearchRequest webSearchRequest) { }
+            ToolSelection selection) { }
 
     /** Validated metrics from Ollama's terminal streaming record. */
     public record CompletionMetrics(long totalDurationNanos, long promptTokenCount,
@@ -754,125 +587,109 @@ public final class OllamaPromptClient {
         LENGTH
     }
 
-    /** Safe outcome of one streaming prompt request. */
-    public record Result(
-            Status status,
-            String thinking,
-            String response,
-            Optional<ReadLocalFileRequest> toolRequest,
-            Optional<HttpGetRequest> httpGetRequest,
-            Optional<WebSearchRequest> webSearchRequest,
-            CompletionReason completionReason,
-            CompletionMetrics metrics) {
+    /** Safe provider result. Typed constructors/accessors retain compatibility with existing commands. */
+    public record Result(Status status, String thinking, String response,
+            CompletionReason completionReason, CompletionMetrics metrics,
+            Optional<ToolSelection> selection, Optional<ToolSelectionException.Reason> selectionFailure) {
         public Result {
-            Objects.requireNonNull(status, "status");
-            Objects.requireNonNull(thinking, "thinking");
-            Objects.requireNonNull(response, "response");
-            Objects.requireNonNull(toolRequest, "toolRequest");
-            Objects.requireNonNull(httpGetRequest, "httpGetRequest");
-            Objects.requireNonNull(webSearchRequest, "webSearchRequest");
-            Objects.requireNonNull(completionReason, "completionReason");
-            Objects.requireNonNull(metrics, "metrics");
+            Objects.requireNonNull(status);
+            Objects.requireNonNull(thinking);
+            Objects.requireNonNull(response);
+            Objects.requireNonNull(completionReason);
+            Objects.requireNonNull(metrics);
+            Objects.requireNonNull(selection);
+            Objects.requireNonNull(selectionFailure);
             if (status == Status.SUCCESS
-                    && ((response.isBlank() ? 0 : 1)
-                            + (toolRequest.isPresent() ? 1 : 0)
-                            + (httpGetRequest.isPresent() ? 1 : 0)
-                            + (webSearchRequest.isPresent() ? 1 : 0) != 1)) {
-                throw new IllegalArgumentException(
-                        "Successful prompt result requires exactly one answer or tool request.");
+                    && ((response.isBlank() ? 0 : 1) + (selection.isPresent() ? 1 : 0) != 1)) {
+                throw new IllegalArgumentException("Success requires exactly one answer or selection.");
             }
-            if (status != Status.SUCCESS
-                    && (!thinking.isEmpty() || !response.isEmpty() || toolRequest.isPresent()
-                            || httpGetRequest.isPresent() || webSearchRequest.isPresent())) {
-                throw new IllegalArgumentException(
-                        "Failed prompt result must not contain generated data.");
+            if (status != Status.SUCCESS && (!thinking.isEmpty() || !response.isEmpty() || selection.isPresent())) {
+                throw new IllegalArgumentException("Failed prompt result must not contain generated data.");
             }
             if ((status == Status.SUCCESS && completionReason != CompletionReason.STOP)
-                    || (status == Status.TOKEN_LIMIT_REACHED
-                            && completionReason != CompletionReason.LENGTH)
-                    || (status != Status.SUCCESS
-                            && status != Status.TOKEN_LIMIT_REACHED
-                            && completionReason != CompletionReason.NONE)) {
-                throw new IllegalArgumentException(
-                        "Prompt result status and completion reason must agree.");
+                    || (status == Status.TOKEN_LIMIT_REACHED && completionReason != CompletionReason.LENGTH)
+                    || (status != Status.SUCCESS && status != Status.TOKEN_LIMIT_REACHED
+                            && completionReason != CompletionReason.NONE)
+                    || (selectionFailure.isPresent() && status != Status.INVALID_RESPONSE)) {
+                throw new IllegalArgumentException("Prompt result status and completion reason must agree.");
             }
         }
 
         public Result(Status status, String thinking, String response,
-                Optional<ReadLocalFileRequest> toolRequest, Optional<HttpGetRequest> httpGetRequest,
-                CompletionReason reason, CompletionMetrics metrics) {
-            this(status, thinking, response, toolRequest, httpGetRequest, Optional.empty(), reason, metrics);
+                Optional<ReadLocalFileRequest> file, Optional<HttpGetRequest> http,
+                Optional<WebSearchRequest> search, CompletionReason reason, CompletionMetrics metrics) {
+            this(status, thinking, response, reason, metrics, legacySelection(file, http, search), Optional.empty());
         }
-
-        public Result(Status status, String thinking, String response) {
-            this(
-                    status,
-                    thinking,
-                    response,
-                    Optional.empty(),
-                    Optional.empty(),
-                    status == Status.SUCCESS
-                            ? CompletionReason.STOP
-                            : status == Status.TOKEN_LIMIT_REACHED
-                                    ? CompletionReason.LENGTH
-                                    : CompletionReason.NONE,
-                    CompletionMetrics.unavailable());
-        }
-
         public Result(Status status, String thinking, String response,
-                Optional<ReadLocalFileRequest> toolRequest,
-                CompletionReason completionReason, CompletionMetrics metrics) {
-            this(status, thinking, response, toolRequest, Optional.empty(),
-                    completionReason, metrics);
+                Optional<ReadLocalFileRequest> file, Optional<HttpGetRequest> http,
+                CompletionReason reason, CompletionMetrics metrics) {
+            this(status, thinking, response, file, http, Optional.empty(), reason, metrics);
+        }
+        public Result(Status status, String thinking, String response,
+                Optional<ReadLocalFileRequest> file, CompletionReason reason, CompletionMetrics metrics) {
+            this(status, thinking, response, file, Optional.empty(), reason, metrics);
+        }
+        public Result(Status status, String thinking, String response) {
+            this(status, thinking, response,
+                    status == Status.SUCCESS ? CompletionReason.STOP
+                            : status == Status.TOKEN_LIMIT_REACHED ? CompletionReason.LENGTH : CompletionReason.NONE,
+                    CompletionMetrics.unavailable(), Optional.empty(), Optional.empty());
+        }
+
+        private static Optional<ToolSelection> legacySelection(Optional<ReadLocalFileRequest> file,
+                Optional<HttpGetRequest> http, Optional<WebSearchRequest> search) {
+            int count = (file.isPresent() ? 1 : 0) + (http.isPresent() ? 1 : 0) + (search.isPresent() ? 1 : 0);
+            if (count > 1) throw new IllegalArgumentException("Expected at most one tool request.");
+            if (count == 0) return Optional.empty();
+            // Only old typed construction needs this bridge; streaming and dispatch are registry-based.
+            String name;
+            var arguments = JSON.createObjectNode();
+            if (file.isPresent()) {
+                name = ReadLocalFileToolContract.NAME;
+                arguments.put(ReadLocalFileToolContract.PATH_ARGUMENT, file.orElseThrow().path());
+            } else if (http.isPresent()) {
+                name = HttpGetToolContract.NAME;
+                arguments.put(HttpGetToolContract.URL_ARGUMENT, http.orElseThrow().url());
+            } else {
+                name = WebSearchToolContract.NAME;
+                arguments.put("query", search.orElseThrow().query());
+            }
+            var function = JSON.createObjectNode().put("name", name).set("arguments", arguments);
+            var calls = JSON.createArrayNode().add(JSON.createObjectNode().set("function", function));
+            return new ToolSelector(StandardTools.create(), List.of(name)).select(calls);
         }
 
         static Result success(String thinking, String response, CompletionMetrics metrics) {
-            return new Result(
-                    Status.SUCCESS, thinking, response, Optional.empty(), Optional.empty(),
-                    CompletionReason.STOP, metrics);
+            return new Result(Status.SUCCESS, thinking, response, CompletionReason.STOP, metrics,
+                    Optional.empty(), Optional.empty());
         }
-
-        static Result toolRequested(String thinking, ReadLocalFileRequest request,
-                CompletionMetrics metrics) {
-            return new Result(Status.SUCCESS, thinking, "", Optional.of(request),
-                    Optional.empty(),
-                    CompletionReason.STOP, metrics);
+        static Result selected(String thinking, ToolSelection selection, CompletionMetrics metrics) {
+            return new Result(Status.SUCCESS, thinking, "", CompletionReason.STOP, metrics,
+                    Optional.of(selection), Optional.empty());
         }
-
-        static Result httpGetRequested(String thinking, HttpGetRequest request,
-                CompletionMetrics metrics) {
-            return new Result(Status.SUCCESS, thinking, "", Optional.empty(),
-                    Optional.of(request), CompletionReason.STOP, metrics);
+        static Result completedFailure(Status status, CompletionReason reason, CompletionMetrics metrics) {
+            return new Result(status, "", "", reason, metrics, Optional.empty(), Optional.empty());
         }
-
-        static Result completedFailure(
-                Status status, CompletionReason completionReason, CompletionMetrics metrics) {
-            return new Result(
-                    status, "", "", Optional.empty(), Optional.empty(),
-                    completionReason, metrics);
-        }
-
         static Result failed(Status status) {
-            return new Result(
-                    status,
-                    "",
-                    "",
-                    Optional.empty(),
-                    Optional.empty(),
-                    CompletionReason.NONE,
-                    CompletionMetrics.unavailable());
+            return completedFailure(status, CompletionReason.NONE, CompletionMetrics.unavailable());
         }
-
+        static Result selectionFailed(ToolSelectionException.Reason reason) {
+            return new Result(Status.INVALID_RESPONSE, "", "", CompletionReason.NONE,
+                    CompletionMetrics.unavailable(), Optional.empty(), Optional.of(reason));
+        }
+        public Optional<ReadLocalFileRequest> toolRequest() {
+            return selection.flatMap(value -> value.request(ReadLocalFileRequest.class));
+        }
+        public Optional<HttpGetRequest> httpGetRequest() {
+            return selection.flatMap(value -> value.request(HttpGetRequest.class));
+        }
+        public Optional<WebSearchRequest> webSearchRequest() {
+            return selection.flatMap(value -> value.request(WebSearchRequest.class));
+        }
         public boolean successful() { return status == Status.SUCCESS; }
-
-        public boolean toolRequested() {
-            return toolRequest.isPresent() || httpGetRequest.isPresent() || webSearchRequest.isPresent();
-        }
-
-        public boolean httpGetRequested() { return httpGetRequest.isPresent(); }
-
-        @Override
-        public String toString() {
+        public boolean toolRequested() { return selection.isPresent(); }
+        public boolean httpGetRequested() { return httpGetRequest().isPresent(); }
+        @Override public String toString() {
             return "Result[status=" + status + ", successful=" + successful()
                     + ", toolRequested=" + toolRequested() + "]";
         }

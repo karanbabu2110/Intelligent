@@ -1,5 +1,6 @@
 package io.kaos.tool.readlocalfile;
 
+import io.kaos.tool.permission.ToolPermissionDecision;
 import java.util.Objects;
 
 /** One explicit approval decision bound to one metadata-validated local-file target. */
@@ -18,7 +19,7 @@ public final class ReadLocalFileApprovalRequest {
      * Returns the intentionally path-revealing text that must be shown only to the local user.
      */
     public String prompt() {
-        return "Tool: read_local_file\n"
+        return "Tool: " + ReadLocalFileToolContract.NAME + "\n"
                 + "Exact file: " + target.resolvedPath() + "\n"
                 + "Size: " + target.byteCount() + " bytes\n"
                 + "If approved, this file's text will be supplied to the configured local "
@@ -31,21 +32,11 @@ public final class ReadLocalFileApprovalRequest {
         requirePending();
         decided = true;
 
-        if (response == null) {
-            return ReadLocalFileApprovalOutcome.notApproved(
-                    ReadLocalFileApprovalOutcome.Status.END_OF_INPUT);
-        }
-        String normalized = response.strip();
-        if (APPROVE_RESPONSE.equals(normalized)) {
-            return ReadLocalFileApprovalOutcome.approved(
-                    new ReadLocalFileApprovalGrant(target));
-        }
-        if (DENY_RESPONSE.equals(normalized)) {
-            return ReadLocalFileApprovalOutcome.notApproved(
-                    ReadLocalFileApprovalOutcome.Status.DENIED);
-        }
-        return ReadLocalFileApprovalOutcome.notApproved(
-                ReadLocalFileApprovalOutcome.Status.INVALID_RESPONSE);
+        var status = ToolPermissionDecision.parse(response);
+        return status == ToolPermissionDecision.APPROVED
+                ? ReadLocalFileApprovalOutcome.approved(new ReadLocalFileApprovalGrant(target))
+                : ReadLocalFileApprovalOutcome.notApproved(
+                        ReadLocalFileApprovalOutcome.Status.valueOf(status.name()));
     }
 
     /** Cancels this pending request without creating authority to read. */

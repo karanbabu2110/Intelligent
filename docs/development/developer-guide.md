@@ -355,7 +355,8 @@ does not promise that a selected target or external service is reachable. See
 [bounded tool discovery](../evolution/tool-discovery.md) and the
 [tool selection contract](../evolution/tool-selection.md) for allowed choices,
 approval boundaries, and selection-quality limitations.
-The [shared metadata record](../evolution/shared-tool-metadata.md) identifies
+The [shared metadata record](../evolution/shared-tool-metadata.md) describes the
+registry, descriptors, concrete adapters, and runtime selection, and identifies
 which tool metadata is reused and which remains specific to each consumer.
 The [tool permission policies](../evolution/tool-permission-policies.md) compare
 each resource boundary and explain exact approval, cancellation, and recovery.
@@ -395,7 +396,7 @@ Denial, explicit cancellation, end of input, or any other response creates no
 grant. `ReadLocalFileExecutor` can consume an approved grant once, revalidate
 the target around a no-follow read, strictly decode at most 2,048 UTF-8 bytes,
 and return one complete result. The application wires these APIs only through
-`read-local-file` and the shared file-or-search turn dispatcher, sending a successful result to Ollama for one no-tools
+`read-local-file` and the registry-based file-or-search turn coordinator, sending a successful result to Ollama for one no-tools
 continuation.
 
 `ReadLocalFileAuditContext` can assign the validated target a random
@@ -624,10 +625,15 @@ every command in the public entry point:
 - `OllamaPromptSubmission` is the narrow application port used to substitute a
   deterministic prompt implementation in tests.
 - `ErrorReporter` owns the stable coded-error format shared by commands.
-- `io.kaos.tool.readlocalfile` owns the complete first-tool capability below
-  the `io.kaos.tool` parent namespace. Add a sibling package only when another
-  concrete tool is implemented; do not add a registry or shared tool framework
-  solely because more tools are planned.
+- `io.kaos.tool` owns the small shared tool foundation: descriptors, the injected
+  read-only registry, model selection, typed results, and lifecycle outcomes.
+  `StandardTools` is the explicit composition and allowed-operation boundary.
+  Each concrete subpackage retains its request, resource policy, configuration,
+  approval scope, and executor. `tool.permission` wraps exact approvals and
+  single-use attempts with safe in-memory snapshots for future execution history.
+  This is not a plugin framework; dynamic discovery is not implemented. Add a
+  tool adapter and register it explicitly, then deliberately choose its allowed
+  operations. Do not broaden advertisement merely because a tool is registered.
 
 When adding a command, keep its parsing in `CommandRouter`, put its workflow in
 a named command coordinator, supply external behavior through its constructor,

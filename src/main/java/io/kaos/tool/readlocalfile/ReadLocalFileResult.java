@@ -1,5 +1,7 @@
 package io.kaos.tool.readlocalfile;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import io.kaos.tool.ToolResult;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -8,7 +10,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /** One complete, bounded UTF-8 text result associated with its validated request. */
-public record ReadLocalFileResult(ReadLocalFileRequest request, String content) {
+public record ReadLocalFileResult(ReadLocalFileRequest request, String content) implements ToolResult<ReadLocalFileRequest> {
+    @Override public String toolName() { return ReadLocalFileToolContract.NAME; }
+    @Override public JsonNode modelContent() {
+        return ReadLocalFileToolContract.encodeResult(this);
+    }
+
     public static final int MAX_CONTENT_UTF8_BYTES = 2_048;
 
     public ReadLocalFileResult {
