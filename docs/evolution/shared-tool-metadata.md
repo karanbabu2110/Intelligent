@@ -6,6 +6,10 @@ Feature [008.05](https://github.com/karanbabu2110/KAOS/issues/896), together wit
 foundation in the single Java 21 application. It completes the previously minimal
 checkpoints and supplies the safe snapshot boundary now used by
 [008.07 - Tool Execution History](https://github.com/karanbabu2110/KAOS/issues/899).
+Feature [008.08 - Tool Contract Refinement](https://github.com/karanbabu2110/KAOS/issues/898)
+subsequently reviewed this boundary against its concrete consumers and retained
+it without another runtime abstraction; see the
+[refinement decision](tool-contract-refinement.md).
 
 ## Current architecture
 

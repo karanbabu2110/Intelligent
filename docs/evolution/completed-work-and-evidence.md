@@ -463,6 +463,15 @@ That feature now persists terminal snapshots in a bounded content-free SQLite
 store and exposes the newest 20 through the read-only `tool-history` command.
 The implementation, privacy contract, storage limits, and deterministic
 verification are recorded in [Tool Execution History](tool-execution-history.md).
+Feature [008.08 - Tool Contract Refinement](https://github.com/karanbabu2110/KAOS/issues/898)
+reviews the shared boundary against all three concrete tools, the test-only
+adapter, command orchestration, and the execution-history consumer. The
+[refinement decision](tool-contract-refinement.md) retains the current small
+contract and records why no additional executor hierarchy, invocation wrapper,
+dynamic discovery, module, or plugin framework is justified. This is the final
+ordered Epic 008 feature; Epic 009 begins with
+[009.01 - Bounded Agent Use Case](https://github.com/karanbabu2110/KAOS/issues/900)
+after merge.
 
 ## Maintenance rule
 
