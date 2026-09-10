@@ -11,7 +11,10 @@
  * current tool step now exposes and delegates to its own exact Epic 008
  * approval policy. Preparation, permission, execution, interruption, and
  * model-provider failures now stop the execution with a content-free terminal
- * reason while preserving earlier completed evidence. Truthful user-facing
- * result synthesis remains the next Epic 009 feature.</p>
+ * reason while preserving earlier completed evidence. One immutable terminal
+ * result now distinguishes completed, failed, and cancelled runs; retains
+ * bounded evidence and current sources; and permits an answer only after full
+ * completion. End-to-end orchestration and evaluation remain the Epic exit
+ * gate.</p>
  */
 package io.kaos.agent;
