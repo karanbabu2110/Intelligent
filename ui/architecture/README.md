@@ -46,30 +46,32 @@ must not be bound to a public network interface for ordinary development.
 
 ## Information architecture
 
-The landing page answers ten questions in order:
+The landing page answers eleven questions in order:
 
 1. What architecture is implemented and verified now?
-2. Which concrete class and method handles each command branch?
-3. How do an AI request, repeated answer chunks, and one final result cross the
+2. How does one bounded agent move from goal to validated plan, independent
+   tool approvals, untrusted evidence, and one terminal result?
+3. Which concrete class and method handles each command branch?
+4. How do an AI request, repeated answer chunks, and one final result cross the
    Ollama boundary in both directions?
-4. How does the foreground conversation loop restore and change state, and how
+5. How does the foreground conversation loop restore and change state, and how
    do persistence reads, writes, commits, and failures cross its boundary?
-5. How does one local document path become a bounded immutable byte snapshot,
+6. How does one local document path become a bounded immutable byte snapshot,
    and how do success and failure return?
-6. What is the next approved integration but not yet implemented?
-7. What context was added or updated by the current feature?
-8. Which long-term capabilities preserve the vision without prescribing
+7. What is the next evolutionary stage but not yet active or implemented?
+8. What context was added or updated by the current feature?
+9. Which long-term capabilities preserve the vision without prescribing
    topology?
-9. What evidence would justify a stronger module, repository, or service
+10. What evidence would justify a stronger module, repository, or service
    boundary?
-10. Which repository artifacts prove each architectural claim?
+11. Which repository artifacts prove each architectural claim?
 
 Use these status meanings consistently:
 
 | Status | Meaning |
 | --- | --- |
 | Implemented and verified | Current source/build behavior exists and has repository evidence |
-| Next approved work | Active #814 work is authorized but its implementation evidence does not exist yet |
+| Next evolutionary stage | Ordered #814 work that remains inactive until explicitly approved |
 | Future candidate | Vision or option only; no package, module, service, order, or technology is promised |
 
 The magenta **new or updated** treatment is a separate recency marker, not an

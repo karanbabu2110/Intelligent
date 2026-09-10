@@ -18,11 +18,17 @@ final class CommandRouter {
     private final ArgumentCommand readLocalFileCommand;
     private final ArgumentCommand httpGetCommand;
     private ArgumentCommand webSearchCommand = argument -> KaosApplication.USAGE_ERROR;
+    private ArgumentCommand agentCommand = argument -> KaosApplication.USAGE_ERROR;
     private Command toolCatalogCommand = () -> KaosApplication.USAGE_ERROR;
     private Command toolHistoryCommand = () -> KaosApplication.USAGE_ERROR;
 
     CommandRouter withWebSearch(ArgumentCommand command) {
         webSearchCommand = Objects.requireNonNull(command);
+        return this;
+    }
+
+    CommandRouter withAgent(ArgumentCommand command) {
+        agentCommand = Objects.requireNonNull(command);
         return this;
     }
 
@@ -276,6 +282,9 @@ final class CommandRouter {
         if (arguments.length == 2 && "web-search".equals(arguments[0])) {
             return webSearchCommand.execute(arguments[1]);
         }
+        if (arguments.length == 2 && "agent".equals(arguments[0])) {
+            return agentCommand.execute(arguments[1]);
+        }
         if (isCommand(arguments, "ollama-status")) {
             return ollamaStatusCommand.execute();
         }
@@ -345,6 +354,10 @@ final class CommandRouter {
         }
         if (arguments.length > 0 && "web-search".equals(arguments[0])) {
             context.errorOutput().println("Expected one quoted search question. Run 'kaos help' for usage.");
+            return KaosApplication.USAGE_ERROR;
+        }
+        if (arguments.length > 0 && "agent".equals(arguments[0])) {
+            context.errorOutput().println("Expected one quoted agent goal. Run 'kaos help' for usage.");
             return KaosApplication.USAGE_ERROR;
         }
         if (arguments.length > 0 && "tools".equals(arguments[0])) {

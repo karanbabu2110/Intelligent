@@ -18,7 +18,8 @@ KAOS-controlled instruction:
 
 `OllamaPromptClient` serializes that instruction as the first `system` message,
 followed by any ordered history and the unchanged final `user` message. The
-instruction is validated independently, limited to 256 Unicode code points,
+instruction is validated independently within the current 1,024 Unicode
+code-point KAOS-owned instruction ceiling,
 and cannot contain unsafe controls. Users cannot supply arbitrary system text
 through this feature.
 

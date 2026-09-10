@@ -186,6 +186,29 @@ final class ApplicationRuntime {
         LocalToolsCommand localToolsCommand = new LocalToolsCommand(context,
                 modelConfigurationLoader, localToolsClient != null ? localToolsClient : () -> new OllamaPromptClient(toolRegistry.get()),
                 toolRegistry).withToolHistory(toolHistory);
+        Supplier<OllamaPromptClient> agentClient = localToolsClient != null
+                ? localToolsClient : () -> new OllamaPromptClient(toolRegistry.get());
+        AgentCommand agentCommand = new AgentCommand(context, modelConfigurationLoader,
+                new AgentPromptSubmission() {
+                    private OllamaPromptClient client;
+
+                    @Override
+                    public OllamaPromptClient.Result propose(
+                            OllamaModelConfiguration model, OllamaPrompt prompt) {
+                        return client().submit(model, prompt);
+                    }
+
+                    @Override
+                    public OllamaPromptClient.Result synthesize(OllamaModelConfiguration model,
+                            OllamaPrompt prompt, List<io.kaos.tool.ToolResult<?>> evidence) {
+                        return client().submitWithAgentEvidence(model, prompt, evidence);
+                    }
+
+                    private OllamaPromptClient client() {
+                        if (client == null) client = agentClient.get();
+                        return client;
+                    }
+                }, toolRegistry).withToolHistory(toolHistory);
         ToolCatalogCommand toolCatalogCommand = new ToolCatalogCommand(context, toolRegistry);
         ToolHistoryCommand toolHistoryCommand = new ToolHistoryCommand(context, toolHistory);
         if (localToolsClient != null) conversationCommand.withLocalTools(localToolsCommand);
@@ -284,6 +307,7 @@ final class ApplicationRuntime {
                 ollamaPromptCommand::execute,
                 conversationCommand::execute)
                 .withWebSearch(localToolsCommand::execute)
+                .withAgent(agentCommand::execute)
                 .withToolCatalog(toolCatalogCommand::execute)
                 .withToolHistory(toolHistoryCommand::execute)
                 .route(arguments);

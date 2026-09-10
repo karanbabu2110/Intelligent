@@ -14,7 +14,7 @@ setup or operational requirements until they are implemented.
   dependencies
 - Optional: a local Ollama server on `127.0.0.1:11434` to demonstrate
   `ollama-status`, plus one installed model to demonstrate `ollama-prompt` and
-  `conversation`, `knowledge-ask`, and `read-local-file`; neither is required
+  `conversation`, `knowledge-ask`, `read-local-file`, and `agent`; neither is required
   to build or run automated tests
 
 No system Gradle installation is required. Use the Gradle wrapper committed to
@@ -374,6 +374,36 @@ Only selected search requires this setting. SearXNG must enable JSON output and
 may forward the approved query to external engines. See the
 [local setup](searxng-setup.md) and [bounded contract](../evolution/web-search-tool.md)
 for commands, privacy, limits, and safe failure recovery.
+
+Run one foreground bounded agent goal after configuring the dependencies that
+the goal may need:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
+$env:KAOS_TOOL_READ_ROOT = (Resolve-Path ".").Path
+$env:KAOS_WEB_SEARCH_SEARXNG_URL = "http://127.0.0.1:8080"
+./gradlew.bat --% --console=plain run --args="agent \"Compare local KAOS tool boundaries with current SearXNG security guidance.\""
+```
+
+The model returns one small JSON plan for stable/internal, local, current
+public, or mixed evidence. `AgentPlanner` rejects malformed structures,
+unknown tools, registered but disallowed `http_get`, duplicate or out-of-order
+steps, more than three total steps, and more than two tool steps before any
+execution. An accepted plan runs sequentially. Each file or search step displays
+its own existing Epic 008 disclosure and consumes its own exact `approve` or
+`deny` input; one approval never authorizes another step. Completed terminal
+tool snapshots are written through the existing content-free tool history.
+
+Synthesis is one no-tools Ollama request containing only the goal and ordered
+completed evidence. Evidence is untrusted data, cannot change the validated
+plan, and is not executable instruction authority. A denial, invalid approval,
+EOF, interruption, unavailable service, execution/history failure, or provider
+failure stops the workflow without retry, fallback, or replanning. Earlier
+successful evidence remains visible in the incomplete summary, while the final
+answer is absent. If required current-public evidence is unavailable, KAOS says
+so explicitly instead of presenting model memory as verified current fact. See
+[agent evaluation](../evolution/agent-evaluation.md) and the
+[Epic 009 exit record](../evolution/epic-009-exit.md).
 
 The separate `http-get` operation advertises only `http_get`. It accepts one
 strict URL request or an ordinary answer. After approved execution, its
@@ -931,6 +961,8 @@ requiring rollback. KAOS does not start or own the local Ollama process.
 - [Ollama thinking policy and benchmark](../evolution/ollama-thinking-policy-and-benchmark.md)
 - [Ollama response-generation limit benchmark](../evolution/ollama-response-generation-limit-benchmark.md)
 - [Ollama prompt submission](../evolution/ollama-prompt-submission.md)
+- [Agent evaluation](../evolution/agent-evaluation.md)
+- [Epic 009 exit](../evolution/epic-009-exit.md)
 
 The detailed references retain acceptance evidence, internal contracts, and
 historical validation. This guide owns the current developer-facing commands

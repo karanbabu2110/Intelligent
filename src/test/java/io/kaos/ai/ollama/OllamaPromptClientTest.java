@@ -19,6 +19,8 @@ import io.kaos.tool.httpget.HttpGetToolContract;
 import io.kaos.tool.readlocalfile.ReadLocalFileToolContract;
 import io.kaos.tool.readlocalfile.ReadLocalFileRequest;
 import io.kaos.tool.readlocalfile.ReadLocalFileResult;
+import io.kaos.tool.websearch.WebSearchRequest;
+import io.kaos.tool.websearch.WebSearchResult;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -44,6 +46,25 @@ class OllamaPromptClientTest {
             + "\"content\":\"\"},\"done\":true,"
             + "\"done_reason\":\"stop\",\"total_duration\":900,"
             + "\"prompt_eval_count\":12,\"eval_count\":7,\"eval_duration\":600}\n";
+
+    @Test
+    void agentEvidenceSubmissionRejectsEveryUnboundedOrOutOfOrderShapeBeforeNetwork() {
+        OllamaPromptClient client = new OllamaPromptClient();
+        OllamaModelConfiguration model = new OllamaModelConfiguration("fixture");
+        OllamaPrompt prompt = new OllamaPrompt("bounded goal");
+        ReadLocalFileResult local = new ReadLocalFileResult(
+                new ReadLocalFileRequest("local.md"), "local evidence");
+        WebSearchResult web = new WebSearchResult(new WebSearchRequest("current"), List.of());
+
+        assertThrows(NullPointerException.class,
+                () -> client.submitWithAgentEvidence(model, prompt, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> client.submitWithAgentEvidence(model, prompt, List.of(local, local)));
+        assertThrows(IllegalArgumentException.class,
+                () -> client.submitWithAgentEvidence(model, prompt, List.of(web, local)));
+        assertThrows(IllegalArgumentException.class,
+                () -> client.submitWithAgentEvidence(model, prompt, List.of(local, web, web)));
+    }
 
     @Test void additionalRegisteredToolSelectsExecutesAndContinuesWithoutConcreteDispatch() throws Exception {
         var tool = new io.kaos.tool.FixtureTool();

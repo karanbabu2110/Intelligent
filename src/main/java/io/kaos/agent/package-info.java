@@ -14,7 +14,8 @@
  * reason while preserving earlier completed evidence. One immutable terminal
  * result now distinguishes completed, failed, and cancelled runs; retains
  * bounded evidence and current sources; and permits an answer only after full
- * completion. End-to-end orchestration and evaluation remain the Epic exit
- * gate.</p>
+ * completion. The foreground {@code agent} command composes these boundaries,
+ * records tool attempts through the existing content-free history, and sends
+ * completed evidence to one no-tools synthesis request.</p>
  */
 package io.kaos.agent;

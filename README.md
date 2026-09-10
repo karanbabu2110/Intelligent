@@ -7,10 +7,10 @@ inside the verified single application.
 ## Current development state
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
-- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823), [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), [Epic 006 — First Memory Capability](https://github.com/karanbabu2110/KAOS/issues/10), [Epic 007 — First Tool Integration](https://github.com/karanbabu2110/KAOS/issues/15), and [Epic 008 — Multi-Tool Capability](https://github.com/karanbabu2110/KAOS/issues/63)
-- Active epic: [Epic 009 — First Agent Workflow](https://github.com/karanbabu2110/KAOS/issues/53); current feature: [009.08 — Result Summary](https://github.com/karanbabu2110/KAOS/issues/907)
+- Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823), [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), [Epic 006 — First Memory Capability](https://github.com/karanbabu2110/KAOS/issues/10), [Epic 007 — First Tool Integration](https://github.com/karanbabu2110/KAOS/issues/15), [Epic 008 — Multi-Tool Capability](https://github.com/karanbabu2110/KAOS/issues/63), and [Epic 009 — First Agent Workflow](https://github.com/karanbabu2110/KAOS/issues/53)
+- Next epic: [Epic 010 — Browser Automation](https://github.com/karanbabu2110/KAOS/issues/26), inactive until explicitly approved
 - Release checkpoint: [KAOS 1.7.0 — Multi-Tool Capability](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v1.7.0)
-- Repository state: one root Gradle/Java 21 application with one production entry point, explicit bounded memory, local SQLite conversations/knowledge/memory/tool history, bounded local Ollama chat and embeddings, grounded answers with citations, three concrete approval-gated tools, SearXNG-backed discovery, and a read-only `tools` catalog with privacy-safe configuration status
+- Repository state: one root Gradle/Java 21 application with one production entry point, explicit bounded memory, local SQLite conversations/knowledge/memory/tool history, bounded local Ollama chat and embeddings, grounded answers with citations, three concrete approval-gated tools, SearXNG-backed discovery, a read-only `tools` catalog, and one foreground bounded agent workflow
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -56,7 +56,7 @@ over its environment variable.
 | Environment variable | Accepted value and default | Used by |
 | --- | --- | --- |
 | `KAOS_APP_NAME` | Display name of at most 64 safe characters; defaults to `KAOS` | All commands and status output |
-| `KAOS_OLLAMA_MODEL` | Explicit installed Ollama chat model name; no default | `ollama-model`, `ollama-prompt`, `conversation`, `knowledge-ask`, `read-local-file`, `http-get`, `web-search` |
+| `KAOS_OLLAMA_MODEL` | Explicit installed Ollama chat model name; no default | `ollama-model`, `ollama-prompt`, `conversation`, `knowledge-ask`, `read-local-file`, `http-get`, `web-search`, `agent` |
 | `KAOS_OLLAMA_CONTEXT_WINDOW` | Whole number from 2,048 through 65,536; defaults to `4096` | Commands using `KAOS_OLLAMA_MODEL` |
 | `KAOS_OLLAMA_THINKING` | `off` or `on`; defaults to `off` | Commands using `KAOS_OLLAMA_MODEL` |
 | `KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT` | Whole number from 64 through 4,096; defaults to `512` with thinking off or `2048` with thinking on | Commands using `KAOS_OLLAMA_MODEL` |
@@ -64,9 +64,9 @@ over its environment variable.
 | `KAOS_KNOWLEDGE_DATA_DIRECTORY` | Directory containing `knowledge.db`; defaults to the current user's `.kaos` directory | Knowledge commands |
 | `KAOS_CONVERSATION_DATA_DIRECTORY` | Directory containing `conversations.db`; defaults to the current user's `.kaos` directory | `conversation` |
 | `KAOS_MEMORY_DATA_DIRECTORY` | Directory containing `memory.db`; defaults to the current user's `.kaos` directory | Memory commands and `ollama-prompt` memory lookup |
-| `KAOS_TOOL_HISTORY_DATA_DIRECTORY` | Directory containing `tool-history.db`; defaults to the current user's `.kaos` directory | Tool execution recording and `tool-history` |
-| `KAOS_TOOL_READ_ROOT` | Required absolute, non-filesystem-root directory; no default | `tools` status; file selection in `read-local-file`, `web-search`, or `conversation` |
-| `KAOS_WEB_SEARCH_SEARXNG_URL` | Optional trusted HTTP(S) service origin, e.g. `http://127.0.0.1:8080`; no default. JVM override: `kaos.web-search.searxng-url` | `tools` status; search selection in `web-search` or `conversation` |
+| `KAOS_TOOL_HISTORY_DATA_DIRECTORY` | Directory containing `tool-history.db`; defaults to the current user's `.kaos` directory | Tool execution recording, including agent tool steps, and `tool-history` |
+| `KAOS_TOOL_READ_ROOT` | Required absolute, non-filesystem-root directory; no default | `tools` status; file selection in `read-local-file`, `web-search`, `conversation`, or `agent` |
+| `KAOS_WEB_SEARCH_SEARXNG_URL` | Optional trusted HTTP(S) service origin, e.g. `http://127.0.0.1:8080`; no default. JVM override: `kaos.web-search.searxng-url` | `tools` status; search selection in `web-search`, `conversation`, or `agent` |
 | `KAOS_HTTP_ALLOWED_HOSTS` | Required comma-separated exact host names; no default | `tools` status; `http-get`, before showing an approval request |
 
 ### Commands and arguments
@@ -92,6 +92,7 @@ quotes.
 | `kaos read-local-file "<question>"` | One quoted question that identifies a relative file for the model | Ask about one model-requested, validated, explicitly approved file |
 | `kaos http-get "<question>"` | One quoted question from which the model may select an allowed HTTPS URL | Ask about one model-requested, explicitly approved web resource |
 | `kaos web-search "<question>"` | One quoted question; model chooses search, local file, or no tool | At most one approved tool, followed by one no-tools answer |
+| `kaos agent "<goal>"` | One quoted goal up to 4,096 Unicode code points | One model-proposed validated plan of at most three sequential steps, up to two independently approved tools, then one synthesis/result |
 | `kaos ollama-status` | None | Check the fixed local Ollama endpoint |
 | `kaos ollama-model` | None | Validate and display the configured chat model |
 | `kaos ollama-prompt "<prompt>"` | One quoted prompt | Generate one local Ollama answer |
@@ -298,6 +299,28 @@ retry. Missing SearXNG configuration does not prevent startup or other tools.
 See [separate SearXNG setup](docs/development/searxng-setup.md) and the
 [search contract and limits](docs/evolution/web-search-tool.md).
 
+Run one bounded foreground agent goal:
+
+```powershell
+$env:KAOS_TOOL_READ_ROOT = (Resolve-Path .).Path
+$env:KAOS_WEB_SEARCH_SEARXNG_URL = "http://127.0.0.1:8080"
+$env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
+./gradlew.bat --% --console=plain run --args="agent \"Compare KAOS's local tool architecture with current SearXNG security guidance.\""
+```
+
+The model proposes exactly one of four evidence shapes: stable/internal,
+local-file, current-public search, or local plus current-public. KAOS validates
+the proposal before execution, allows at most three ordered steps and two tool
+steps, and permits only `read_local_file` followed optionally by `web_search`.
+Every tool step shows its own existing Epic 008 approval prompt and requires a
+new single-use grant. A denial, invalid response, EOF, interruption, tool or
+history failure, or provider failure stops the run without retry, fallback, or
+replanning. Completed evidence is retained for the truthful incomplete summary,
+but no final answer is produced unless synthesis succeeds. Tool results remain
+untrusted data and cannot add or reorder steps. See the
+[agent evaluation](docs/evolution/agent-evaluation.md) and
+[Epic 009 exit record](docs/evolution/epic-009-exit.md).
+
 Start one foreground session that actually retains and uses earlier clean turns:
 
 ```powershell
@@ -431,19 +454,12 @@ incremental check.
 
 ## Next checkpoint
 
-Epic 008 is complete. Its [exit record](docs/evolution/epic-008-exit.md) and
-[tool contract refinement](docs/evolution/tool-contract-refinement.md) preserve
-the proven small runtime boundary. Epic 009 is active. Its completed
-[bounded agent use-case definition](docs/evolution/bounded-agent-use-case.md)
-sets the workflow contract, and its immutable
-[agent goal](docs/evolution/agent-goal-representation.md) and
-[bounded planner](docs/evolution/simple-agent-planning.md) are implemented, and
-[tool-assisted execution](docs/evolution/agent-tool-assisted-execution.md)
-reuses the Epic 008 runtime with explicit
-[execution state](docs/evolution/agent-execution-state.md), independent
-[approval checkpoints](docs/evolution/agent-user-approval-checkpoints.md), and
-safe terminal [failure and cancellation](docs/evolution/agent-failure-cancellation.md).
-One immutable [agent result](docs/evolution/agent-result-summary.md) now keeps
-successful and incomplete summaries truthful.
-The next ordered work is
-[009.09 - Agent Evaluation](https://github.com/karanbabu2110/KAOS/issues/908).
+Epic 009 is complete at the repository level. Its
+[exit record](docs/evolution/epic-009-exit.md) and deterministic
+[agent evaluation](docs/evolution/agent-evaluation.md) prove one useful bounded
+goal-to-result workflow above the unchanged Epic 008 tool runtime. The next
+evolutionary stage is
+[Epic 010 - Browser Automation](https://github.com/karanbabu2110/KAOS/issues/26),
+which remains inactive until explicitly approved. No browser automation,
+background work, replanning, parallel execution, or sub-agent behavior is
+implemented by Epic 009.

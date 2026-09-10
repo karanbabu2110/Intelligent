@@ -102,6 +102,36 @@ public final class OllamaPromptClient {
         return submit(model, ConversationHistory.empty(), prompt, () -> { }, ignored -> { });
     }
 
+    /** Synthesizes from one validated agent run with no advertised tool authority. */
+    public Result submitWithAgentEvidence(OllamaModelConfiguration model, OllamaPrompt prompt,
+            List<ToolResult<?>> evidence) {
+        Objects.requireNonNull(model, "model");
+        Objects.requireNonNull(prompt, "prompt");
+        List<ToolResult<?>> bounded = validateAgentEvidence(evidence);
+        try {
+            List<ChatMessage> messages = new ArrayList<>();
+            if (!prompt.systemInstruction().isEmpty()) {
+                messages.add(ChatMessage.text("system", prompt.systemInstruction()));
+            }
+            messages.add(ChatMessage.text("user", prompt.text()));
+            for (ToolResult<?> result : bounded) {
+                messages.add(ChatMessage.toolResult(result.toolName(),
+                        JSON.writeValueAsString(result.modelContent())));
+            }
+            BoundedRequestOutputStream output = new BoundedRequestOutputStream(MAX_REQUEST_BYTES);
+            JSON.writeValue(output, new ChatRequest(model.modelName(), List.copyOf(messages),
+                    List.of(), true, model.thinkingMode().enabled(),
+                    new GenerateOptions(model.contextWindow(), model.responseTokenLimit())));
+            return submitRequest(output.toByteArray(), model.thinkingMode(),
+                    () -> { }, ignored -> { }, new ToolSelector(tools, List.of()));
+        } catch (RequestLimitException exception) {
+            return Result.failed(Status.LOCAL_LIMIT_REACHED);
+        } catch (IOException exception) {
+            if (isCausedByRequestLimit(exception)) return Result.failed(Status.LOCAL_LIMIT_REACHED);
+            throw new IllegalStateException("Unable to encode validated agent evidence.", exception);
+        }
+    }
+
     /** Advertises only {@code read_local_file} and returns its request without executing it. */
     public Result submitWithReadLocalFileTool(
             OllamaModelConfiguration model, OllamaPrompt prompt) {
@@ -330,6 +360,20 @@ public final class OllamaPromptClient {
             throw new IllegalStateException(
                     "Unable to encode validated Ollama request.", exception);
         }
+    }
+
+    private static List<ToolResult<?>> validateAgentEvidence(List<ToolResult<?>> evidence) {
+        List<ToolResult<?>> bounded = List.copyOf(Objects.requireNonNull(evidence, "evidence"));
+        List<String> names = bounded.stream().map(ToolResult::toolName).toList();
+        boolean valid = names.equals(List.of())
+                || names.equals(List.of(ReadLocalFileToolContract.NAME))
+                || names.equals(List.of(WebSearchToolContract.NAME))
+                || names.equals(List.of(ReadLocalFileToolContract.NAME,
+                        WebSearchToolContract.NAME));
+        if (!valid) {
+            throw new IllegalArgumentException("Agent evidence must match one bounded plan shape.");
+        }
+        return bounded;
     }
 
     private static boolean isCausedByRequestLimit(Throwable failure) {
