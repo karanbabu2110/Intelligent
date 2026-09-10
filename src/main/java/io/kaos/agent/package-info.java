@@ -7,7 +7,9 @@
  * selector. One per-step executor can now prepare the selected tool's existing
  * permission policy and consume its single-use grant without interpreting the
  * result as instructions. One in-memory execution now owns the sequential
- * cursor, overall and per-step states, and completed bounded evidence. Approval
- * interaction and result synthesis remain later Epic 009 features.</p>
+ * cursor, overall and per-step states, and completed bounded evidence. Every
+ * current tool step now exposes and delegates to its own exact Epic 008
+ * approval policy. Failure classification and result synthesis remain later
+ * Epic 009 features.</p>
  */
 package io.kaos.agent;

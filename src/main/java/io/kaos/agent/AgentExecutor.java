@@ -3,6 +3,7 @@ package io.kaos.agent;
 import io.kaos.tool.StandardTools;
 import io.kaos.tool.ToolResult;
 import io.kaos.tool.ToolSelection;
+import io.kaos.tool.permission.ToolPermissionDecision;
 import io.kaos.tool.permission.ToolPermissionPolicy;
 import java.util.Objects;
 
@@ -49,6 +50,47 @@ public final class AgentExecutor {
             }
             throw failure;
         }
+    }
+
+    /** Returns the concrete tool's exact approval prompt without compressing its disclosure. */
+    public synchronized String currentApprovalPrompt() {
+        return prepareCurrent().prompt();
+    }
+
+    /** Delegates one response to the current concrete policy and stops on every non-approval. */
+    public synchronized ToolPermissionDecision decideCurrent(String response) {
+        if (execution.status().terminal()) {
+            throw new AgentExecutorException(AgentExecutorException.Reason.EXECUTION_STOPPED);
+        }
+        if (permission == null) {
+            throw new AgentExecutorException(AgentExecutorException.Reason.NOT_PREPARED);
+        }
+        try {
+            ToolPermissionDecision decision = permission.decide(response);
+            if (decision != ToolPermissionDecision.APPROVED) {
+                execution.stopCurrentTool(decision == ToolPermissionDecision.CANCELLED
+                        || decision == ToolPermissionDecision.END_OF_INPUT);
+            }
+            return decision;
+        } catch (RuntimeException | Error failure) {
+            if (!execution.status().terminal()) {
+                execution.stopCurrentTool(false);
+            }
+            throw failure;
+        }
+    }
+
+    /** Cancels the current concrete policy without creating a grant. */
+    public synchronized ToolPermissionDecision cancelCurrent() {
+        if (execution.status().terminal()) {
+            throw new AgentExecutorException(AgentExecutorException.Reason.EXECUTION_STOPPED);
+        }
+        if (permission == null) {
+            throw new AgentExecutorException(AgentExecutorException.Reason.NOT_PREPARED);
+        }
+        ToolPermissionDecision decision = permission.cancel();
+        execution.stopCurrentTool(true);
+        return decision;
     }
 
     /** Executes the single-use concrete grant and accepts only the planned request's result. */
