@@ -22,6 +22,11 @@ import io.kaos.conversation.SqliteConversationSchema;
 import io.kaos.conversation.SqliteConversationStore;
 import io.kaos.knowledge.EmbeddedChunk;
 import io.kaos.memory.MemoryDatabasePath;
+import io.kaos.tool.ToolExecutionOutcome;
+import io.kaos.tool.history.SqliteToolExecutionHistory;
+import io.kaos.tool.history.ToolExecutionRecord;
+import io.kaos.tool.history.ToolHistoryDatabasePath;
+import io.kaos.tool.permission.ToolPermissionDecision;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -32,8 +37,11 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -90,6 +98,36 @@ class KaosApplicationTest {
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(KaosApplication.helpText(), result.standardOutput());
         assertEquals("", result.errorOutput());
+    }
+
+    @Test
+    void displaysPersistedToolHistoryAcrossApplicationRunsWithoutPrivateData() {
+        String previous = System.getProperty(ToolHistoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+        System.setProperty(ToolHistoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY,
+                temporaryDirectory.toString());
+        try {
+            Instant started = Instant.parse("2026-09-10T00:00:00Z");
+            String privateValue = "private-file-name.txt";
+            new SqliteToolExecutionHistory(
+                    temporaryDirectory.resolve(ToolHistoryDatabasePath.DATABASE_FILENAME))
+                    .record(new ToolExecutionRecord("read_local_file", UUID.randomUUID(),
+                            Optional.of(ToolPermissionDecision.APPROVED),
+                            ToolExecutionOutcome.SUCCEEDED, started, started.plusSeconds(1)));
+
+            KaosApplicationHarness.Result result = KaosApplicationHarness.run("tool-history");
+
+            assertEquals(KaosApplication.SUCCESS, result.exitCode());
+            assertTrue(result.standardOutput().contains("tool=read_local_file"));
+            assertTrue(result.standardOutput().contains("outcome=SUCCEEDED"));
+            assertFalse(result.standardOutput().contains(privateValue));
+            assertEquals("", result.errorOutput());
+        } finally {
+            if (previous == null) {
+                System.clearProperty(ToolHistoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+            } else {
+                System.setProperty(ToolHistoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY, previous);
+            }
+        }
     }
 
     @Test

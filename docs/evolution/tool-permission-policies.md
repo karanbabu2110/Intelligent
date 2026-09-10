@@ -95,18 +95,19 @@ programming errors are not converted into ordinary tool failures.
 
 `ToolPermissionPolicy.Snapshot` exposes only the stable name, opaque operation
 UUID, decision (absent until decided), lifecycle outcome, and start/update
-instants. Existing audit rendering uses the same operation UUID. It includes no
+instants. [Tool Execution History](tool-execution-history.md) now converts each
+terminal snapshot into a bounded local record. Existing audit rendering uses
+the same operation UUID. It includes no
 path, query, configured host/endpoint, prompt, result, exception detail, or file
 content. A future history consumer can read it at lifecycle boundaries. Tool
 success is recorded before model continuation, so model failure cannot relabel
 a successful tool execution as a failed tool attempt.
 
-This prepares the observation boundary for Feature 008.07 without implementing
-its storage, retention, query API, observer/event bus, or persistence policy.
-History integration will also need to capture pre-validation rejections at the
-selection/command boundary. `ToolResult` is private model data and must never be
-passed wholesale to that future history store. This is not a plugin framework;
-dynamic discovery is not implemented.
+Selection, configuration, and validation failures before a permission lifecycle
+remain separate diagnostics and are intentionally absent from terminal execution
+history. `ToolResult` is private model data and is never passed to the history
+store. No observer bus or persisted state machine was added. This is not a
+plugin framework; dynamic discovery is not implemented.
 
 ## Verification
 

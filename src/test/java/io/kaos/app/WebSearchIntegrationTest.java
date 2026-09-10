@@ -11,6 +11,8 @@ import io.kaos.conversation.SqliteConversationStore;
 import io.kaos.tool.readlocalfile.ReadLocalFilePermissionValidator;
 import io.kaos.tool.websearch.SearxngClient;
 import io.kaos.tool.websearch.WebSearchException;
+import io.kaos.tool.ToolExecutionOutcome;
+import io.kaos.tool.history.ToolHistoryDatabasePath;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -47,6 +49,8 @@ class WebSearchIntegrationTest {
             assertFalse(f.output().contains("malicious snippet"));
             assertEquals("", f.errors());
             assertEquals(0, f.resultPageCalls.get());
+            assertEquals(ToolExecutionOutcome.SUCCEEDED,
+                    f.history.records().getFirst().outcome());
         }
     }
     @Test void denialMalformedInputAndEofNeverSearchOrContinue() throws Exception {
@@ -55,6 +59,8 @@ class WebSearchIntegrationTest {
                 assertEquals(0, f.command(input).execute("Current facts?"));
                 assertEquals(0, f.searchCalls.get());
                 assertEquals(1, f.messages.size());
+                assertEquals(1, f.history.records().size());
+                assertTrue(f.history.records().getFirst().outcome().terminal());
             }
         }
     }
@@ -75,6 +81,8 @@ class WebSearchIntegrationTest {
                     assertTrue(f.output().contains("decision=CANCELLED outcome=NOT_EXECUTED"));
                     assertEquals(0, f.searchCalls.get());
                     assertEquals(1, f.messages.size());
+                    assertEquals(ToolExecutionOutcome.CANCELLED,
+                            f.history.records().getFirst().outcome());
                 } finally { Thread.interrupted(); }
             }
         }
@@ -84,22 +92,26 @@ class WebSearchIntegrationTest {
         try (Fixture f = new Fixture(answer("Dependency injection explanation"))) {
             var command = new LocalToolsCommand(f.context(""), () -> new OllamaModelConfiguration("test"),
                     () -> f.client(), () -> { throw new AssertionError(); },
-                    () -> { throw new AssertionError(); });
+                    () -> { throw new AssertionError(); })
+                    .withToolHistory(() -> f.history);
             assertEquals(0, command.execute("What is dependency injection?"));
             assertEquals(0, f.searchCalls.get());
             assertEquals(1, f.messages.size());
+            assertTrue(f.history.records().isEmpty());
         }
     }
     @Test void missingSearchConfigurationFailsOnlyTheSearchTurn() throws Exception {
         try (Fixture f = new Fixture(tool("web_search", "{\"query\":\"private query\"}"))) {
             var command = new LocalToolsCommand(f.context("approve\n"), () -> new OllamaModelConfiguration("test"),
                     () -> f.client(), () -> new SearxngClient(null),
-                    () -> new ReadLocalFilePermissionValidator(root));
+                    () -> new ReadLocalFilePermissionValidator(root))
+                    .withToolHistory(() -> f.history);
             assertEquals(1, command.execute("Current information?"));
             assertTrue(f.errors().contains("SEARCH-SERVICE-NOT-CONFIGURED"));
             assertFalse(f.errors().contains("private query"));
             assertEquals(1, f.messages.size());
             assertEquals(0, f.searchCalls.get());
+            assertTrue(f.history.records().isEmpty());
         }
     }
     @Test void unavailableSearchIsSafeAndDoesNotContinue() throws Exception {
@@ -107,14 +119,18 @@ class WebSearchIntegrationTest {
             int port;
             try (ServerSocket socket = new ServerSocket(0)) { port = socket.getLocalPort(); }
             final int unavailable = port;
+            var history = new RecordingToolHistory();
             var command = new LocalToolsCommand(f.context("approve\n"), () -> new OllamaModelConfiguration("test"),
                     () -> f.client(), () -> new SearxngClient("http://127.0.0.1:" + unavailable),
-                    () -> new ReadLocalFilePermissionValidator(root));
+                    () -> new ReadLocalFilePermissionValidator(root))
+                    .withToolHistory(() -> history);
             assertEquals(1, command.execute("Current information?"));
             assertTrue(f.errors().contains("SEARCH-SERVICE-UNAVAILABLE"));
             assertFalse(f.errors().contains(Integer.toString(port)));
             assertFalse(f.errors().contains("private query"));
             assertEquals(1, f.messages.size());
+            assertEquals(ToolExecutionOutcome.FAILED,
+                    history.records().getFirst().outcome());
         }
     }
     @Test void selectedFileUsesExistingApprovalAndExecutorWithoutSearch() throws Exception {
@@ -198,6 +214,41 @@ class WebSearchIntegrationTest {
             assertEquals(1, f.messages.size());
         }
     }
+
+    @Test void runtimePersistsApprovedSearchForLaterHistoryInspection() throws Exception {
+        String previous = System.getProperty(ToolHistoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+        String previousSearch = System.getProperty(SearxngClient.URL_SYSTEM_PROPERTY);
+        System.setProperty(ToolHistoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY, root.toString());
+        try (Fixture f = new Fixture(tool("web_search", "{\"query\":\"public facts\"}"))) {
+            System.setProperty(SearxngClient.URL_SYSTEM_PROPERTY, f.searchUrl());
+            var runtime = new ApplicationRuntime(() -> { throw new AssertionError(); },
+                    () -> new OllamaModelConfiguration("test"),
+                    (model, history, prompt, thinking, chunks) -> { throw new AssertionError(); },
+                    () -> root.resolve("runtime-history.db")).withLocalToolsClient(() -> f.client());
+            var request = f.context("approve\n");
+            assertEquals(0, runtime.execute(new String[] {"web-search", "Find facts"},
+                    request.configuration(), request.input(), request.output(), request.errorOutput()),
+                    f.errors());
+            var inspectOutput = new ByteArrayOutputStream();
+            var inspectErrors = new ByteArrayOutputStream();
+            var inspect = new CommandContext(new ApplicationConfiguration("KAOS"),
+                    InputStream.nullInputStream(),
+                    new PrintStream(inspectOutput, true, StandardCharsets.UTF_8),
+                    new PrintStream(inspectErrors, true, StandardCharsets.UTF_8));
+            assertEquals(0, runtime.execute(new String[] {"tool-history"},
+                    inspect.configuration(), inspect.input(), inspect.output(), inspect.errorOutput()));
+            String history = inspectOutput.toString(StandardCharsets.UTF_8);
+            assertTrue(history.contains("tool=web_search"));
+            assertTrue(history.contains("outcome=SUCCEEDED"));
+            assertFalse(history.contains("public facts"));
+            assertEquals("", inspectErrors.toString(StandardCharsets.UTF_8));
+        } finally {
+            if (previous == null) System.clearProperty(ToolHistoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY);
+            else System.setProperty(ToolHistoryDatabasePath.DIRECTORY_SYSTEM_PROPERTY, previous);
+            if (previousSearch == null) System.clearProperty(SearxngClient.URL_SYSTEM_PROPERTY);
+            else System.setProperty(SearxngClient.URL_SYSTEM_PROPERTY, previousSearch);
+        }
+    }
     private static Set<String> fieldNames(JsonNode node) {
         Set<String> names = new HashSet<>();
         node.fieldNames().forEachRemaining(names::add);
@@ -217,6 +268,7 @@ class WebSearchIntegrationTest {
         final List<String> searchQueries = new CopyOnWriteArrayList<>();
         final AtomicInteger searchCalls = new AtomicInteger();
         final AtomicInteger resultPageCalls = new AtomicInteger();
+        final RecordingToolHistory history = new RecordingToolHistory();
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         final ByteArrayOutputStream errors = new ByteArrayOutputStream();
         String completion = answer("Final answer");
@@ -263,7 +315,8 @@ class WebSearchIntegrationTest {
         LocalToolsCommand command(String input) {
             return new LocalToolsCommand(context(input), () -> new OllamaModelConfiguration("test"),
                     () -> client(), () -> new SearxngClient(searchUrl()),
-                    () -> new ReadLocalFilePermissionValidator(root));
+                    () -> new ReadLocalFilePermissionValidator(root))
+                    .withToolHistory(() -> history);
         }
         String output() { return output.toString(StandardCharsets.UTF_8); }
         String errors() { return errors.toString(StandardCharsets.UTF_8); }

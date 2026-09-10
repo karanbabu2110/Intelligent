@@ -11,11 +11,15 @@ import io.kaos.app.config.ApplicationConfiguration;
 import io.kaos.tool.httpget.HttpGetPermissionValidator;
 import io.kaos.tool.httpget.HttpGetRequest;
 import io.kaos.tool.httpget.HttpGetResult;
+import io.kaos.tool.history.ToolExecutionHistory;
+import io.kaos.tool.history.ToolExecutionRecord;
+import io.kaos.tool.history.ToolHistoryStorageException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
@@ -30,12 +34,13 @@ class HttpGetCommandIntegrationTest {
         AtomicBoolean executed = new AtomicBoolean();
         AtomicBoolean continued = new AtomicBoolean();
         HttpGetPromptSubmission submission = submission(continued);
+        var history = new RecordingToolHistory();
         HttpGetCommand command = command("approve\n", output, errors, submission,
                 (validator, grant) -> {
                     executed.set(true);
                     return new HttpGetResult(grant.claim().request(),
                             "bounded public response", "text/plain");
-                });
+                }).withToolHistory(() -> history);
 
         int exitCode = command.execute("Summarize the reference.");
 
@@ -50,6 +55,8 @@ class HttpGetCommandIntegrationTest {
                 + "[0-9a-f-]{36} decision=APPROVED outcome=SUCCEEDED\\R"));
         assertFalse(standard.contains("bounded public response"));
         assertEquals("", errors.toString(StandardCharsets.UTF_8));
+        assertEquals(io.kaos.tool.ToolExecutionOutcome.SUCCEEDED,
+                history.records().getFirst().outcome());
     }
 
     @Test
@@ -125,6 +132,32 @@ class HttpGetCommandIntegrationTest {
         assertTrue(errors.toString(StandardCharsets.UTF_8)
                 .contains("KAOS-HTTP-GET-DISALLOWED-HOST"));
         assertFalse(errors.toString(StandardCharsets.UTF_8).contains("other.example"));
+    }
+
+    @Test
+    void historyFailureAfterExecutionIsReportedWithoutRetryOrContinuation() {
+        var output = new ByteArrayOutputStream();
+        var errors = new ByteArrayOutputStream();
+        var executions = new java.util.concurrent.atomic.AtomicInteger();
+        var continued = new AtomicBoolean();
+        ToolExecutionHistory unavailableHistory = new ToolExecutionHistory() {
+            @Override public void record(ToolExecutionRecord record) {
+                throw ToolHistoryStorageException.unavailable();
+            }
+            @Override public List<ToolExecutionRecord> recent(int limit) { return List.of(); }
+        };
+        var command = command("approve\n", output, errors, submission(continued),
+                (validator, grant) -> {
+                    executions.incrementAndGet();
+                    return new HttpGetResult(grant.claim().request(), "private response", "text/plain");
+                }).withToolHistory(() -> unavailableHistory);
+
+        assertEquals(KaosApplication.APPLICATION_ERROR,
+                command.execute("Summarize the reference."));
+        assertEquals(1, executions.get());
+        assertFalse(continued.get());
+        assertTrue(errors.toString(StandardCharsets.UTF_8).contains("KAOS-TOOL-HISTORY-002"));
+        assertFalse(errors.toString(StandardCharsets.UTF_8).contains("private response"));
     }
 
     private static HttpGetCommand command(String input, ByteArrayOutputStream output,

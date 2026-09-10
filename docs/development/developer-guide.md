@@ -630,10 +630,26 @@ every command in the public entry point:
   `StandardTools` is the explicit composition and allowed-operation boundary.
   Each concrete subpackage retains its request, resource policy, configuration,
   approval scope, and executor. `tool.permission` wraps exact approvals and
-  single-use attempts with safe in-memory snapshots for future execution history.
+  single-use attempts with safe in-memory snapshots. `tool.history` persists
+  terminal snapshots as bounded content-free records in its own local SQLite
+  database; `tool-history` displays the newest 20 without executing a tool.
   This is not a plugin framework; dynamic discovery is not implemented. Add a
   tool adapter and register it explicitly, then deliberately choose its allowed
   operations. Do not broaden advertisement merely because a tool is registered.
+
+Inspect recent tool outcomes without reading targets or contacting providers:
+
+```powershell
+./gradlew.bat run --args=tool-history
+```
+
+The database defaults to `%USERPROFILE%\.kaos\tool-history.db` on Windows.
+Override its directory with `KAOS_TOOL_HISTORY_DATA_DIRECTORY` or the higher
+precedence JVM property `kaos.tool-history.data-directory`. The store keeps the
+newest 1,000 terminal records; the command displays 20. Records contain only a
+tool name, opaque operation UUID, decision, terminal outcome, and timestamps.
+See [Tool Execution History](../evolution/tool-execution-history.md) for storage,
+privacy, failure, and verification details.
 
 When adding a command, keep its parsing in `CommandRouter`, put its workflow in
 a named command coordinator, supply external behavior through its constructor,

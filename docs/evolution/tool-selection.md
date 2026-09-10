@@ -71,10 +71,11 @@ possibly its configured upstream engines. Results are untrusted data. Rejecting
 subsequent calls is an enforced boundary; answer correctness and resistance to
 misleading source text are not guaranteed.
 
-Clean conversation direct-answer turns still use retained history and are
-persisted. Tool turns remain non-persistable, and their continuation includes the
-current prompt and result without replaying earlier conversation history. No
-history persistence, source-quality evaluation, or new tool capability is added.
+Clean conversation direct-answer turns still use retained message history and
+are persisted. Tool-backed message turns remain non-persistable, and their
+continuation includes the current prompt and result without replaying earlier
+conversation history. Their content-free terminal execution metadata is stored
+separately under [Tool Execution History](tool-execution-history.md).
 
 ## Evidence
 
@@ -89,4 +90,6 @@ cancelled approval, selected-tool configuration failures, and unchanged
 conversation persistence. All use local fixtures, not live Ollama, SearXNG, or
 public APIs. Current commands/results are in [permission policies](tool-permission-policies.md).
 
-Next: [008.07 - Tool Execution History](https://github.com/karanbabu2110/KAOS/issues/899).
+Feature [008.07 - Tool Execution History](https://github.com/karanbabu2110/KAOS/issues/899)
+now consumes terminal lifecycle snapshots without changing this bounded
+selection contract.

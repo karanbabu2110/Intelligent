@@ -457,9 +457,12 @@ records the [concrete resource policies](tool-permission-policies.md) and adds
 HTTP command checks for invalid approval, end of input, and cancellation.
 The follow-up runtime refactor adds a shared one-decision/one-attempt lifecycle,
 retains concrete validators and grants, and strengthens interrupted and EOF
-approval handling. It prepares safe observation without adding history storage.
-The next ordered feature is
+approval handling. It prepared the safe observation boundary used by
 [008.07 - Tool Execution History](https://github.com/karanbabu2110/KAOS/issues/899).
+That feature now persists terminal snapshots in a bounded content-free SQLite
+store and exposes the newest 20 through the read-only `tool-history` command.
+The implementation, privacy contract, storage limits, and deterministic
+verification are recorded in [Tool Execution History](tool-execution-history.md).
 
 ## Maintenance rule
 

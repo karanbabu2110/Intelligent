@@ -19,6 +19,9 @@ import io.kaos.memory.MemoryDatabasePath;
 import io.kaos.memory.SqliteAnswerDetailStore;
 import io.kaos.tool.StandardTools;
 import io.kaos.tool.ToolRegistry;
+import io.kaos.tool.history.SqliteToolExecutionHistory;
+import io.kaos.tool.history.ToolExecutionHistory;
+import io.kaos.tool.history.ToolHistoryDatabasePath;
 import io.kaos.tool.httpget.HttpGetExecutor;
 import io.kaos.tool.httpget.HttpGetPermissionValidator;
 import io.kaos.tool.httpget.HttpGetResult;
@@ -178,10 +181,13 @@ final class ApplicationRuntime {
         ConversationCommand conversationCommand = new ConversationCommand(
                 context, ollamaPromptCommand, conversationDatabasePathLoader);
         Supplier<ToolRegistry> toolRegistry = StandardTools::create;
+        Supplier<ToolExecutionHistory> toolHistory =
+                () -> new SqliteToolExecutionHistory(ToolHistoryDatabasePath.load());
         LocalToolsCommand localToolsCommand = new LocalToolsCommand(context,
                 modelConfigurationLoader, localToolsClient != null ? localToolsClient : () -> new OllamaPromptClient(toolRegistry.get()),
-                toolRegistry);
+                toolRegistry).withToolHistory(toolHistory);
         ToolCatalogCommand toolCatalogCommand = new ToolCatalogCommand(context, toolRegistry);
+        ToolHistoryCommand toolHistoryCommand = new ToolHistoryCommand(context, toolHistory);
         if (localToolsClient != null) conversationCommand.withLocalTools(localToolsCommand);
         KnowledgeRetrieveCommand knowledgeRetrieveCommand = new KnowledgeRetrieveCommand(
                 context, embeddingConfigurationLoader, embeddingSubmission,
@@ -228,7 +234,7 @@ final class ApplicationRuntime {
                         return client;
                     }
                 },
-                ReadLocalFilePermissionValidator::load);
+                ReadLocalFilePermissionValidator::load).withToolHistory(toolHistory);
         HttpGetCommand httpGetCommand = new HttpGetCommand(
                 context,
                 modelConfigurationLoader,
@@ -257,7 +263,8 @@ final class ApplicationRuntime {
                     }
                 },
                 HttpGetPermissionValidator::load,
-                (validator, grant) -> new HttpGetExecutor(validator).execute(grant));
+                (validator, grant) -> new HttpGetExecutor(validator).execute(grant))
+                .withToolHistory(toolHistory);
         return new CommandRouter(
                 context,
                 new KnowledgeIngestCommand(
@@ -278,6 +285,7 @@ final class ApplicationRuntime {
                 conversationCommand::execute)
                 .withWebSearch(localToolsCommand::execute)
                 .withToolCatalog(toolCatalogCommand::execute)
+                .withToolHistory(toolHistoryCommand::execute)
                 .route(arguments);
     }
 
