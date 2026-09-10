@@ -5,6 +5,8 @@ import io.kaos.tool.ToolResult;
 import io.kaos.tool.ToolSelection;
 import io.kaos.tool.permission.ToolPermissionDecision;
 import io.kaos.tool.permission.ToolPermissionPolicy;
+import io.kaos.tool.readlocalfile.ReadLocalFilePermissionException;
+import io.kaos.tool.websearch.WebSearchException;
 import java.util.Objects;
 
 /** Sequential coordinator for the current exact tool step of one validated plan. */
@@ -46,7 +48,7 @@ public final class AgentExecutor {
             return permission;
         } catch (RuntimeException | Error failure) {
             if (!execution.status().terminal()) {
-                execution.stopCurrentTool(false);
+                execution.stopCurrentTool(classifyPreparation(failure));
             }
             throw failure;
         }
@@ -68,13 +70,12 @@ public final class AgentExecutor {
         try {
             ToolPermissionDecision decision = permission.decide(response);
             if (decision != ToolPermissionDecision.APPROVED) {
-                execution.stopCurrentTool(decision == ToolPermissionDecision.CANCELLED
-                        || decision == ToolPermissionDecision.END_OF_INPUT);
+                execution.stopCurrentTool(reason(decision));
             }
             return decision;
         } catch (RuntimeException | Error failure) {
             if (!execution.status().terminal()) {
-                execution.stopCurrentTool(false);
+                execution.stopCurrentTool(AgentFailureReason.INVALID_APPROVAL);
             }
             throw failure;
         }
@@ -89,7 +90,7 @@ public final class AgentExecutor {
             throw new AgentExecutorException(AgentExecutorException.Reason.NOT_PREPARED);
         }
         ToolPermissionDecision decision = permission.cancel();
-        execution.stopCurrentTool(true);
+        execution.stopCurrentTool(AgentFailureReason.CANCELLED);
         return decision;
     }
 
@@ -104,7 +105,7 @@ public final class AgentExecutor {
         try {
             ToolResult<?> result = permission.execute();
             if (!selection.matches(result)) {
-                execution.stopCurrentTool(false);
+                execution.stopCurrentTool(AgentFailureReason.INVALID_TOOL_RESULT);
                 throw new AgentExecutorException(AgentExecutorException.Reason.INVALID_TOOL_RESULT);
             }
             execution.completeCurrentTool(result);
@@ -113,10 +114,7 @@ public final class AgentExecutor {
             return result;
         } catch (RuntimeException | Error failure) {
             if (!execution.status().terminal()) {
-                boolean cancelled = permission != null
-                        && permission.snapshot().outcome()
-                                == io.kaos.tool.ToolExecutionOutcome.CANCELLED;
-                execution.stopCurrentTool(cancelled);
+                execution.stopCurrentTool(classifyExecution(failure));
             }
             throw failure;
         }
@@ -139,5 +137,47 @@ public final class AgentExecutor {
             case TERMINAL_EXECUTION -> AgentExecutorException.Reason.EXECUTION_STOPPED;
         };
         return new AgentExecutorException(reason);
+    }
+
+    private static AgentFailureReason reason(ToolPermissionDecision decision) {
+        return switch (decision) {
+            case DENIED -> AgentFailureReason.PERMISSION_DENIED;
+            case INVALID_RESPONSE -> AgentFailureReason.INVALID_APPROVAL;
+            case END_OF_INPUT -> AgentFailureReason.END_OF_INPUT;
+            case CANCELLED -> Thread.currentThread().isInterrupted()
+                    ? AgentFailureReason.INTERRUPTED : AgentFailureReason.CANCELLED;
+            case APPROVED -> throw new IllegalArgumentException("approval is not a failure");
+        };
+    }
+
+    private static AgentFailureReason classifyPreparation(Throwable failure) {
+        if (failure instanceof ReadLocalFilePermissionException exception) {
+            return exception.reason() == ReadLocalFilePermissionException.Reason.INVALID_CONFIGURATION
+                    ? AgentFailureReason.TOOL_CONFIGURATION_UNAVAILABLE
+                    : AgentFailureReason.TOOL_VALIDATION_FAILED;
+        }
+        if (failure instanceof WebSearchException exception
+                && (exception.reason() == WebSearchException.Reason.SEARCH_SERVICE_NOT_CONFIGURED
+                || exception.reason() == WebSearchException.Reason.INVALID_CONFIGURATION)) {
+            return AgentFailureReason.TOOL_CONFIGURATION_UNAVAILABLE;
+        }
+        return AgentFailureReason.TOOL_VALIDATION_FAILED;
+    }
+
+    private AgentFailureReason classifyExecution(Throwable failure) {
+        var snapshot = permission == null ? null : permission.snapshot();
+        if (snapshot != null && snapshot.decision().isPresent()
+                && snapshot.decision().orElseThrow() != ToolPermissionDecision.APPROVED) {
+            return reason(snapshot.decision().orElseThrow());
+        }
+        if (snapshot != null && snapshot.outcome()
+                == io.kaos.tool.ToolExecutionOutcome.CANCELLED) {
+            return Thread.currentThread().isInterrupted()
+                    ? AgentFailureReason.INTERRUPTED : AgentFailureReason.CANCELLED;
+        }
+        return failure instanceof AgentExecutorException exception
+                && exception.reason() == AgentExecutorException.Reason.INVALID_TOOL_RESULT
+                ? AgentFailureReason.INVALID_TOOL_RESULT
+                : AgentFailureReason.TOOL_EXECUTION_FAILED;
     }
 }

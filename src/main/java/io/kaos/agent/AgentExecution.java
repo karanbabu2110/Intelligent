@@ -26,7 +26,8 @@ public final class AgentExecution {
 
     /** Content-free observation of one step; result content is exposed separately and explicitly. */
     public record StepSnapshot(int sequence, StepKind kind, Optional<String> toolName,
-            StepStatus status, boolean resultAvailable) { }
+            StepStatus status, boolean resultAvailable,
+            Optional<AgentFailureReason> terminalReason) { }
 
     private final UUID id = UUID.randomUUID();
     private final AgentPlan plan;
@@ -34,6 +35,7 @@ public final class AgentExecution {
     private final List<ToolResult<?>> completedResults = new ArrayList<>();
     private Status status = Status.PLANNED;
     private int currentIndex;
+    private AgentFailureReason terminalReason;
 
     public AgentExecution(AgentPlan plan) {
         this.plan = Objects.requireNonNull(plan, "plan");
@@ -44,6 +46,9 @@ public final class AgentExecution {
     public AgentGoal goal() { return plan.goal(); }
     public AgentPlan plan() { return plan; }
     public synchronized Status status() { return status; }
+    public synchronized Optional<AgentFailureReason> terminalReason() {
+        return Optional.ofNullable(terminalReason);
+    }
 
     public synchronized Optional<StepSnapshot> currentStep() {
         return currentIndex < states.size()
@@ -86,11 +91,27 @@ public final class AgentExecution {
     }
 
     public synchronized void fail() {
-        terminateCurrent(Status.FAILED, StepStatus.FAILED);
+        fail(AgentFailureReason.TOOL_EXECUTION_FAILED);
+    }
+
+    public synchronized void fail(AgentFailureReason reason) {
+        Objects.requireNonNull(reason, "reason");
+        if (reason.cancellation()) {
+            throw invalidTransition();
+        }
+        terminateCurrent(Status.FAILED, StepStatus.FAILED, reason);
     }
 
     public synchronized void cancel() {
-        terminateCurrent(Status.CANCELLED, StepStatus.CANCELLED);
+        cancel(AgentFailureReason.CANCELLED);
+    }
+
+    public synchronized void cancel(AgentFailureReason reason) {
+        Objects.requireNonNull(reason, "reason");
+        if (!reason.cancellation()) {
+            throw invalidTransition();
+        }
+        terminateCurrent(Status.CANCELLED, StepStatus.CANCELLED, reason);
     }
 
     synchronized AgentStep.Tool beginCurrentTool() {
@@ -119,19 +140,25 @@ public final class AgentExecution {
         currentIndex++;
     }
 
-    synchronized void stopCurrentTool(boolean cancelled) {
-        terminateCurrent(cancelled ? Status.CANCELLED : Status.FAILED,
-                cancelled ? StepStatus.CANCELLED : StepStatus.FAILED);
+    synchronized void stopCurrentTool(AgentFailureReason reason) {
+        if (reason.cancellation()) {
+            cancel(reason);
+        } else {
+            fail(reason);
+        }
     }
 
-    private void terminateCurrent(Status terminal, StepStatus stepTerminal) {
+    private void terminateCurrent(Status terminal, StepStatus stepTerminal,
+            AgentFailureReason reason) {
         requireContinuable();
         StepState current = current();
         if (current.status != StepStatus.PENDING && current.status != StepStatus.RUNNING) {
             throw invalidTransition();
         }
         current.status = stepTerminal;
+        current.terminalReason = reason;
         status = terminal;
+        terminalReason = reason;
     }
 
     private void requireContinuable() {
@@ -155,13 +182,15 @@ public final class AgentExecution {
     public synchronized String toString() {
         return "AgentExecution[id=" + id + ", planId=" + plan.id() + ", status=" + status
                 + ", currentSequence=" + currentStep().map(StepSnapshot::sequence).orElse(0)
-                + ", completedResults=" + completedResults.size() + "]";
+                + ", completedResults=" + completedResults.size() + ", terminalReason="
+                + Optional.ofNullable(terminalReason) + "]";
     }
 
     private static final class StepState {
         private final AgentStep step;
         private StepStatus status = StepStatus.PENDING;
         private boolean resultAvailable;
+        private AgentFailureReason terminalReason;
 
         private StepState(AgentStep step) {
             this.step = step;
@@ -170,10 +199,12 @@ public final class AgentExecution {
         private StepSnapshot snapshot() {
             if (step instanceof AgentStep.Tool tool) {
                 return new StepSnapshot(step.sequence(), StepKind.TOOL,
-                        Optional.of(tool.selection().name()), status, resultAvailable);
+                        Optional.of(tool.selection().name()), status, resultAvailable,
+                        Optional.ofNullable(terminalReason));
             }
             return new StepSnapshot(step.sequence(), StepKind.SYNTHESIS,
-                    Optional.empty(), status, resultAvailable);
+                    Optional.empty(), status, resultAvailable,
+                    Optional.ofNullable(terminalReason));
         }
     }
 }
