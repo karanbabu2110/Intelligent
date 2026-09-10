@@ -42,13 +42,13 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>Updated through Feature 008.07</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>Updated through Feature 008.08</span>
     </div>
-    <p class="change-note"><strong>Tool runtime update through Feature 008.07:</strong> Registry-backed metadata, bounded model selection, a shared approval/execution lifecycle, and content-free local execution history are implemented. The diagram below covers this update; the remaining baseline views retain their earlier review scope.</p>
+    <p class="change-note"><strong>Tool runtime update through Feature 008.08:</strong> Registry-backed metadata, bounded model selection, a shared approval/execution lifecycle, and content-free local execution history are implemented. Contract refinement retained this proven boundary without another runtime abstraction. The diagram below covers this update; the remaining baseline views retain their earlier review scope.</p>
 
     <section id="tool-runtime" class="panel change-current" aria-labelledby="tool-runtime-heading">
       <h2 id="tool-runtime-heading">Shared multi-tool runtime</h2>
-      <p><span class="status implemented">Implemented / Features 008.04-008.07</span> One Java 21 application, explicit constructor composition, three concrete tools, and one bounded local history store. This is not a plugin framework; dynamic discovery is not implemented.</p>
+      <p><span class="status implemented">Implemented / Features 008.04-008.08</span> One Java 21 application, explicit constructor composition, three concrete tools, and one bounded local history store. The Feature 008.08 review retained this contract. This is not a plugin framework; dynamic discovery is not implemented.</p>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable shared tool runtime diagram">
         <svg viewBox="0 0 1140 400" role="img" aria-labelledby="tool-title tool-description">
           <title id="tool-title">One bounded model-selected tool execution</title>
@@ -95,7 +95,7 @@
       </div>
       <p><code>read_local_file</code>, <code>http_get</code>, and <code>web_search</code> are registered. Shared conversation/search selection advertises only file and search; registration never grants authority. File containment and revalidation, HTTPS host/DNS rules, and the configured SearXNG endpoint remain tool-specific.</p>
       <p><span class="status implemented">Implemented / Feature 008.07</span> Every terminal validated tool attempt writes one content-free record. <code>tool-history</code> reads the newest 20. Direct answers and pre-validation failures do not create records; conversation message persistence remains unchanged.</p>
-      <p>Evidence: <a href="../../docs/evolution/shared-tool-metadata.md">runtime architecture</a>, <a href="../../docs/evolution/tool-selection.md">selection</a>, <a href="../../docs/evolution/tool-permission-policies.md">permission policies</a>, <a href="../../docs/evolution/tool-execution-history.md">execution history</a>, and <a href="../../src/test/java/io/kaos/tool/history/SqliteToolExecutionHistoryTest.java">deterministic history tests</a>.</p>
+      <p>Evidence: <a href="../../docs/evolution/shared-tool-metadata.md">runtime architecture</a>, <a href="../../docs/evolution/tool-selection.md">selection</a>, <a href="../../docs/evolution/tool-permission-policies.md">permission policies</a>, <a href="../../docs/evolution/tool-execution-history.md">execution history</a>, <a href="../../docs/evolution/tool-contract-refinement.md">contract refinement</a>, and <a href="../../src/test/java/io/kaos/tool/history/SqliteToolExecutionHistoryTest.java">deterministic history tests</a>.</p>
     </section>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
