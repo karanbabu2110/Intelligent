@@ -17,5 +17,10 @@
  * completion. The foreground {@code agent} command composes these boundaries,
  * records tool attempts through the existing content-free history, and sends
  * completed evidence to one no-tools synthesis request.</p>
+ *
+ * <p>A small deterministic freshness policy independently marks each goal as
+ * not requiring, recommending, or requiring current-public evidence. Required
+ * freshness is enforced during planning; empty search results cannot count as
+ * verified current evidence.</p>
  */
 package io.kaos.agent;

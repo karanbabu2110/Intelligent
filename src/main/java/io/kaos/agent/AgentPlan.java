@@ -8,7 +8,7 @@ import java.util.UUID;
 
 /** One immutable validated plan for one goal. */
 public record AgentPlan(UUID id, AgentGoal goal, InformationNeed informationNeed,
-        List<AgentStep> steps) {
+        FreshnessRequirement freshnessRequirement, List<AgentStep> steps) {
     public static final int MAX_STEPS = 3;
     public static final int MAX_TOOL_STEPS = 2;
 
@@ -16,6 +16,7 @@ public record AgentPlan(UUID id, AgentGoal goal, InformationNeed informationNeed
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(goal, "goal");
         Objects.requireNonNull(informationNeed, "informationNeed");
+        Objects.requireNonNull(freshnessRequirement, "freshnessRequirement");
         steps = List.copyOf(Objects.requireNonNull(steps, "steps"));
         validateBounds(steps);
         validateSequence(steps);

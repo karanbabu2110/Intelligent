@@ -15,6 +15,7 @@ import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.tool.ToolRegistry;
 import io.kaos.tool.permission.ToolPermissionDecision;
 import io.kaos.tool.permission.ToolPermissionPolicy;
+import io.kaos.tool.websearch.WebSearchResult;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -155,9 +156,13 @@ final class AgentCommand {
             return renderIncomplete(executor.execution(), !recordHistory(permission));
         }
         try {
-            executor.executeCurrent();
+            var result = executor.executeCurrent();
             if (!recordHistory(permission)) {
                 executor.execution().fail(AgentFailureReason.TOOL_HISTORY_FAILED);
+                return renderIncomplete(executor.execution(), true);
+            }
+            if (result instanceof WebSearchResult search && search.results().isEmpty()) {
+                executor.execution().fail(AgentFailureReason.CURRENT_EVIDENCE_UNAVAILABLE);
                 return renderIncomplete(executor.execution(), true);
             }
             return CONTINUE;

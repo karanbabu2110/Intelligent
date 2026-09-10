@@ -117,6 +117,22 @@ class AgentResultTest {
     }
 
     @Test
+    void completedSearchWithZeroResultsIsNotVerifiedCurrentEvidence() {
+        AgentExecution execution = new AgentExecution(plan("CURRENT_PUBLIC_EVIDENCE",
+                tool(1, "web_search", "{\"query\":\"current guidance\"}"), synthesis(2)));
+        completeTool(execution, new WebSearchResult(
+                new WebSearchRequest("current guidance"), List.of()));
+        execution.fail(AgentFailureReason.CURRENT_EVIDENCE_UNAVAILABLE);
+
+        AgentResult result = AgentResult.incomplete(execution);
+
+        assertEquals(AgentResult.CurrentEvidenceStatus.REQUIRED_BUT_UNAVAILABLE,
+                result.currentEvidenceStatus());
+        assertTrue(result.currentSources().isEmpty());
+        assertTrue(result.answer().isEmpty());
+    }
+
+    @Test
     void deniedAndCancelledRunsRemainDistinctAndAnswerFree() {
         AgentExecution denied = new AgentExecution(plan("CURRENT_PUBLIC_EVIDENCE",
                 tool(1, "web_search", "{\"query\":\"current guidance\"}"), synthesis(2)));

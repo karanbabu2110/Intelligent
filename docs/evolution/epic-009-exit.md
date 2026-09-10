@@ -85,3 +85,10 @@ interaction. Epic 010 may add browser automation only as another explicitly
 bounded capability; it can reuse the proven separation between model proposal,
 KAOS validation, user authority, concrete execution, and untrusted evidence. It
 must not weaken or silently generalize the Epic 009 agent boundary.
+
+Post-exit Feature 009.10 strengthens this closed epic with an independent
+three-level [freshness policy](freshness-policy-hardening.md). Clearly required
+current evidence is now a plan invariant, recommended evidence remains
+observable and nonblocking, and an empty search result cannot count as verified
+or proceed to synthesis. The original workflow and tool-authority limits remain
+unchanged.

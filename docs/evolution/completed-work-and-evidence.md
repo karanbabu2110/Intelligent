@@ -486,11 +486,12 @@ is [KAOS 1.7.0](../releases/v1.7.0.md), assigned to
   [#904](https://github.com/karanbabu2110/KAOS/issues/904),
   [#905](https://github.com/karanbabu2110/KAOS/issues/905),
   [#906](https://github.com/karanbabu2110/KAOS/issues/906),
-  [#907](https://github.com/karanbabu2110/KAOS/issues/907), and
-  [#908](https://github.com/karanbabu2110/KAOS/issues/908)
-- Merged delivery through Feature 009.08: PRs
+  [#907](https://github.com/karanbabu2110/KAOS/issues/907),
+  [#908](https://github.com/karanbabu2110/KAOS/issues/908), and post-exit
+  hardening [#1092](https://github.com/karanbabu2110/KAOS/issues/1092)
+- Merged delivery through Feature 009.09: PRs
   [#87](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/87)
-  through [#94](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/94)
+  through [#95](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/pull/95)
 - Exit evidence: [Epic 009 exit](epic-009-exit.md) and
   [agent evaluation](agent-evaluation.md)
 
@@ -508,8 +509,9 @@ prompt-injection isolation; current-evidence precedence; and one successful
 end-to-end workflow across actual temporary-file and loopback HTTP boundaries.
 The Feature 009.09 tree passed all 11 `verifyLocal` tasks with 515 tests across
 69 suites: 511 passed, zero failed or errored, and four documented
-platform-specific symlink checks were skipped. Final delivery is recorded in
-its pull request after the approved commit is created.
+platform-specific symlink checks were skipped. Feature 009.10 adds the
+[deterministic freshness policy](freshness-policy-hardening.md) and corrects
+empty-search evidence semantics while keeping Epic 009 closed.
 
 ## Maintenance rule
 

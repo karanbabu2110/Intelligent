@@ -29,6 +29,7 @@ class AgentPlannerTest {
 
         assertSame(goal, plan.goal());
         assertEquals(AgentPlan.InformationNeed.STABLE_INTERNAL, plan.informationNeed());
+        assertEquals(FreshnessRequirement.NOT_REQUIRED, plan.freshnessRequirement());
         assertEquals(List.of("synthesis"), actions(plan));
     }
 
@@ -41,9 +42,69 @@ class AgentPlannerTest {
                 synthesis(2)));
 
         assertEquals(List.of("web_search", "synthesis"), actions(plan));
+        assertEquals(FreshnessRequirement.REQUIRED, plan.freshnessRequirement());
         var step = (AgentStep.Tool) plan.steps().getFirst();
         assertEquals("current local AI coding assistants",
                 step.selection().request(WebSearchRequest.class).orElseThrow().query());
+    }
+
+    @Test
+    void stableDomainExplanationsAcceptInternalPlans() {
+        for (String objective : new String[] {
+                "Explain semantic versioning.",
+                "What is price elasticity?",
+                "How does a security token work?"
+        }) {
+            AgentPlan plan = planner.plan(goal(objective),
+                    proposal("STABLE_INTERNAL", synthesis(1)));
+
+            assertEquals(FreshnessRequirement.NOT_REQUIRED,
+                    plan.freshnessRequirement(), objective);
+            assertEquals(List.of("synthesis"), actions(plan), objective);
+        }
+    }
+
+    @Test
+    void rejectsInternalOrLocalOnlyPlansWhenFreshnessIsRequired() {
+        assertReason(AgentPlanningException.Reason.FRESHNESS_REQUIRED,
+                () -> planner.plan(goal("What is the latest Java version?"),
+                        proposal("STABLE_INTERNAL", synthesis(1))));
+        assertReason(AgentPlanningException.Reason.FRESHNESS_REQUIRED,
+                () -> planner.plan(goal("Inspect local notes for the latest Java version."),
+                        proposal("LOCAL_EVIDENCE",
+                                tool(1, "read_local_file", "{\"path\":\"notes.md\"}"),
+                                synthesis(2))));
+        assertReason(AgentPlanningException.Reason.FRESHNESS_REQUIRED,
+                () -> planner.plan(goal("What is the current price of RTX 5090?"),
+                        proposal("STABLE_INTERNAL", synthesis(1))));
+
+        String privateGoal = "What is the latest private product release?";
+        AgentPlanningException failure = assertThrows(AgentPlanningException.class,
+                () -> planner.plan(goal(privateGoal),
+                        proposal("STABLE_INTERNAL", synthesis(1))));
+        assertEquals(AgentPlanningException.Reason.FRESHNESS_REQUIRED, failure.reason());
+        assertFalse(failure.toString().contains(privateGoal));
+    }
+
+    @Test
+    void acceptsCurrentEvidenceWhenFreshnessIsRequired() {
+        AgentPlan plan = planner.plan(goal("What is the latest Java version?"),
+                proposal("CURRENT_PUBLIC_EVIDENCE",
+                        tool(1, "web_search", "{\"query\":\"latest Java version\"}"),
+                        synthesis(2)));
+
+        assertEquals(FreshnessRequirement.REQUIRED, plan.freshnessRequirement());
+        assertEquals(List.of("web_search", "synthesis"), actions(plan));
+    }
+
+    @Test
+    void recommendedFreshnessRemainsObservableWithoutHardFailure() {
+        AgentPlan plan = planner.plan(
+                goal("What Spring Boot version should I use for a new project?"),
+                proposal("STABLE_INTERNAL", synthesis(1)));
+
+        assertEquals(FreshnessRequirement.RECOMMENDED, plan.freshnessRequirement());
+        assertEquals(List.of("synthesis"), actions(plan));
     }
 
     @Test

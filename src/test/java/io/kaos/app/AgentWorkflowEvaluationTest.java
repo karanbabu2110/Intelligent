@@ -312,6 +312,32 @@ class AgentWorkflowEvaluationTest {
     }
 
     @Test
+    void emptySuccessfulSearchStopsBeforeSynthesisAsUnverifiedCurrentEvidence()
+            throws Exception {
+        try (SearchFixture search = SearchFixture.empty()) {
+            RecordingPrompts prompts = new RecordingPrompts(
+                    proposal("CURRENT_PUBLIC_EVIDENCE",
+                            tool(1, "web_search", "{\"query\":\"current release\"}"),
+                            synthesis(2)),
+                    ignored -> { throw new AssertionError("synthesis must not run"); });
+            CommandFixture fixture = command("approve\n", prompts,
+                    registry(() -> new ReadLocalFilePermissionValidator(root),
+                            () -> new SearxngClient(search.endpoint())));
+
+            assertEquals(KaosApplication.APPLICATION_ERROR,
+                    fixture.command.execute("What is the current release?"));
+            assertEquals(1, search.calls.get());
+            assertEquals(0, prompts.synthesisCalls.get());
+            assertTrue(fixture.output().contains("Current evidence: REQUIRED_BUT_UNAVAILABLE"));
+            assertTrue(fixture.output().contains("Current-public verification could not be completed."));
+            assertTrue(fixture.output().contains("reason=CURRENT_EVIDENCE_UNAVAILABLE"));
+            assertTrue(fixture.output().contains("No final answer was produced."));
+            assertEquals(ToolExecutionOutcome.SUCCEEDED,
+                    fixture.history.records().getFirst().outcome());
+        }
+    }
+
+    @Test
     void malformedOversizedUnknownAndDisallowedPlansAreRejectedBeforeExecution() {
         String tooManySteps = proposal("STABLE_INTERNAL",
                 synthesis(1), synthesis(2), synthesis(3), synthesis(4));
@@ -549,11 +575,12 @@ class AgentWorkflowEvaluationTest {
             server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             server.createContext("/search", exchange -> {
                 calls.incrementAndGet();
-                byte[] body = status == 200
+                byte[] body = status == 200 && title != null
                         ? ("{\"results\":[{\"title\":\"" + title + "\",\"url\":\""
                                 + endpoint() + "/result\",\"content\":\"" + snippet + "\"}]}")
                                 .getBytes(StandardCharsets.UTF_8)
-                        : "unavailable".getBytes(StandardCharsets.UTF_8);
+                        : status == 200 ? "{\"results\":[]}".getBytes(StandardCharsets.UTF_8)
+                                : "unavailable".getBytes(StandardCharsets.UTF_8);
                 exchange.getResponseHeaders().add("Content-Type", "application/json");
                 exchange.sendResponseHeaders(status, body.length);
                 exchange.getResponseBody().write(body);
@@ -568,6 +595,10 @@ class AgentWorkflowEvaluationTest {
 
         static SearchFixture failure() throws IOException {
             return new SearchFixture(503, "", "");
+        }
+
+        static SearchFixture empty() throws IOException {
+            return new SearchFixture(200, null, null);
         }
 
         String endpoint() { return "http://127.0.0.1:" + server.getAddress().getPort(); }

@@ -26,6 +26,7 @@ public final class AgentPlanner {
             .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build())
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     private final ToolSelector selector;
+    private final FreshnessPolicy freshnessPolicy = new FreshnessPolicy();
 
     public AgentPlanner(ToolRegistry registry) {
         selector = new ToolSelector(Objects.requireNonNull(registry), StandardTools.LOCAL);
@@ -50,7 +51,10 @@ public final class AgentPlanner {
         }
         List<AgentStep> steps = new ArrayList<>();
         proposedSteps.forEach(step -> steps.add(decodeStep(step)));
-        return new AgentPlan(UUID.randomUUID(), goal, need, steps);
+        FreshnessRequirement freshness = freshnessPolicy.assess(goal);
+        AgentPlan plan = new AgentPlan(UUID.randomUUID(), goal, need, freshness, steps);
+        freshnessPolicy.validate(plan);
+        return plan;
     }
 
     private JsonNode decode(String proposal) {

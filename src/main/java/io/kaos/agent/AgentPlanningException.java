@@ -12,6 +12,7 @@ public final class AgentPlanningException extends RuntimeException {
         TOO_MANY_TOOL_STEPS,
         INVALID_SEQUENCE,
         INVALID_STRUCTURE,
+        FRESHNESS_REQUIRED,
         UNKNOWN_TOOL,
         DISALLOWED_TOOL,
         MALFORMED_ARGUMENTS
