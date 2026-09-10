@@ -3,12 +3,17 @@ package io.kaos.app;
 import io.kaos.ai.ollama.OllamaModelConfiguration;
 import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
+import io.kaos.tool.StandardTools;
+import io.kaos.tool.httpget.HttpGet;
 import io.kaos.tool.httpget.HttpGetApproval;
 import io.kaos.tool.httpget.HttpGetAudit;
 import io.kaos.tool.httpget.HttpGetException;
 import io.kaos.tool.httpget.HttpGetPermissionValidator;
 import io.kaos.tool.httpget.HttpGetRequest;
 import io.kaos.tool.httpget.HttpGetResult;
+import io.kaos.tool.httpget.HttpGetToolContract;
+import io.kaos.tool.httpget.HttpGetTarget;
+import io.kaos.tool.permission.ToolPermissionDecision;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -22,7 +27,7 @@ import java.util.function.Supplier;
 final class HttpGetCommand {
     private static final int MAX_APPROVAL_CHARACTERS = 32;
     private static final String TOOL_USE_INSTRUCTION =
-            "When the user asks to retrieve or summarize a URL, use http_get. "
+            "When the user asks to retrieve or summarize a URL, use " + HttpGetToolContract.NAME + ". "
                     + "Do not claim web access is unavailable before considering this tool. "
                     + "Otherwise answer directly.";
 
@@ -70,7 +75,8 @@ final class HttpGetCommand {
             context.output().println(initial.response());
             return KaosApplication.SUCCESS;
         }
-        if (!initial.httpGetRequested()) {
+        if (initial.selection().isEmpty()
+                || !StandardTools.HTTP_GET.contains(initial.selection().orElseThrow().name())) {
             report("KAOS-HTTP-GET-INVALID-REQUEST",
                     "The model returned an unsupported tool request. Make a new request.");
             return KaosApplication.APPLICATION_ERROR;
@@ -80,34 +86,33 @@ final class HttpGetCommand {
             HttpGetPermissionValidator validator = validatorLoader.get();
             var target = validator.validate(request);
             return approveExecuteContinue(model, prompt, initial, validator, target);
-        } catch (HttpGetException | IllegalArgumentException exception) {
-            reportFailure(exception instanceof HttpGetException classified
-                    ? classified.reason() : HttpGetException.Reason.INVALID_REQUEST);
+        } catch (HttpGetException exception) {
+            reportFailure(exception.reason());
             return KaosApplication.APPLICATION_ERROR;
         }
     }
 
     private int approveExecuteContinue(OllamaModelConfiguration model, OllamaPrompt prompt,
             OllamaPromptClient.Result initial, HttpGetPermissionValidator validator,
-            io.kaos.tool.httpget.HttpGetTarget target) {
-        HttpGetApproval approvalRequest = new HttpGetApproval(target);
-        HttpGetAudit audit = new HttpGetAudit();
+            HttpGetTarget target) {
+        var approvalRequest = HttpGet.permission(validator, target, execution);
+        HttpGetAudit audit = new HttpGetAudit(approvalRequest.snapshot().operationId());
         context.output().println(approvalRequest.prompt());
-        HttpGetApproval.Outcome approval;
+        ToolPermissionDecision approval;
         try {
             approval = Thread.currentThread().isInterrupted()
                     ? approvalRequest.cancel() : approvalRequest.decide(readApproval());
         } catch (IOException exception) {
             approval = approvalRequest.cancel();
         }
-        if (!approval.approved()) {
-            context.output().println(notApprovedMessage(approval.status()));
+        if (approval != ToolPermissionDecision.APPROVED) {
+            context.output().println(approvalRequest.notApprovedMessage());
             reportAudit(audit.notExecuted(approval));
             return KaosApplication.SUCCESS;
         }
         HttpGetResult result;
         try {
-            result = execution.apply(validator, approval.grant().orElseThrow());
+            result = approvalRequest.execute();
         } catch (HttpGetException exception) {
             reportFailure(exception.reason());
             reportAudit(exception.reason() == HttpGetException.Reason.INTERRUPTED
@@ -142,7 +147,7 @@ final class HttpGetCommand {
             if (response.length() == MAX_APPROVAL_CHARACTERS) return "";
             response.append((char) character);
         }
-        return character < 0 && response.isEmpty() ? null : response.toString();
+        return character < 0 ? null : response.toString();
     }
 
     private int providerFailure(OllamaPromptClient.Status status) {
@@ -190,13 +195,4 @@ final class HttpGetCommand {
                 + " outcome=" + record.outcome());
     }
 
-    private static String notApprovedMessage(HttpGetApproval.Status status) {
-        return switch (status) {
-            case DENIED -> "Tool request denied. No external request was made.";
-            case CANCELLED -> "Tool request cancelled. No external request was made.";
-            case INVALID_RESPONSE -> "Tool request not approved; no external request was made.";
-            case END_OF_INPUT -> "Tool request ended without approval; no external request was made.";
-            case APPROVED -> throw new IllegalStateException("Approved request must execute.");
-        };
-    }
 }

@@ -77,6 +77,20 @@ class ToolCatalogCommandTest {
         assertThrows(IllegalStateException.class, command::execute);
     }
 
+    @Test void consumesAnInjectedRegistryWithoutExecutingOrAdvertisingItsTools() {
+        var tool = new io.kaos.tool.FixtureTool();
+        var output = new ByteArrayOutputStream();
+        var command = new ToolCatalogCommand(context(output),
+                new io.kaos.tool.ToolRegistry(java.util.List.of(tool)));
+        assertEquals(0, command.execute());
+        assertTrue(output.toString(StandardCharsets.UTF_8).contains(
+                "fixture_tool | Fixture purpose | approval: required | configuration: configured"));
+        assertFalse(output.toString(StandardCharsets.UTF_8).contains("Different model wording"));
+        assertFalse(output.toString(StandardCharsets.UTF_8).contains("read_local_file"));
+        assertEquals(0, tool.executions());
+        assertEquals(0, tool.preparations());
+    }
+
     private static CommandContext context(ByteArrayOutputStream output) {
         return new CommandContext(new ApplicationConfiguration("KAOS"),
                 InputStream.nullInputStream(),

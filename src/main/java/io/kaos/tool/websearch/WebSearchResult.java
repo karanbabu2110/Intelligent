@@ -1,11 +1,18 @@
 package io.kaos.tool.websearch;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import io.kaos.tool.ToolResult;
 import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 
 /** Normalized foreground result; URLs are data and are never fetched. */
-public record WebSearchResult(WebSearchRequest request, List<Entry> results) {
+public record WebSearchResult(WebSearchRequest request, List<Entry> results) implements ToolResult<WebSearchRequest> {
+    @Override public String toolName() { return WebSearchToolContract.NAME; }
+    @Override public JsonNode modelContent() {
+        return WebSearchToolContract.encodeResult(this);
+    }
+
     public static final int MAX_RESULTS = 5;
     public static final int MAX_PAYLOAD_BYTES = 16_384;
     public WebSearchResult {

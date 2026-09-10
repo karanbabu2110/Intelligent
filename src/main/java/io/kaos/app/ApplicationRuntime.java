@@ -8,12 +8,17 @@ import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.app.config.ApplicationConfiguration;
 import io.kaos.conversation.ConversationDatabasePath;
+import io.kaos.knowledge.EmbeddedChunk;
 import io.kaos.knowledge.KnowledgeDatabasePath;
 import io.kaos.knowledge.KnowledgeStorageException;
 import io.kaos.knowledge.SqliteKnowledgeStore;
+import io.kaos.knowledge.StoredKnowledgeDocument;
 import io.kaos.memory.AnswerDetail;
+import io.kaos.memory.AnswerDetailStore;
 import io.kaos.memory.MemoryDatabasePath;
 import io.kaos.memory.SqliteAnswerDetailStore;
+import io.kaos.tool.StandardTools;
+import io.kaos.tool.ToolRegistry;
 import io.kaos.tool.httpget.HttpGetExecutor;
 import io.kaos.tool.httpget.HttpGetPermissionValidator;
 import io.kaos.tool.httpget.HttpGetResult;
@@ -22,6 +27,7 @@ import io.kaos.tool.readlocalfile.ReadLocalFileResult;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -171,14 +177,11 @@ final class ApplicationRuntime {
                 context, modelConfigurationLoader, promptSubmission, answerDetailLoader);
         ConversationCommand conversationCommand = new ConversationCommand(
                 context, ollamaPromptCommand, conversationDatabasePathLoader);
+        Supplier<ToolRegistry> toolRegistry = StandardTools::create;
         LocalToolsCommand localToolsCommand = new LocalToolsCommand(context,
-                modelConfigurationLoader, localToolsClient != null ? localToolsClient : () -> new OllamaPromptClient(),
-                () -> io.kaos.tool.websearch.SearxngClient.load(),
-                ReadLocalFilePermissionValidator::load);
-        ToolCatalogCommand toolCatalogCommand = new ToolCatalogCommand(context,
-                ReadLocalFilePermissionValidator::load,
-                HttpGetPermissionValidator::load,
-                () -> io.kaos.tool.websearch.SearxngClient.load());
+                modelConfigurationLoader, localToolsClient != null ? localToolsClient : () -> new OllamaPromptClient(toolRegistry.get()),
+                toolRegistry);
+        ToolCatalogCommand toolCatalogCommand = new ToolCatalogCommand(context, toolRegistry);
         if (localToolsClient != null) conversationCommand.withLocalTools(localToolsCommand);
         KnowledgeRetrieveCommand knowledgeRetrieveCommand = new KnowledgeRetrieveCommand(
                 context, embeddingConfigurationLoader, embeddingSubmission,
@@ -189,7 +192,7 @@ final class ApplicationRuntime {
                 context, () -> new SqliteAnswerDetailStore(MemoryDatabasePath.load()));
         MemoryInspectCommand memoryInspectCommand = new MemoryInspectCommand(
                 context, answerDetailLoader);
-        java.util.function.Supplier<io.kaos.memory.AnswerDetailStore> memoryStore =
+        java.util.function.Supplier<AnswerDetailStore> memoryStore =
                 () -> new SqliteAnswerDetailStore(MemoryDatabasePath.load());
         MemoryEditCommand memoryEditCommand = new MemoryEditCommand(context, memoryStore);
         MemoryDeleteCommand memoryDeleteCommand = new MemoryDeleteCommand(context, memoryStore);
@@ -220,7 +223,7 @@ final class ApplicationRuntime {
 
                     private OllamaPromptClient client() {
                         if (client == null) {
-                            client = new OllamaPromptClient();
+                            client = new OllamaPromptClient(toolRegistry.get());
                         }
                         return client;
                     }
@@ -249,7 +252,7 @@ final class ApplicationRuntime {
                     }
 
                     private OllamaPromptClient client() {
-                        if (client == null) client = new OllamaPromptClient();
+                        if (client == null) client = new OllamaPromptClient(toolRegistry.get());
                         return client;
                     }
                 },
@@ -279,7 +282,7 @@ final class ApplicationRuntime {
     }
 
     private static long storeKnowledge(
-            String model, java.util.List<io.kaos.knowledge.EmbeddedChunk> chunks) {
+            String model, List<EmbeddedChunk> chunks) {
         try {
             return new SqliteKnowledgeStore(KnowledgeDatabasePath.load()).store(model, chunks);
         } catch (IllegalArgumentException | IllegalStateException exception) {
@@ -287,7 +290,7 @@ final class ApplicationRuntime {
         }
     }
 
-    private static java.util.List<io.kaos.knowledge.StoredKnowledgeDocument> loadKnowledge() {
+    private static List<StoredKnowledgeDocument> loadKnowledge() {
         try {
             return new SqliteKnowledgeStore(KnowledgeDatabasePath.load()).loadAll();
         } catch (IllegalArgumentException | IllegalStateException exception) {

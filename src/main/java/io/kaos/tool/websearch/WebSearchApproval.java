@@ -1,5 +1,6 @@
 package io.kaos.tool.websearch;
 
+import io.kaos.tool.permission.ToolPermissionDecision;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -13,7 +14,7 @@ public final class WebSearchApproval {
         this.request = Objects.requireNonNull(request);
     }
     public String prompt() {
-        return "Tool: web_search\nKAOS wants to search the public internet.\n"
+        return "Tool: " + WebSearchToolContract.NAME + "\nKAOS wants to search the public internet.\n"
                 + "Search query:\n\"" + request.query() + "\"\n"
                 + "Search service: configured self-hosted SearXNG\n"
                 + "SearXNG may forward this query to configured external search engines.\n"
@@ -22,13 +23,7 @@ public final class WebSearchApproval {
     public synchronized Outcome decide(String response) {
         if (decided) throw new WebSearchException(WebSearchException.Reason.APPROVAL_REUSED);
         decided = true;
-        Status status = Thread.currentThread().isInterrupted() ? Status.CANCELLED
-                : response == null ? Status.END_OF_INPUT
-                : switch (response.strip()) {
-                    case "approve" -> Status.APPROVED;
-                    case "deny" -> Status.DENIED;
-                    default -> Status.INVALID_RESPONSE;
-                };
+        Status status = Status.valueOf(ToolPermissionDecision.parse(response).name());
         return new Outcome(status, status == Status.APPROVED
                 ? Optional.of(new Grant(request)) : Optional.empty());
     }

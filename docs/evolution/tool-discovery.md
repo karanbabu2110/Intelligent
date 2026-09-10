@@ -2,8 +2,8 @@
 
 Feature [008.03](https://github.com/karanbabu2110/KAOS/issues/894)
 defines tool discovery at KAOS's current scale. It adds one read-only `tools`
-catalog command and records existing model-facing behavior without adding a
-registry or dynamic loading mechanism.
+catalog command. The follow-up for Features 008.04-008.06 now supplies its
+metadata through a shared in-memory registry. Dynamic loading is not implemented.
 
 ## User-visible catalog
 
@@ -32,8 +32,8 @@ combines absent and invalid configuration without exposing the private value.
 
 The command performs no model call, target validation, DNS lookup, service
 probe, web request, approval, or execution. It never prints configured roots,
-hosts, or endpoints. The catalog is a command-owned fixed presentation, not an
-executor map.
+hosts, or endpoints. The catalog iterates registry descriptors and local-only
+configuration status, without preparing a request or using execution authority.
 
 ## Model-visible outcome
 
@@ -62,8 +62,7 @@ after the selected concrete request reaches its established boundary.
 The order is deterministic and each definition occurs once. `http_get` remains
 outside shared selection because it retrieves a model-selected page rather than
 discovering search results, and it has a distinct destination policy. Adding it
-silently would broaden network authority and would pre-empt Feature 008.04's
-selection decision.
+silently would broaden network authority beyond the current selection contract.
 
 ## Ownership and implementation decision
 
@@ -73,22 +72,20 @@ Each concrete package owns its immutable model definition:
 - `io.kaos.tool.httpget.HttpGetToolContract`
 - `io.kaos.tool.websearch.WebSearchToolContract`
 
-`OllamaPromptClient` explicitly assembles the definitions appropriate to its
-concrete request method. `LocalToolsCommand` asks for the bounded two-tool set.
-No tool discovers or registers itself, and application startup does not scan
-packages, classes, files, services, or remote catalogs.
+`StandardTools` constructs the three adapters in deterministic order and defines
+explicit immutable operation scopes. `ToolRegistry` accepts constructor-supplied
+tools, rejects duplicate names, and exposes read-only lookup and ordered lists.
+No tool discovers or registers itself. Startup does not scan packages, classes,
+files, services, or remote catalogs, and does not read tool configuration.
 
-`ToolCatalogCommand` owns the fixed user-facing list and configuration-status
-presentation. It does not supply definitions to `OllamaPromptClient` or map
-names to `LocalToolsCommand` executors. The catalog and model definitions remain
-explicit at their two distinct consumers. The
-[Shared Tool Metadata decision](shared-tool-metadata.md) reuses the concrete
-tool-name constants in the catalog while retaining consumer-specific descriptions.
-
-That direct compile-time enumeration is preferable now because there are only
-three concrete tools, their command availability differs, and their schemas do
-not share a lifecycle or permission policy. A registry would move ownership out
-of the concrete packages without eliminating a demonstrated source of drift.
+`ToolCatalogCommand` consumes registry descriptors for stable names, human-facing
+purposes, and approval indications. Each adapter supplies configuration readiness
+using its existing local loader. Model descriptions and schemas remain concrete
+contract data. `ToolSelector` derives only the definitions permitted by its
+caller's explicit scope; `OllamaPromptClient` uses it for both advertisement and
+response selection. Registry membership grants neither advertisement nor
+execution authority. See [shared metadata](shared-tool-metadata.md) and
+[selection](tool-selection.md) for the runtime boundaries.
 
 ## Configuration, privacy, and failure behavior
 
@@ -99,16 +96,16 @@ configuration validation and requests exact user approval before crossing its
 protected boundary.
 
 Malformed, unknown, unadvertised, duplicate, or multiple tool calls are invalid
-model responses. They execute nothing. A direct textual answer remains valid
+model responses, with safe selection failure categories where applicable. They execute nothing. A direct textual answer remains valid
 when the model selects no tool. A continuation cannot discover another tool
 because KAOS omits the `tools` field and rejects a returned call.
 
-The user catalog catches configuration-loader failures and reports only
-`unavailable`; it does not retain exception details. There is no new state,
+Concrete adapters classify expected configuration-loader failures and report only
+`unavailable`; the catalog does not retain exception details. There is no new state,
 persistence, audit content, network call, retry, cancellation path, startup
 dependency, or user data introduced by this feature.
 
-## Deterministic evidence
+## Historical discovery evidence
 
 Run:
 
@@ -117,7 +114,8 @@ Run:
 ./gradlew.bat test --tests 'io.kaos.app.WebSearchIntegrationTest' --tests 'io.kaos.ai.ollama.OllamaPromptClientTest' --no-daemon --console=plain
 ```
 
-The model-discovery selection passed 47 tests before catalog implementation.
+At the original merged `a9d67ea` checkpoint, the model-discovery selection
+passed 47 tests before catalog implementation.
 After implementation, the focused catalog, routing, help, and real-process
 selection passed 83 tests with zero failures, errors, or skips. The public
 `tools` command also completed successfully through the Gradle application
@@ -143,20 +141,19 @@ all 11 tasks: compile, 418 tests (414 passed and four existing Windows symbolic-
 link skips), packaging, status, and help. The exact final tree added three
 catalog tests and one router test with no failures or errors.
 
-## Deliberate exclusions and evolution trigger
+## Current extension boundary
 
-This feature does not add a `ToolRegistry`, common tool interface, generic
-metadata type, plugin manager, `ServiceLoader`, reflection/classpath scan,
-configuration-driven loader, remote catalog, marketplace, hot reload, or arbitrary
-tool installation. Shared metadata, permission
-policy, and execution history remain separate later hypotheses.
+This is not a plugin framework. It adds no plugin manager, ServiceLoader,
+reflection/classpath scan, dynamic class loading, remote catalog, marketplace,
+hot reload, or arbitrary tool installation. Tool installation remains an explicit
+code/composition change. Adding a registered tool does not add it to any model
+operation until its allowed list is deliberately changed.
 
-Reconsider a registry only when a supported runtime-installed tool exists or
-manual compile-time enumeration causes observed drift across real consumers.
-Until then, adding a tool means adding its concrete package and explicitly
-choosing which request paths may advertise it.
+The current follow-up adds deterministic registry and descriptor integration
+tests, including a fourth fixture tool whose catalog entry requires no command
+change. Existing catalog order, redaction, missing configuration, and unexpected
+failure tests remain. Current full validation is recorded in
+[permission policies](tool-permission-policies.md).
 
 The next ordered feature is
-[008.04 - Tool Selection](https://github.com/karanbabu2110/KAOS/issues/895).
-The [selection decision](tool-selection.md) retains current model selection
-and direct dispatch, with explicit limits on source quality and HTTP retrieval.
+[008.07 - Tool Execution History](https://github.com/karanbabu2110/KAOS/issues/899).

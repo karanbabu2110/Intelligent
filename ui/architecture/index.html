@@ -14,6 +14,7 @@
     <div class="nav-inner">
       <a class="brand" href="#overview">KAOS Architecture</a>
       <ul class="nav-links">
+        <li><a href="#tool-runtime">Tool runtime</a></li>
         <li><a href="#runtime">Runtime</a></li>
         <li><a href="#flow">Code flow</a></li>
         <li><a href="#capabilities">Capabilities</a></li>
@@ -31,7 +32,7 @@
         <p class="lede">This website records what exists, what is approved next, and which boundaries remain only candidates. It is updated alongside implementation—not designed years ahead of it.</p>
       </div>
       <div class="stamp">
-        <strong>Verified 2026-09-08</strong>
+        <strong>Baseline review 2026-09-08</strong>
         Version 1.4.0 · Epic 006 release checkpoint<br>
         Java 21 · one Gradle project · one process
       </div>
@@ -41,9 +42,61 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>Verified for Epic 006 and release 1.4.0</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>Updated for Features 008.04-008.06</span>
     </div>
-    <p class="change-note"><strong>Current release checkpoint:</strong> Epic 006 is complete. One explicit local <code>answer-detail</code> preference now has durable creation, retrieval, bounded one-shot AI use, inspection, editing, deletion, privacy visibility, and deterministic lifecycle evidence without introducing a new runtime boundary.</p>
+    <p class="change-note"><strong>Tool runtime update: Features 008.04-008.06:</strong> Registry-backed metadata, bounded model selection, and a shared approval/execution lifecycle are implemented and verified. The diagram below covers this update; the remaining baseline views retain their earlier review scope.</p>
+
+    <section id="tool-runtime" class="panel change-current" aria-labelledby="tool-runtime-heading">
+      <h2 id="tool-runtime-heading">Shared multi-tool runtime</h2>
+      <p><span class="status implemented">Implemented / Features 008.04-008.06</span> One Java 21 application, explicit constructor composition, three concrete tools. This is not a plugin framework; dynamic discovery is not implemented.</p>
+      <div class="diagram-wrap" tabindex="0" aria-label="Scrollable shared tool runtime diagram">
+        <svg viewBox="0 0 1140 400" role="img" aria-labelledby="tool-title tool-description">
+          <title id="tool-title">One bounded model-selected tool execution</title>
+          <desc id="tool-description">A user request reaches Ollama. ToolSelector validates the model call against the operation's advertised names. ToolRegistry resolves the implementation and ToolSelection binds validated arguments. The selected tool validates its concrete resource policy, requests exact approval, and executes once with a concrete single-use grant. ToolResult returns to one model continuation with no tools. A direct answer bypasses tool preparation. Safe lifecycle snapshots contain no request or result content.</desc>
+          <defs><marker id="tool-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker></defs>
+          <g fill="none" stroke="#42d6a4" stroke-width="2" marker-end="url(#tool-arrow)">
+            <path d="M270 100 H310"></path><path d="M550 100 H590"></path><path d="M830 100 H870"></path>
+            <path d="M990 155 V215"></path><path d="M870 270 H830"></path><path d="M590 270 H550"></path><path d="M310 270 H270"></path>
+          </g>
+          <rect x="30" y="45" width="240" height="110" class="box box-implemented"></rect>
+          <text x="45" y="78" class="svg-title">User request</text>
+          <text x="45" y="107" class="svg-copy">conversation / web-search</text>
+          <text x="45" y="132" class="svg-copy">or explicit file / HTTP command</text>
+          <rect x="310" y="45" width="240" height="110" class="box box-implemented"></rect>
+          <text x="325" y="78" class="svg-title">Ollama response</text>
+          <text x="325" y="107" class="svg-copy">Direct answer or one call</text>
+          <text x="325" y="132" class="svg-copy">Bounded NDJSON parsing</text>
+          <rect x="590" y="45" width="240" height="110" class="box box-implemented"></rect>
+          <text x="605" y="78" class="svg-title">ToolSelector</text>
+          <text x="605" y="107" class="svg-copy">Explicit advertised set</text>
+          <text x="605" y="132" class="svg-copy">Concrete argument validation</text>
+          <rect x="870" y="45" width="240" height="110" class="box box-implemented"></rect>
+          <text x="885" y="78" class="svg-title">ToolRegistry</text>
+          <text x="885" y="107" class="svg-copy">Name to selected KaosTool</text>
+          <text x="885" y="132" class="svg-copy">Bound in ToolSelection</text>
+          <rect x="870" y="215" width="240" height="110" class="box box-implemented"></rect>
+          <text x="885" y="248" class="svg-title">KaosTool.prepare</text>
+          <text x="885" y="277" class="svg-copy">Concrete resource validation</text>
+          <text x="885" y="302" class="svg-copy">No execution authority yet</text>
+          <rect x="590" y="215" width="240" height="110" class="box box-implemented"></rect>
+          <text x="605" y="248" class="svg-title">Approval / grant</text>
+          <text x="605" y="277" class="svg-copy">ToolPermissionPolicy</text>
+          <text x="605" y="302" class="svg-copy">Exact user approval, one use</text>
+          <rect x="310" y="215" width="240" height="110" class="box box-implemented"></rect>
+          <text x="325" y="248" class="svg-title">Concrete executor</text>
+          <text x="325" y="277" class="svg-copy">Original resource safeguards</text>
+          <text x="325" y="302" class="svg-copy">One attempt; no retry</text>
+          <rect x="30" y="215" width="240" height="110" class="box box-implemented"></rect>
+          <text x="45" y="248" class="svg-title">ToolResult</text>
+          <text x="45" y="277" class="svg-copy">Matching request only</text>
+          <text x="45" y="302" class="svg-copy">One no-tools continuation</text>
+          <text x="30" y="375" class="svg-copy">History boundary: tool name / operation UUID / decision / outcome / timestamps. No private request or result content.</text>
+        </svg>
+      </div>
+      <p><code>read_local_file</code>, <code>http_get</code>, and <code>web_search</code> are registered. Shared conversation/search selection advertises only file and search; registration never grants authority. File containment and revalidation, HTTPS host/DNS rules, and the configured SearXNG endpoint remain tool-specific.</p>
+      <p><span class="status next">Next / not implemented</span> Feature 008.07 can observe safe lifecycle snapshots. Execution-history storage, retention, and queries remain future work. Direct-answer conversation persistence is unchanged; tool turns are not persisted.</p>
+      <p>Evidence: <a href="../../docs/evolution/shared-tool-metadata.md">runtime architecture</a>, <a href="../../docs/evolution/tool-selection.md">selection</a>, <a href="../../docs/evolution/tool-permission-policies.md">permission policies and verification</a>, and <a href="../../src/test/java/io/kaos/tool/ToolRuntimeTest.java">deterministic runtime tests</a>.</p>
+    </section>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">
       <h2 id="runtime-heading">System architecture diagram</h2>
@@ -66,14 +119,14 @@
 
           <text x="340" y="40" class="svg-label">SINGLE JAVA 21 PROCESS</text>
           <rect x="330" y="65" width="474" height="455" class="box box-implemented"></rect>
-          <text x="358" y="105" class="svg-title svg-change">io.kaos.app application layer</text>
+          <text x="358" y="105" class="svg-title">io.kaos.app application layer</text>
           <text x="358" y="132" class="svg-copy">KaosApplication · lifecycle and configuration boundary</text>
           <rect x="365" y="166" width="190" height="93" class="box box-support"></rect>
-          <text x="387" y="202" class="svg-title svg-change">Runtime · routing</text>
+          <text x="387" y="202" class="svg-title">Runtime · routing</text>
           <text x="387" y="227" class="svg-copy">ApplicationRuntime · compose</text>
           <text x="387" y="249" class="svg-copy">CommandRouter · route</text>
           <rect x="580" y="166" width="190" height="93" class="box box-support"></rect>
-          <text x="602" y="202" class="svg-title svg-change">Command coordinators</text>
+          <text x="602" y="202" class="svg-title">Command coordinators</text>
           <text x="602" y="229" class="svg-copy">one workflow · safe errors</text>
           <rect x="365" y="284" width="190" height="93" class="box box-support"></rect>
           <text x="387" y="320" class="svg-title">App config</text>
@@ -172,7 +225,7 @@
           <text x="540" y="142" class="svg-copy">top-level error boundary</text>
 
           <rect x="810" y="55" width="300" height="105" class="box box-implemented"></rect>
-          <text x="830" y="90" class="svg-title svg-change">ApplicationRuntime + CommandRouter</text>
+          <text x="830" y="90" class="svg-title">ApplicationRuntime + CommandRouter</text>
           <text x="830" y="118" class="svg-copy">compose explicit dependencies</text>
           <text x="830" y="142" class="svg-copy">select exactly one command</text>
 
@@ -346,7 +399,7 @@
 
           <text x="30" y="32" class="svg-label">FOREGROUND LOOP · RESTORED WORKING SET</text>
           <rect x="30" y="55" width="250" height="105" class="box box-implemented"></rect>
-          <text x="50" y="90" class="svg-title svg-change">ConversationCommand</text>
+          <text x="50" y="90" class="svg-title">ConversationCommand</text>
           <text x="50" y="118" class="svg-copy">execute · restore runtime</text>
           <text x="50" y="142" class="svg-copy">select newest · or create ID 1</text>
 
@@ -476,7 +529,7 @@
           <text x="270" y="140" class="svg-copy">reject wrong arity</text>
 
           <rect x="490" y="55" width="270" height="100" class="box box-support"></rect>
-          <text x="510" y="90" class="svg-title svg-change">KnowledgeIngestCommand</text>
+          <text x="510" y="90" class="svg-title">KnowledgeIngestCommand</text>
           <text x="510" y="118" class="svg-copy">Path.of(pathText)</text>
           <text x="510" y="140" class="svg-copy">map result or safe error</text>
 
@@ -789,7 +842,7 @@
           <h3>Complete first-memory evaluation</h3>
           <p>One temporary-database and loopback-HTTP scenario proves absent, create, exact AI use, edit, inspect/privacy, delete, and absent-again behavior across fresh storage boundaries without changing production architecture.</p>
         </article>
-        <article class="card change-current">
+        <article class="card">
           <div class="status implemented">Epic 006 · release checkpoint</div>
           <h3>First Memory Capability complete</h3>
           <p>Release 1.4.0 snapshots the nine-feature explicit memory outcome. The application remains one Gradle project and one process; Epic 007 is the next inactive checkpoint.</p>
@@ -879,7 +932,7 @@
           <tr><td>Explicit memory editing and deletion</td><td><a href="../../src/main/java/io/kaos/app/MemoryEditCommand.java"><code>MemoryEditCommand.java</code></a>, <a href="../../src/main/java/io/kaos/app/MemoryDeleteCommand.java"><code>MemoryDeleteCommand.java</code></a>, <a href="../../src/test/java/io/kaos/memory/SqliteAnswerDetailStoreTest.java"><code>SqliteAnswerDetailStoreTest.java</code></a>, and <a href="../../docs/evolution/memory-editing-deletion.md">Feature evidence</a></td><td>Implemented; delivered by PR #61</td></tr>
           <tr><td>Content-free memory privacy view</td><td><a href="../../src/main/java/io/kaos/app/MemoryPrivacyCommand.java"><code>MemoryPrivacyCommand.java</code></a>, <a href="../../src/test/java/io/kaos/app/MemoryPrivacyCommandTest.java"><code>MemoryPrivacyCommandTest.java</code></a>, <a href="../../src/test/java/io/kaos/app/KaosApplicationTest.java"><code>KaosApplicationTest.java</code></a>, and <a href="../../docs/evolution/memory-privacy-controls.md">Feature evidence</a></td><td>Implemented; delivered by PR #62</td></tr>
           <tr><td>Complete first-memory lifecycle evaluation</td><td><a href="../../src/test/java/io/kaos/app/KaosOllamaIntegrationTest.java"><code>KaosOllamaIntegrationTest.java</code></a> and <a href="../../docs/evolution/memory-testing-evaluation.md">Feature evidence</a></td><td>Evaluated; delivered by PR #63 with temporary SQLite and loopback HTTP only</td></tr>
-          <tr class="change-current"><td><span class="change-label">Verified for release 1.4.0</span>First Memory Capability</td><td><a href="../../docs/evolution/epic-006-exit.md">Epic 006 exit evidence</a>, <a href="../../docs/releases/v1.4.0.md">release notes</a>, and <a href="../../docs/releases/v1.4.0-validation.md">release validation</a></td><td>Completed nine-feature capability; release checkpoint awaiting reviewed merge</td></tr>
+          <tr><td><span>Verified for release 1.4.0</span>First Memory Capability</td><td><a href="../../docs/evolution/epic-006-exit.md">Epic 006 exit evidence</a>, <a href="../../docs/releases/v1.4.0.md">release notes</a>, and <a href="../../docs/releases/v1.4.0-validation.md">release validation</a></td><td>Completed nine-feature capability; release checkpoint awaiting reviewed merge</td></tr>
         </tbody>
       </table>
       <p class="rule"><strong>Update rule:</strong> every feature that changes packages, dependencies, data ownership, integrations, deployment, or architectural status updates this website in the same pull request. Claims move to “implemented” only when linked repository evidence exists. Update the verification date after checking the site against the code.</p>

@@ -181,6 +181,17 @@ class ReadLocalFileCommandIntegrationTest {
     }
 
     @Test
+    void eofAfterUnterminatedApprovalDoesNotExecuteOrContinue() throws Exception {
+        Files.writeString(temporaryDirectory.resolve("safe.txt"), "private content");
+        var output = new ByteArrayOutputStream();
+        assertEquals(KaosApplication.SUCCESS,
+                command("approve", output, new ByteArrayOutputStream(), requestOnly("safe.txt"))
+                        .execute("Explain safe.txt"));
+        assertTrue(output.toString(StandardCharsets.UTF_8)
+                .contains("decision=END_OF_INPUT outcome=NOT_EXECUTED"));
+    }
+
+    @Test
     void invalidTargetProducesOnlyTheStableToolDiagnostic() {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         ByteArrayOutputStream errors = new ByteArrayOutputStream();
