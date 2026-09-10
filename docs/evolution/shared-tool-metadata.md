@@ -4,7 +4,8 @@ Feature [008.05](https://github.com/karanbabu2110/KAOS/issues/896), together wit
 [008.04](https://github.com/karanbabu2110/KAOS/issues/895) and
 [008.06](https://github.com/karanbabu2110/KAOS/issues/897), now has a shared runtime
 foundation in the single Java 21 application. It completes the previously minimal
-checkpoints before [008.07 - Tool Execution History](https://github.com/karanbabu2110/KAOS/issues/899).
+checkpoints and supplies the safe snapshot boundary now used by
+[008.07 - Tool Execution History](https://github.com/karanbabu2110/KAOS/issues/899).
 
 ## Current architecture
 

@@ -7,6 +7,7 @@ import io.kaos.conversation.ConversationHistory;
 import io.kaos.tool.StandardTools;
 import io.kaos.tool.ToolRegistry;
 import io.kaos.tool.ToolResult;
+import io.kaos.tool.history.ToolExecutionHistory;
 import io.kaos.tool.httpget.HttpGetPermissionValidator;
 import io.kaos.tool.permission.ToolPermissionDecision;
 import io.kaos.tool.permission.ToolPermissionPolicy;
@@ -38,6 +39,12 @@ final class LocalToolsCommand {
     private final Supplier<OllamaModelConfiguration> modelLoader;
     private final Supplier<OllamaPromptClient> clientLoader;
     private final Supplier<ToolRegistry> registryLoader;
+    private ToolHistoryRecorder historyRecorder;
+
+    LocalToolsCommand withToolHistory(Supplier<ToolExecutionHistory> historyLoader) {
+        historyRecorder = new ToolHistoryRecorder(context, historyLoader);
+        return this;
+    }
 
     LocalToolsCommand(CommandContext context, Supplier<OllamaModelConfiguration> modelLoader,
             Supplier<OllamaPromptClient> clientLoader, Supplier<SearxngClient> searchLoader,
@@ -117,24 +124,31 @@ final class LocalToolsCommand {
         if (decision != ToolPermissionDecision.APPROVED) {
             context.output().println(permission.notApprovedMessage());
             audit(selection.name(), permission.snapshot().operationId().toString(), decision.name(), "NOT_EXECUTED");
-            return new Outcome(KaosApplication.SUCCESS, "", false);
+            return new Outcome(recordHistory(permission) ? KaosApplication.SUCCESS
+                    : KaosApplication.APPLICATION_ERROR, "", false);
         }
         ToolResult<?> result;
         try {
             result = permission.execute();
         } catch (WebSearchException exception) {
             audit(permission);
+            recordHistory(permission);
             return searchFailure(exception);
         } catch (ReadLocalFilePermissionException exception) {
             audit(permission);
+            recordHistory(permission);
             var failure = ReadLocalFileFailureMapper.from(exception);
             return error(failure.code(), failure.message());
         } catch (ReadLocalFileExecutionException exception) {
             audit(permission);
+            recordHistory(permission);
             var failure = ReadLocalFileFailureMapper.from(exception);
             return error(failure.code(), failure.message());
         }
         audit(permission);
+        if (!recordHistory(permission)) {
+            return new Outcome(KaosApplication.APPLICATION_ERROR, "", false);
+        }
         var completion = client.continueWithToolResult(model, prompt, initial, result);
         if (!completion.successful()) return modelFailure(completion);
         if (completion.toolRequested()) {
@@ -174,6 +188,9 @@ final class LocalToolsCommand {
         var snapshot = permission.snapshot();
         audit(snapshot.toolName(), snapshot.operationId().toString(),
                 snapshot.decision().orElseThrow().name(), snapshot.outcome().name());
+    }
+    private boolean recordHistory(ToolPermissionPolicy<?> permission) {
+        return historyRecorder == null || historyRecorder.record(permission.snapshot());
     }
     private void audit(String name, String id, String decision, String outcome) {
         context.output().println("AUDIT [" + name + "] target=" + id

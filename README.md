@@ -8,9 +8,9 @@ inside the verified single application.
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823), [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), [Epic 006 — First Memory Capability](https://github.com/karanbabu2110/KAOS/issues/10), and [Epic 007 — First Tool Integration](https://github.com/karanbabu2110/KAOS/issues/15)
-- Active epic: [Epic 008 — Multi-Tool Capability](https://github.com/karanbabu2110/KAOS/issues/63); HTTP retrieval and SearXNG web search are complete; [the shared tool runtime](docs/evolution/shared-tool-metadata.md) now supplies registry-based metadata, bounded model selection, and a common permission lifecycle; Tool Execution History is next
+- Active epic: [Epic 008 — Multi-Tool Capability](https://github.com/karanbabu2110/KAOS/issues/63); HTTP retrieval and SearXNG web search are complete; [the shared tool runtime](docs/evolution/shared-tool-metadata.md) now supplies registry-based metadata, bounded model selection, and a common permission lifecycle; [tool execution history](docs/evolution/tool-execution-history.md) now stores bounded content-free terminal outcomes locally
 - Release checkpoint: KAOS 1.6.0 is being prepared for the completed HTTP GET capability; the latest published release remains [KAOS 1.5.0](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v1.5.0)
-- Repository state: one root Gradle/Java 21 application with one production entry point, explicit bounded memory, local SQLite conversations/knowledge/memory, bounded local Ollama chat and embeddings, grounded answers with citations, three concrete approval-gated tools, SearXNG-backed discovery, and a read-only `tools` catalog with privacy-safe configuration status
+- Repository state: one root Gradle/Java 21 application with one production entry point, explicit bounded memory, local SQLite conversations/knowledge/memory/tool history, bounded local Ollama chat and embeddings, grounded answers with citations, three concrete approval-gated tools, SearXNG-backed discovery, and a read-only `tools` catalog with privacy-safe configuration status
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
 
 ## Architecture
@@ -64,6 +64,7 @@ over its environment variable.
 | `KAOS_KNOWLEDGE_DATA_DIRECTORY` | Directory containing `knowledge.db`; defaults to the current user's `.kaos` directory | Knowledge commands |
 | `KAOS_CONVERSATION_DATA_DIRECTORY` | Directory containing `conversations.db`; defaults to the current user's `.kaos` directory | `conversation` |
 | `KAOS_MEMORY_DATA_DIRECTORY` | Directory containing `memory.db`; defaults to the current user's `.kaos` directory | Memory commands and `ollama-prompt` memory lookup |
+| `KAOS_TOOL_HISTORY_DATA_DIRECTORY` | Directory containing `tool-history.db`; defaults to the current user's `.kaos` directory | Tool execution recording and `tool-history` |
 | `KAOS_TOOL_READ_ROOT` | Required absolute, non-filesystem-root directory; no default | `tools` status; file selection in `read-local-file`, `web-search`, or `conversation` |
 | `KAOS_WEB_SEARCH_SEARXNG_URL` | Optional trusted HTTP(S) service origin, e.g. `http://127.0.0.1:8080`; no default. JVM override: `kaos.web-search.searxng-url` | `tools` status; search selection in `web-search` or `conversation` |
 | `KAOS_HTTP_ALLOWED_HOSTS` | Required comma-separated exact host names; no default | `tools` status; `http-get`, before showing an approval request |
@@ -79,6 +80,7 @@ quotes.
 | `kaos` or `kaos status` | None | Show local application status |
 | `kaos help` or `kaos --help` | None | Show the exact supported command syntax |
 | `kaos tools` | None | List fixed tools and privacy-safe local configuration status without executing them |
+| `kaos tool-history` | None | List up to 20 recent content-free terminal tool attempts, newest first |
 | `kaos memory-create answer-detail <value>` | `<value>` is `concise`, `balanced`, or `detailed` | Create the fixed answer-detail memory without overwriting it |
 | `kaos memory-inspect answer-detail` | Fixed key `answer-detail` | Show whether the memory exists and its value |
 | `kaos memory-edit answer-detail <value>` | `<value>` is `concise`, `balanced`, or `detailed` | Replace an existing answer-detail value |

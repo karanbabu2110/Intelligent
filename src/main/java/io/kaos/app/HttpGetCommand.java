@@ -4,6 +4,7 @@ import io.kaos.ai.ollama.OllamaModelConfiguration;
 import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.tool.StandardTools;
+import io.kaos.tool.history.ToolExecutionHistory;
 import io.kaos.tool.httpget.HttpGet;
 import io.kaos.tool.httpget.HttpGetApproval;
 import io.kaos.tool.httpget.HttpGetAudit;
@@ -37,6 +38,12 @@ final class HttpGetCommand {
     private final Supplier<HttpGetPermissionValidator> validatorLoader;
     private final BiFunction<HttpGetPermissionValidator, HttpGetApproval.Grant,
             HttpGetResult> execution;
+    private ToolHistoryRecorder historyRecorder;
+
+    HttpGetCommand withToolHistory(Supplier<ToolExecutionHistory> historyLoader) {
+        historyRecorder = new ToolHistoryRecorder(context, historyLoader);
+        return this;
+    }
 
     HttpGetCommand(CommandContext context,
             Supplier<OllamaModelConfiguration> modelLoader,
@@ -108,7 +115,8 @@ final class HttpGetCommand {
         if (approval != ToolPermissionDecision.APPROVED) {
             context.output().println(approvalRequest.notApprovedMessage());
             reportAudit(audit.notExecuted(approval));
-            return KaosApplication.SUCCESS;
+            return recordHistory(approvalRequest) ? KaosApplication.SUCCESS
+                    : KaosApplication.APPLICATION_ERROR;
         }
         HttpGetResult result;
         try {
@@ -117,6 +125,11 @@ final class HttpGetCommand {
             reportFailure(exception.reason());
             reportAudit(exception.reason() == HttpGetException.Reason.INTERRUPTED
                     ? audit.cancelled() : audit.failed());
+            recordHistory(approvalRequest);
+            return KaosApplication.APPLICATION_ERROR;
+        }
+        if (!recordHistory(approvalRequest)) {
+            reportAudit(audit.succeeded());
             return KaosApplication.APPLICATION_ERROR;
         }
         OllamaPromptClient.Result completion = promptSubmission.continueWithResult(
@@ -193,6 +206,10 @@ final class HttpGetCommand {
         context.output().println("AUDIT [" + record.operation() + "] target="
                 + record.targetIdentity() + " decision=" + record.decision()
                 + " outcome=" + record.outcome());
+    }
+
+    private boolean recordHistory(io.kaos.tool.permission.ToolPermissionPolicy<?> permission) {
+        return historyRecorder == null || historyRecorder.record(permission.snapshot());
     }
 
 }

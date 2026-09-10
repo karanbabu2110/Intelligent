@@ -155,5 +155,6 @@ change. Existing catalog order, redaction, missing configuration, and unexpected
 failure tests remain. Current full validation is recorded in
 [permission policies](tool-permission-policies.md).
 
-The next ordered feature is
-[008.07 - Tool Execution History](https://github.com/karanbabu2110/KAOS/issues/899).
+Feature [008.07 - Tool Execution History](https://github.com/karanbabu2110/KAOS/issues/899)
+uses registered stable names in content-free terminal records without changing
+the explicit discovery or advertisement boundary.

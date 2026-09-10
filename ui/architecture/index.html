@@ -42,17 +42,17 @@
       <span class="pill"><span class="dot implemented"></span>Implemented and verified</span>
       <span class="pill"><span class="dot next"></span>Next approved work</span>
       <span class="pill"><span class="dot future"></span>Future candidate, not implemented</span>
-      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>Updated for Features 008.04-008.06</span>
+      <span class="pill"><span class="change-swatch" aria-hidden="true"></span>Updated through Feature 008.07</span>
     </div>
-    <p class="change-note"><strong>Tool runtime update: Features 008.04-008.06:</strong> Registry-backed metadata, bounded model selection, and a shared approval/execution lifecycle are implemented and verified. The diagram below covers this update; the remaining baseline views retain their earlier review scope.</p>
+    <p class="change-note"><strong>Tool runtime update through Feature 008.07:</strong> Registry-backed metadata, bounded model selection, a shared approval/execution lifecycle, and content-free local execution history are implemented. The diagram below covers this update; the remaining baseline views retain their earlier review scope.</p>
 
     <section id="tool-runtime" class="panel change-current" aria-labelledby="tool-runtime-heading">
       <h2 id="tool-runtime-heading">Shared multi-tool runtime</h2>
-      <p><span class="status implemented">Implemented / Features 008.04-008.06</span> One Java 21 application, explicit constructor composition, three concrete tools. This is not a plugin framework; dynamic discovery is not implemented.</p>
+      <p><span class="status implemented">Implemented / Features 008.04-008.07</span> One Java 21 application, explicit constructor composition, three concrete tools, and one bounded local history store. This is not a plugin framework; dynamic discovery is not implemented.</p>
       <div class="diagram-wrap" tabindex="0" aria-label="Scrollable shared tool runtime diagram">
         <svg viewBox="0 0 1140 400" role="img" aria-labelledby="tool-title tool-description">
           <title id="tool-title">One bounded model-selected tool execution</title>
-          <desc id="tool-description">A user request reaches Ollama. ToolSelector validates the model call against the operation's advertised names. ToolRegistry resolves the implementation and ToolSelection binds validated arguments. The selected tool validates its concrete resource policy, requests exact approval, and executes once with a concrete single-use grant. ToolResult returns to one model continuation with no tools. A direct answer bypasses tool preparation. Safe lifecycle snapshots contain no request or result content.</desc>
+          <desc id="tool-description">A user request reaches Ollama. ToolSelector validates the model call against the operation's advertised names. ToolRegistry resolves the implementation and ToolSelection binds validated arguments. The selected tool validates its concrete resource policy, requests exact approval, and executes once with a concrete single-use grant. ToolResult returns to one model continuation with no tools. A direct answer bypasses tool preparation. Terminal lifecycle snapshots are written to bounded local SQLite history without request or result content.</desc>
           <defs><marker id="tool-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#42d6a4"></path></marker></defs>
           <g fill="none" stroke="#42d6a4" stroke-width="2" marker-end="url(#tool-arrow)">
             <path d="M270 100 H310"></path><path d="M550 100 H590"></path><path d="M830 100 H870"></path>
@@ -90,12 +90,12 @@
           <text x="45" y="248" class="svg-title">ToolResult</text>
           <text x="45" y="277" class="svg-copy">Matching request only</text>
           <text x="45" y="302" class="svg-copy">One no-tools continuation</text>
-          <text x="30" y="375" class="svg-copy">History boundary: tool name / operation UUID / decision / outcome / timestamps. No private request or result content.</text>
+          <text x="30" y="375" class="svg-copy">SQLite history (1,000 max; 20 shown): tool name / operation UUID / decision / outcome / timestamps. No request or result content.</text>
         </svg>
       </div>
       <p><code>read_local_file</code>, <code>http_get</code>, and <code>web_search</code> are registered. Shared conversation/search selection advertises only file and search; registration never grants authority. File containment and revalidation, HTTPS host/DNS rules, and the configured SearXNG endpoint remain tool-specific.</p>
-      <p><span class="status next">Next / not implemented</span> Feature 008.07 can observe safe lifecycle snapshots. Execution-history storage, retention, and queries remain future work. Direct-answer conversation persistence is unchanged; tool turns are not persisted.</p>
-      <p>Evidence: <a href="../../docs/evolution/shared-tool-metadata.md">runtime architecture</a>, <a href="../../docs/evolution/tool-selection.md">selection</a>, <a href="../../docs/evolution/tool-permission-policies.md">permission policies and verification</a>, and <a href="../../src/test/java/io/kaos/tool/ToolRuntimeTest.java">deterministic runtime tests</a>.</p>
+      <p><span class="status implemented">Implemented / Feature 008.07</span> Every terminal validated tool attempt writes one content-free record. <code>tool-history</code> reads the newest 20. Direct answers and pre-validation failures do not create records; conversation message persistence remains unchanged.</p>
+      <p>Evidence: <a href="../../docs/evolution/shared-tool-metadata.md">runtime architecture</a>, <a href="../../docs/evolution/tool-selection.md">selection</a>, <a href="../../docs/evolution/tool-permission-policies.md">permission policies</a>, <a href="../../docs/evolution/tool-execution-history.md">execution history</a>, and <a href="../../src/test/java/io/kaos/tool/history/SqliteToolExecutionHistoryTest.java">deterministic history tests</a>.</p>
     </section>
 
     <section id="runtime" class="panel" aria-labelledby="runtime-heading">

@@ -163,12 +163,13 @@ public final class KaosApplication {
 
     static String helpText() {
         return """
-                Usage: kaos [status|help|tools|memory-create answer-detail <value>|memory-inspect answer-detail|memory-edit answer-detail <value>|memory-delete answer-detail|memory-privacy|knowledge-ingest <path>|knowledge-retrieve <query>|knowledge-ask <question>|read-local-file <question>|http-get <question>|web-search <question>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
+                Usage: kaos [status|help|tools|tool-history|memory-create answer-detail <value>|memory-inspect answer-detail|memory-edit answer-detail <value>|memory-delete answer-detail|memory-privacy|knowledge-ingest <path>|knowledge-retrieve <query>|knowledge-ask <question>|read-local-file <question>|http-get <question>|web-search <question>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
 
                 Commands:
                   status         Show local application status (default).
                   help           Show this help. The --help alias is also supported.
                   tools          List fixed tools and privacy-safe configuration status.
+                  tool-history   List up to 20 recent content-free tool execution records.
                   memory-create  Persist answer-detail as concise, balanced, or detailed.
                   memory-inspect Show whether answer-detail exists and its structured value.
                   memory-edit    Replace an existing answer-detail value.

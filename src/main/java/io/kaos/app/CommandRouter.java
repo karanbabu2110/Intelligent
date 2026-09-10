@@ -19,6 +19,7 @@ final class CommandRouter {
     private final ArgumentCommand httpGetCommand;
     private ArgumentCommand webSearchCommand = argument -> KaosApplication.USAGE_ERROR;
     private Command toolCatalogCommand = () -> KaosApplication.USAGE_ERROR;
+    private Command toolHistoryCommand = () -> KaosApplication.USAGE_ERROR;
 
     CommandRouter withWebSearch(ArgumentCommand command) {
         webSearchCommand = Objects.requireNonNull(command);
@@ -27,6 +28,11 @@ final class CommandRouter {
 
     CommandRouter withToolCatalog(Command command) {
         toolCatalogCommand = Objects.requireNonNull(command);
+        return this;
+    }
+
+    CommandRouter withToolHistory(Command command) {
+        toolHistoryCommand = Objects.requireNonNull(command);
         return this;
     }
     private final Command ollamaStatusCommand;
@@ -234,6 +240,9 @@ final class CommandRouter {
         if (isCommand(arguments, "tools")) {
             return toolCatalogCommand.execute();
         }
+        if (isCommand(arguments, "tool-history")) {
+            return toolHistoryCommand.execute();
+        }
         if (arguments.length == 2 && "knowledge-ingest".equals(arguments[0])) {
             return knowledgeIngestCommand.execute(arguments[1]);
         }
@@ -340,6 +349,10 @@ final class CommandRouter {
         }
         if (arguments.length > 0 && "tools".equals(arguments[0])) {
             context.errorOutput().println("Expected tools without arguments. Run 'kaos help' for usage.");
+            return KaosApplication.USAGE_ERROR;
+        }
+        if (arguments.length > 0 && "tool-history".equals(arguments[0])) {
+            context.errorOutput().println("Expected tool-history without arguments. Run 'kaos help' for usage.");
             return KaosApplication.USAGE_ERROR;
         }
 

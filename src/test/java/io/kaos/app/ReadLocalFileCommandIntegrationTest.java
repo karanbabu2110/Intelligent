@@ -58,7 +58,9 @@ class ReadLocalFileCommandIntegrationTest {
             }
         };
 
+        var history = new RecordingToolHistory();
         int exitCode = command("approve\n", output, errors, submission)
+                .withToolHistory(() -> history)
                 .execute("Explain ApprovedFile.java");
 
         String standardOutput = output.toString(StandardCharsets.UTF_8);
@@ -72,6 +74,8 @@ class ReadLocalFileCommandIntegrationTest {
                 + "[0-9a-f-]{36} decision=APPROVED outcome=SUCCEEDED\\R"));
         assertFalse(standardOutput.contains(privateContent));
         assertEquals("", errors.toString(StandardCharsets.UTF_8));
+        assertEquals(io.kaos.tool.ToolExecutionOutcome.SUCCEEDED,
+                history.records().getFirst().outcome());
     }
 
     @Test

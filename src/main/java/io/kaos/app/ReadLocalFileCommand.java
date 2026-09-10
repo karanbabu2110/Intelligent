@@ -4,6 +4,7 @@ import io.kaos.ai.ollama.OllamaModelConfiguration;
 import io.kaos.ai.ollama.OllamaPrompt;
 import io.kaos.ai.ollama.OllamaPromptClient;
 import io.kaos.tool.StandardTools;
+import io.kaos.tool.history.ToolExecutionHistory;
 import io.kaos.tool.permission.ToolPermissionDecision;
 import io.kaos.tool.readlocalfile.ReadLocalFile;
 import io.kaos.tool.readlocalfile.ReadLocalFileAuditContext;
@@ -33,9 +34,15 @@ final class ReadLocalFileCommand {
     private final ReadLocalFilePromptSubmission promptSubmission;
     private final Supplier<ReadLocalFilePermissionValidator> validatorLoader;
     private ApprovalInput approvalInput;
+    private ToolHistoryRecorder historyRecorder;
 
     ReadLocalFileCommand withApprovalInput(ApprovalInput input) {
         this.approvalInput = Objects.requireNonNull(input);
+        return this;
+    }
+
+    ReadLocalFileCommand withToolHistory(Supplier<ToolExecutionHistory> historyLoader) {
+        historyRecorder = new ToolHistoryRecorder(context, historyLoader);
         return this;
     }
 
@@ -128,7 +135,8 @@ final class ReadLocalFileCommand {
             ReadLocalFileAuditRecord record = audit.recordNotExecuted(approval);
             context.output().println(approvalRequest.notApprovedMessage());
             reportAudit(record);
-            return KaosApplication.SUCCESS;
+            return recordHistory(approvalRequest) ? KaosApplication.SUCCESS
+                    : KaosApplication.APPLICATION_ERROR;
         }
 
         ReadLocalFileResult result;
@@ -141,14 +149,20 @@ final class ReadLocalFileCommand {
                             : audit.recordFailed();
             report(ReadLocalFileFailureMapper.from(exception));
             reportAudit(record);
+            recordHistory(approvalRequest);
             return KaosApplication.APPLICATION_ERROR;
         } catch (ReadLocalFilePermissionException exception) {
             report(ReadLocalFileFailureMapper.from(exception));
             reportAudit(audit.recordFailed());
+            recordHistory(approvalRequest);
             return KaosApplication.APPLICATION_ERROR;
         }
 
         ReadLocalFileAuditRecord record = audit.recordSucceeded();
+        if (!recordHistory(approvalRequest)) {
+            reportAudit(record);
+            return KaosApplication.APPLICATION_ERROR;
+        }
         OllamaPromptClient.Result completion =
                 promptSubmission.continueWithResult(
                         model, prompt, initial, result);
@@ -230,6 +244,10 @@ final class ReadLocalFileCommand {
         context.output().println("AUDIT [" + record.operation() + "] target="
                 + record.targetIdentity() + " decision=" + record.decision()
                 + " outcome=" + record.outcome());
+    }
+
+    private boolean recordHistory(io.kaos.tool.permission.ToolPermissionPolicy<?> permission) {
+        return historyRecorder == null || historyRecorder.record(permission.snapshot());
     }
 
     private record ProviderFailure(String code, String message) { }
