@@ -12,9 +12,11 @@ import io.kaos.tool.ToolRegistry;
 import io.kaos.tool.ToolSelection;
 import io.kaos.tool.ToolSelectionException;
 import io.kaos.tool.ToolSelector;
+import io.kaos.tool.websearch.WebSearchToolContract;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Decodes one model proposal and validates it without executing or preparing a tool. */
@@ -28,9 +30,41 @@ public final class AgentPlanner {
     private final ToolSelector selector;
     private final FreshnessPolicy freshnessPolicy = new FreshnessPolicy();
     private final LocalEvidencePolicy localEvidencePolicy = new LocalEvidencePolicy();
+    private final PublicFactPolicy publicFactPolicy = new PublicFactPolicy();
 
     public AgentPlanner(ToolRegistry registry) {
         selector = new ToolSelector(Objects.requireNonNull(registry), StandardTools.LOCAL);
+    }
+
+    /**
+     * Builds the sole required public-search plan when the goal itself is a valid query.
+     * No tool is prepared and invalid or mixed goals remain model-planned.
+     */
+    public Optional<AgentPlan> deterministicPublicFactPlan(AgentGoal goal) {
+        Objects.requireNonNull(goal, "goal");
+        if (!publicFactPolicy.isRequired(goal) || localEvidencePolicy.isRequired(goal)) {
+            return Optional.empty();
+        }
+        JsonNode step = JSON.createObjectNode()
+                .put("sequence", 1)
+                .put("type", "tool")
+                .put("tool", WebSearchToolContract.NAME)
+                .set("arguments", JSON.createObjectNode().put("query", goal.objective()));
+        try {
+            AgentPlan plan = new AgentPlan(UUID.randomUUID(), goal,
+                    AgentPlan.InformationNeed.CURRENT_PUBLIC_EVIDENCE,
+                    freshnessPolicy.assess(goal),
+                    List.of(decodeTool(step, 1), new AgentStep.Synthesis(2)));
+            freshnessPolicy.validate(plan);
+            publicFactPolicy.validate(plan);
+            localEvidencePolicy.validate(plan);
+            return Optional.of(plan);
+        } catch (AgentPlanningException exception) {
+            if (exception.reason() == AgentPlanningException.Reason.MALFORMED_ARGUMENTS) {
+                return Optional.empty();
+            }
+            throw exception;
+        }
     }
 
     public AgentPlan plan(AgentGoal goal, String proposal) {
@@ -55,6 +89,7 @@ public final class AgentPlanner {
         FreshnessRequirement freshness = freshnessPolicy.assess(goal);
         AgentPlan plan = new AgentPlan(UUID.randomUUID(), goal, need, freshness, steps);
         freshnessPolicy.validate(plan);
+        publicFactPolicy.validate(plan);
         localEvidencePolicy.validate(plan);
         return plan;
     }

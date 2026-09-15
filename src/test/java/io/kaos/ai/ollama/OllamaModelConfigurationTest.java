@@ -92,9 +92,11 @@ class OllamaModelConfigurationTest {
         OllamaModelConfiguration configuration = OllamaModelConfiguration.resolve(
                 "qwen3:8b", null, null, null);
 
-        assertEquals(4_096, configuration.contextWindow());
+        assertEquals(OllamaModelConfiguration.DEFAULT_CONTEXT_WINDOW,
+                configuration.contextWindow());
         assertEquals(OllamaThinkingMode.OFF, configuration.thinkingMode());
-        assertEquals(512, configuration.responseTokenLimit());
+        assertEquals(OllamaModelConfiguration.DEFAULT_ORDINARY_RESPONSE_TOKEN_LIMIT,
+                configuration.responseTokenLimit());
     }
 
     @Test
@@ -187,7 +189,8 @@ class OllamaModelConfigurationTest {
         OllamaModelConfiguration configuration = OllamaModelConfiguration.resolve(
                 "qwen3:4b", null, null, null, "on", null, null, null);
 
-        assertEquals(2_048, configuration.responseTokenLimit());
+        assertEquals(OllamaModelConfiguration.DEFAULT_REASONING_RESPONSE_TOKEN_LIMIT,
+                configuration.responseTokenLimit());
     }
 
     @Test
@@ -208,7 +211,9 @@ class OllamaModelConfigurationTest {
 
     @Test
     void rejectsInvalidOrExcessiveResponseLimits() {
-        for (String value : new String[] {" ", "63", "4097", "unbounded"}) {
+        for (String value : new String[] {" ", "63",
+                String.valueOf(OllamaModelConfiguration.MAX_RESPONSE_TOKEN_LIMIT + 1),
+                "unbounded"}) {
             IllegalArgumentException exception = assertThrows(
                     IllegalArgumentException.class,
                     () -> OllamaModelConfiguration.resolve(

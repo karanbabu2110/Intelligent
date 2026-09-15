@@ -1,5 +1,8 @@
 # KAOS Developer Guide
 
+For command, model, and tool data-flow diagnostics, see
+[application debug tracing](debug-tracing.md).
+
 This is the practical entry point for developing the current KAOS application.
 It describes the application that exists now; planned capabilities do not add
 setup or operational requirements until they are implemented.
@@ -272,14 +275,14 @@ KAOS never runs this installation command for you.
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
 $env:KAOS_OLLAMA_THINKING = "off"
-$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "512"
+$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "2048"
 ./gradlew.bat run --args=ollama-model
 ```
 
 Successful output is:
 
 ```text
-Configured local Ollama model: qwen3:4b-instruct (context window: 4096 tokens, thinking: off, response limit: 512 tokens).
+Configured local Ollama model: qwen3:4b-instruct (context window: 4096 tokens, thinking: off, response limit: 2048 tokens).
 ```
 
 `ollama-model` validates and displays local process configuration only. It does
@@ -292,7 +295,7 @@ stop-parsing token so nested quotes survive the Gradle batch wrapper:
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_OLLAMA_THINKING = "off"
-$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "512"
+$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "2048"
 ./gradlew.bat --% run --args="ollama-prompt \"Why is the sky blue?\""
 ```
 
@@ -301,7 +304,7 @@ On Linux or macOS:
 ```bash
 export KAOS_OLLAMA_MODEL=qwen3:4b-instruct
 export KAOS_OLLAMA_THINKING=off
-export KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT=512
+export KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT=2048
 ./gradlew run --args='ollama-prompt "Why is the sky blue?"'
 ```
 
@@ -318,7 +321,7 @@ this application-wide preference. The client also accepts an explicitly
 supplied ordered history before the final user message. It parses newline-delimited JSON as it arrives, validates
 each answer chunk, prints and flushes it once, and assembles the same chunks into
 the bounded final answer. It also sends `think: false` and
-`options.num_predict: 512` for this ordinary configuration. The serialized
+`options.num_predict: 2048` for this ordinary configuration. The serialized
 request and response body are each bounded to 1 MiB; generated answer and hidden
 thinking text to 65,536 Unicode
 code points each, inactivity to 60 seconds, and the complete request to five
@@ -386,20 +389,22 @@ $env:KAOS_WEB_SEARCH_SEARXNG_URL = "http://127.0.0.1:8080"
 ```
 
 The planning request sends an exact JSON Schema through Ollama's structured
-output `format`, allowing only stable/internal, local, current-public, or mixed
-evidence shapes. `AgentPlanner` independently validates the returned plan.
-The instruction tells the model to select current-public evidence for either
-freshness or insufficient, uncertain, incomplete, obscure, or unreliable
-internal knowledge. It reserves `STABLE_INTERNAL` for sufficient, reliable,
-reasonably stable knowledge and asks for no reasoning trace or confidence
-percentage. KAOS deliberately has no deterministic knowledge or confidence
-classifier; this evidence choice remains part of the single model proposal.
-Before execution, `FreshnessPolicy` independently
-records `NOT_REQUIRED`, `RECOMMENDED`, or `REQUIRED`; required freshness rejects
-an otherwise valid plan that omits current-public evidence, while recommended
-freshness remains observable without rejecting the plan.
-Explicit read, inspection, or comparison requests involving local KAOS project
-evidence are likewise constrained to a plan containing `read_local_file`.
+output `format`, narrowed to the valid stable/internal, local, current-public, or
+mixed evidence shapes for the goal. `PublicFactPolicy` deterministically requires
+current-public evidence for public identity questions, participant or contestant
+lists, prices, versions, releases, schedules, and related factual requests. This
+is a small routing guard, not a confidence or model-knowledge classifier. The
+single planning model can still choose search for an obscure knowledge gap that
+the guard does not recognize. `AgentPlanner` validates the returned plan again
+before any tool is prepared.
+
+`FreshnessPolicy` independently records `NOT_REQUIRED`, `RECOMMENDED`, or
+`REQUIRED`; required freshness rejects an otherwise valid plan that omits
+current-public evidence. The broader public-fact rule also requires search for
+recognized public facts when freshness alone is only recommended or not
+required. Explicit local file or KAOS project requests require
+`read_local_file`; a plan cannot introduce local evidence for an ordinary public
+question.
 Path-free agent-architecture and tool-architecture requests use only their
 existing package summaries; other local requests may still need an explicit
 relative file path.
@@ -415,7 +420,12 @@ tool snapshots are written through the existing content-free tool history.
 
 Synthesis is one no-tools Ollama request containing only the goal and ordered
 completed evidence. Evidence is untrusted data, cannot change the validated
-plan, and is not executable instruction authority. A denial, invalid approval,
+plan, and is not executable instruction authority. For searched facts, the
+instruction treats supplied search evidence as the current source of truth,
+uses internal knowledge only as background, prefers search evidence on conflict,
+and reports partial or insufficient evidence rather than filling gaps from
+memory. Mixed synthesis grounds local project claims in file evidence and public
+claims in search evidence. A denial, invalid approval,
 EOF, interruption, unavailable service, an empty successful search,
 execution/history failure, or provider
 failure stops the workflow without retry, fallback, or replanning. Earlier
@@ -611,9 +621,9 @@ The response-token-limit precedence is:
 
 1. `-Dkaos.ollama.response-token-limit=...` for a direct JVM launch
 2. `KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT`
-3. 512 tokens when thinking is `off`, or 2,048 when thinking is `on`
+3. 1,024 tokens when thinking is `off`, or 4,096 when thinking is `on`
 
-KAOS accepts whole values from 64 through 4,096 and sends the selection as
+KAOS accepts whole values from 64 through 8,192 and sends the selection as
 Ollama `options.num_predict`. For example, request more bounded space for a
 larger ordinary answer:
 
@@ -920,7 +930,7 @@ tasks deliberately supply the safe `KAOS` application name and do not invoke
 
 Set `KAOS_OLLAMA_MODEL` to one installed model name you intentionally chose,
 set `KAOS_OLLAMA_THINKING` to `off` or `on`, and set any explicit response-token
-limit to a whole value from 64 through 4,096, then rerun `ollama-model`. Remove
+limit to a whole value from 64 through 8,192, then rerun `ollama-model`. Remove
 spaces, control characters, empty namespace segments, or unsupported model
 punctuation. KAOS does not echo invalid configured values in its error message.
 `ollama-prompt` is the first command that asks Ollama to use the configured

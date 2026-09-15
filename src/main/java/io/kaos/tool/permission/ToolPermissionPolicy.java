@@ -108,6 +108,11 @@ public final class ToolPermissionPolicy<R> {
         }
         try {
             R result = Objects.requireNonNull(attempt.get(), "tool result");
+            if (result instanceof io.kaos.tool.ToolResult<?> toolResult) {
+                io.kaos.diagnostics.DebugTrace.event("tool.result", () -> java.util.Map.of(
+                        "tool", name, "operationId", operationId.toString(),
+                        "content", toolResult.modelContent()));
+            }
             synchronized (this) { transition(ToolExecutionOutcome.SUCCEEDED); }
             return result;
         } catch (RuntimeException exception) {
@@ -128,6 +133,12 @@ public final class ToolPermissionPolicy<R> {
     private void require(ToolExecutionOutcome expected) {
         if (outcome != expected) throw new IllegalStateException("Tool lifecycle is no longer at " + expected);
     }
-    private void transition(ToolExecutionOutcome next) { outcome = next; updatedAt = Instant.now(); }
+    private void transition(ToolExecutionOutcome next) {
+        io.kaos.diagnostics.DebugTrace.event("tool.transition", () -> java.util.Map.of(
+                "tool", name, "operationId", operationId.toString(),
+                "from", outcome.name(), "to", next.name()));
+        outcome = next;
+        updatedAt = Instant.now();
+    }
     @Override public synchronized String toString() { return snapshot().toString(); }
 }

@@ -57,7 +57,7 @@ class AgentResultTest {
 
         assertEquals(List.of(local, current), result.evidence());
         assertEquals(3, result.completedSteps().size());
-        assertEquals(AgentResult.CurrentEvidenceStatus.VERIFIED,
+        assertEquals(AgentResult.CurrentEvidenceStatus.RETRIEVED,
                 result.currentEvidenceStatus());
         assertEquals(List.of(new AgentResult.SourceReference(
                 "Current source", "https://example.com/current")), result.currentSources());
@@ -109,7 +109,7 @@ class AgentResultTest {
         assertEquals(AgentExecution.Status.FAILED, result.status());
         assertEquals(AgentFailureReason.MODEL_PROVIDER_FAILED,
                 result.terminalReason().orElseThrow());
-        assertEquals(AgentResult.CurrentEvidenceStatus.VERIFIED,
+        assertEquals(AgentResult.CurrentEvidenceStatus.RETRIEVED,
                 result.currentEvidenceStatus());
         assertEquals(1, result.currentSources().size());
         assertEquals(List.of(current), result.evidence());

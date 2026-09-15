@@ -21,13 +21,13 @@ public record OllamaModelConfiguration(
     public static final String RESPONSE_TOKEN_LIMIT_ENVIRONMENT_VARIABLE =
             "KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT";
     public static final int MAX_MODEL_NAME_LENGTH = 128;
-    public static final int DEFAULT_CONTEXT_WINDOW = 4_096;
+    public static final int DEFAULT_CONTEXT_WINDOW = 8_192;
     public static final int MIN_CONTEXT_WINDOW = 2_048;
     public static final int MAX_CONTEXT_WINDOW = 65_536;
-    public static final int DEFAULT_ORDINARY_RESPONSE_TOKEN_LIMIT = 512;
-    public static final int DEFAULT_REASONING_RESPONSE_TOKEN_LIMIT = 2_048;
+    public static final int DEFAULT_ORDINARY_RESPONSE_TOKEN_LIMIT = 1024;
+    public static final int DEFAULT_REASONING_RESPONSE_TOKEN_LIMIT = 4_096;
     public static final int MIN_RESPONSE_TOKEN_LIMIT = 64;
-    public static final int MAX_RESPONSE_TOKEN_LIMIT = 4_096;
+    public static final int MAX_RESPONSE_TOKEN_LIMIT = 8_192;
 
     private static final Pattern SAFE_MODEL_NAME = Pattern.compile(
             "[A-Za-z0-9][A-Za-z0-9._-]*"
@@ -75,15 +75,31 @@ public record OllamaModelConfiguration(
      */
     public static OllamaModelConfiguration load() {
         try {
+            String modelProperty = System.getProperty(MODEL_SYSTEM_PROPERTY);
+            String modelEnvironment = System.getenv(MODEL_ENVIRONMENT_VARIABLE);
+            String contextProperty = System.getProperty(CONTEXT_WINDOW_SYSTEM_PROPERTY);
+            String contextEnvironment = System.getenv(CONTEXT_WINDOW_ENVIRONMENT_VARIABLE);
+            String thinkingProperty = System.getProperty(THINKING_SYSTEM_PROPERTY);
+            String thinkingEnvironment = System.getenv(THINKING_ENVIRONMENT_VARIABLE);
+            String responseLimitProperty = System.getProperty(RESPONSE_TOKEN_LIMIT_SYSTEM_PROPERTY);
+            String responseLimitEnvironment = System.getenv(RESPONSE_TOKEN_LIMIT_ENVIRONMENT_VARIABLE);
+            io.kaos.diagnostics.DebugTrace.event("ollama.configuration.inputs", () -> java.util.Map.of(
+                    "modelProperty", String.valueOf(modelProperty),
+                    "modelEnvironment", String.valueOf(modelEnvironment),
+                    "contextProperty", String.valueOf(contextProperty),
+                    "contextEnvironment", String.valueOf(contextEnvironment),
+                    "thinkingProperty", String.valueOf(thinkingProperty),
+                    "thinkingEnvironment", String.valueOf(thinkingEnvironment),
+                    "responseLimitProperty", String.valueOf(responseLimitProperty),
+                    "responseLimitEnvironment", String.valueOf(responseLimitEnvironment)));
             return resolve(
-                    System.getProperty(MODEL_SYSTEM_PROPERTY),
-                    System.getenv(MODEL_ENVIRONMENT_VARIABLE),
-                    System.getProperty(CONTEXT_WINDOW_SYSTEM_PROPERTY),
-                    System.getenv(CONTEXT_WINDOW_ENVIRONMENT_VARIABLE),
-                    System.getProperty(THINKING_SYSTEM_PROPERTY),
-                    System.getenv(THINKING_ENVIRONMENT_VARIABLE),
-                    System.getProperty(RESPONSE_TOKEN_LIMIT_SYSTEM_PROPERTY),
-                    System.getenv(RESPONSE_TOKEN_LIMIT_ENVIRONMENT_VARIABLE));
+                    modelProperty, modelEnvironment, contextProperty, contextEnvironment,
+                    thinkingProperty, thinkingEnvironment,
+                    responseLimitProperty, responseLimitEnvironment);
+        } catch (IllegalArgumentException exception) {
+            io.kaos.diagnostics.DebugTrace.event("ollama.configuration.rejected", () ->
+                    java.util.Map.of("reason", exception.getMessage()));
+            throw exception;
         } catch (SecurityException exception) {
             throw new IllegalStateException(
                     "Unable to read local Ollama model configuration.", exception);

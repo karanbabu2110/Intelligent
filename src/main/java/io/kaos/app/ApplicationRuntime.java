@@ -170,6 +170,24 @@ final class ApplicationRuntime {
             InputStream input,
             PrintStream output,
             PrintStream errorOutput) {
+        try (var trace = io.kaos.diagnostics.DebugTrace.configured(errorOutput)) {
+            io.kaos.diagnostics.DebugTrace.event("application.start", () ->
+                    java.util.Map.of("arguments", arguments));
+            try {
+                int exit = executeCommand(arguments, configuration, input, output, errorOutput);
+                io.kaos.diagnostics.DebugTrace.event("application.end", () ->
+                        java.util.Map.of("exitCode", exit));
+                return exit;
+            } catch (RuntimeException exception) {
+                io.kaos.diagnostics.DebugTrace.event("application.failure", () ->
+                        java.util.Map.of("exceptionType", exception.getClass().getName()));
+                throw exception;
+            }
+        }
+    }
+
+    private int executeCommand(String[] arguments, ApplicationConfiguration configuration,
+            InputStream input, PrintStream output, PrintStream errorOutput) {
         Objects.requireNonNull(arguments, "arguments");
         CommandContext context = new CommandContext(configuration, input, output, errorOutput);
         OllamaStatusCommand ollamaStatusCommand = new OllamaStatusCommand(

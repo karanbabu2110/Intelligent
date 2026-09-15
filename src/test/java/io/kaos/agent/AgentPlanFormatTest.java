@@ -13,48 +13,51 @@ import org.junit.jupiter.api.Test;
 
 class AgentPlanFormatTest {
     @Test
-    void ordinarySchemaOffersOnlyTheFourExactBoundedPlanShapes() {
+    void stableSchemaOffersInternalOrPublicEvidenceWithoutInventingLocalEvidence() {
         JsonNode alternatives = AgentPlanFormat.jsonSchema(
-                FreshnessRequirement.NOT_REQUIRED, false, Optional.empty()).path("oneOf");
+                FreshnessRequirement.NOT_REQUIRED, false, false,
+                Optional.empty()).path("oneOf");
 
-        assertEquals(4, alternatives.size());
-        assertEquals(List.of("STABLE_INTERNAL", "LOCAL_EVIDENCE",
-                        "CURRENT_PUBLIC_EVIDENCE", "MIXED_EVIDENCE"),
+        assertEquals(2, alternatives.size());
+        assertEquals(List.of("STABLE_INTERNAL", "CURRENT_PUBLIC_EVIDENCE"),
                 informationNeeds(alternatives));
-        assertEquals(List.of(1, 2, 2, 3), stepCounts(alternatives));
-        assertTool(alternatives.get(1), 0, "read_local_file", "path",
-                ReadLocalFileRequest.MAX_PATH_CODE_POINTS);
-        assertTool(alternatives.get(2), 0, "web_search", "query",
-                WebSearchRequest.MAX_QUERY_CODE_POINTS);
-        assertTool(alternatives.get(3), 0, "read_local_file", "path",
-                ReadLocalFileRequest.MAX_PATH_CODE_POINTS);
-        assertTool(alternatives.get(3), 1, "web_search", "query",
+        assertEquals(List.of(1, 2), stepCounts(alternatives));
+        assertTool(alternatives.get(1), 0, "web_search", "query",
                 WebSearchRequest.MAX_QUERY_CODE_POINTS);
     }
 
     @Test
     void requiredFreshnessSchemaCannotGenerateAPlanWithoutSearch() {
         JsonNode alternatives = AgentPlanFormat.jsonSchema(
-                FreshnessRequirement.REQUIRED, false, Optional.empty()).path("oneOf");
+                FreshnessRequirement.REQUIRED, false, true,
+                Optional.empty());
 
-        assertEquals(List.of("CURRENT_PUBLIC_EVIDENCE", "MIXED_EVIDENCE"),
-                informationNeeds(alternatives));
-        alternatives.forEach(plan -> assertEquals("web_search",
-                plan.toString().contains("read_local_file")
-                        ? plan.path("properties").path("steps").path("prefixItems")
-                                .get(1).path("properties").path("tool").path("const").asText()
-                        : plan.path("properties").path("steps").path("prefixItems")
-                                .get(0).path("properties").path("tool").path("const").asText()));
+        assertEquals("CURRENT_PUBLIC_EVIDENCE", informationNeed(alternatives));
+        assertTool(alternatives, 0, "web_search", "query",
+                WebSearchRequest.MAX_QUERY_CODE_POINTS);
+    }
+
+    @Test
+    void localOnlyRequirementAllowsOnlyTheLocalShape() {
+        JsonNode alternatives = AgentPlanFormat.jsonSchema(
+                FreshnessRequirement.NOT_REQUIRED, true, false,
+                Optional.of("README.md"));
+
+        assertEquals("LOCAL_EVIDENCE", informationNeed(alternatives));
+        assertTool(alternatives, 0, "read_local_file", "path",
+                ReadLocalFileRequest.MAX_PATH_CODE_POINTS);
     }
 
     @Test
     void combinedLocalAndCurrentRequirementAllowsOnlyTheMixedShape() {
         JsonNode alternatives = AgentPlanFormat.jsonSchema(
-                FreshnessRequirement.REQUIRED, true, Optional.of("README.md")).path("oneOf");
+                FreshnessRequirement.REQUIRED, true, true,
+                Optional.of("README.md"));
 
-        assertEquals(List.of("MIXED_EVIDENCE"), informationNeeds(alternatives));
-        assertEquals(List.of(3), stepCounts(alternatives));
-        assertEquals("README.md", alternatives.get(0).path("properties").path("steps")
+        assertEquals("MIXED_EVIDENCE", informationNeed(alternatives));
+        assertEquals(3, alternatives.path("properties").path("steps")
+                .path("prefixItems").size());
+        assertEquals("README.md", alternatives.path("properties").path("steps")
                 .path("prefixItems").get(0).path("properties").path("arguments")
                 .path("properties").path("path").path("const").asText());
     }
@@ -62,12 +65,12 @@ class AgentPlanFormatTest {
     @Test
     void eachCallReturnsAnIndependentSchemaTree() {
         JsonNode first = AgentPlanFormat.jsonSchema(
-                FreshnessRequirement.RECOMMENDED, false, Optional.empty());
-        ((com.fasterxml.jackson.databind.node.ObjectNode) first).remove("oneOf");
+                FreshnessRequirement.RECOMMENDED, false, true, Optional.empty());
+        ((com.fasterxml.jackson.databind.node.ObjectNode) first).remove("properties");
 
         assertFalse(AgentPlanFormat.jsonSchema(
-                FreshnessRequirement.RECOMMENDED, false, Optional.empty())
-                .path("oneOf").isEmpty());
+                FreshnessRequirement.RECOMMENDED, false, true, Optional.empty())
+                .path("properties").isMissingNode());
     }
 
     private static List<String> informationNeeds(JsonNode alternatives) {
@@ -75,6 +78,10 @@ class AgentPlanFormatTest {
         alternatives.forEach(plan -> values.add(plan.path("properties")
                 .path("informationNeed").path("const").asText()));
         return values;
+    }
+
+    private static String informationNeed(JsonNode plan) {
+        return plan.path("properties").path("informationNeed").path("const").asText();
     }
 
     private static List<Integer> stepCounts(JsonNode alternatives) {

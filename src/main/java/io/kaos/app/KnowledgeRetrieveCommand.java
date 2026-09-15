@@ -93,6 +93,8 @@ final class KnowledgeRetrieveCommand {
                         "The retrieved context could not form a safe bounded prompt. Check stored document content and retry.");
                 return PreparationOutcome.failed(KaosApplication.APPLICATION_ERROR);
             }
+            io.kaos.diagnostics.DebugTrace.event("knowledge.retrieval", () -> java.util.Map.of(
+                    "matches", matches, "groundedPrompt", groundedPrompt.text()));
             return PreparationOutcome.success(groundedPrompt, matches);
         } catch (KnowledgeStorageException exception) {
             report(KaosApplication.KNOWLEDGE_STORAGE_CODE,

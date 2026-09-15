@@ -282,6 +282,14 @@ public final class OllamaPromptClient {
         Objects.requireNonNull(prompt, "prompt");
         Objects.requireNonNull(thinkingStarted, "thinkingStarted");
         Objects.requireNonNull(answerChunkConsumer, "answerChunkConsumer");
+        io.kaos.diagnostics.DebugTrace.event("ollama.chat.configuration", () -> java.util.Map.of(
+                "model", model.modelName(), "contextWindow", model.contextWindow(),
+                "thinkingMode", model.thinkingMode().name(),
+                "responseTokenLimit", model.responseTokenLimit(),
+                "maximumResponseTokenLimit", OllamaModelConfiguration.MAX_RESPONSE_TOKEN_LIMIT,
+                "structuredOutput", format != null,
+                "advertisedTools", selector.definitions().stream()
+                        .map(definition -> definition.path("function").path("name").asText()).toList()));
 
         byte[] requestBody = encodeRequest(model.modelName(), history, prompt,
                 model.contextWindow(), model.thinkingMode(), model.responseTokenLimit(),
@@ -296,6 +304,24 @@ public final class OllamaPromptClient {
     private Result submitRequest(byte[] requestBody, OllamaThinkingMode thinkingMode,
             Runnable thinkingStarted, Consumer<String> answerChunkConsumer,
             ToolSelector selector) {
+        io.kaos.diagnostics.DebugTrace.json("ollama.chat.request", requestBody);
+        Result result = submitTracedRequest(requestBody, thinkingMode, thinkingStarted,
+                answerChunkConsumer, selector);
+        io.kaos.diagnostics.DebugTrace.event("ollama.chat.result", () -> java.util.Map.of(
+                "status", result.status().name(), "response", result.response(),
+                "completionReason", result.completionReason().name(),
+                "metrics", result.metrics(),
+                "toolRequested", result.toolRequested()));
+        return result;
+    }
+
+    private Result submitTracedRequest(byte[] requestBody, OllamaThinkingMode thinkingMode,
+            Runnable thinkingStarted, Consumer<String> answerChunkConsumer, ToolSelector selector) {
+        long requestStartedNanos = System.nanoTime();
+        io.kaos.diagnostics.DebugTrace.event("ollama.chat.start", () -> java.util.Map.of(
+                "endpoint", chatEndpoint.toString(), "requestBytes", requestBody.length,
+                "totalTimeoutMs", requestTimeout.toMillis(),
+                "inactivityTimeoutMs", inactivityTimeout.toMillis()));
         HttpRequest request = HttpRequest.newBuilder(chatEndpoint)
                 .timeout(requestTimeout)
                 .header("Accept", "application/x-ndjson")
@@ -308,15 +334,20 @@ public final class OllamaPromptClient {
                     request, HttpResponse.BodyHandlers.ofPublisher());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            traceTransportFailure("headers", Status.INTERRUPTED, requestStartedNanos);
             return Result.failed(Status.INTERRUPTED);
         } catch (HttpTimeoutException exception) {
+            traceTransportFailure("headers", Status.TOTAL_TIMEOUT, requestStartedNanos);
             return Result.failed(Status.TOTAL_TIMEOUT);
         } catch (IOException | SecurityException exception) {
+            traceTransportFailure("headers", Status.UNAVAILABLE, requestStartedNanos);
             return Result.failed(Status.UNAVAILABLE);
         }
 
         try (InputStream responseBody = new PublisherInputStream(
                 response.body(), MAX_RESPONSE_BYTES, deadlineNanos, inactivityTimeout)) {
+            io.kaos.diagnostics.DebugTrace.event("ollama.chat.http", () ->
+                    java.util.Map.of("status", response.statusCode()));
             if (response.statusCode() != 200) {
                 return Result.failed(Status.REQUEST_FAILED);
             }
@@ -327,18 +358,31 @@ public final class OllamaPromptClient {
                     answerChunkConsumer, selector);
         } catch (StreamInterruptedException exception) {
             Thread.currentThread().interrupt();
+            traceTransportFailure("stream", Status.INTERRUPTED, requestStartedNanos);
             return Result.failed(Status.INTERRUPTED);
         } catch (StreamTimeoutException exception) {
+            traceTransportFailure("stream", exception.status(), requestStartedNanos);
             return Result.failed(exception.status());
         } catch (StreamLimitException exception) {
+            traceTransportFailure("stream", Status.LOCAL_LIMIT_REACHED, requestStartedNanos);
             return Result.failed(Status.LOCAL_LIMIT_REACHED);
         } catch (CharacterCodingException exception) {
+            traceTransportFailure("stream", Status.INVALID_RESPONSE, requestStartedNanos);
             return Result.failed(Status.INVALID_RESPONSE);
         } catch (UnsafeStreamContentException exception) {
+            traceTransportFailure("stream", Status.INVALID_RESPONSE, requestStartedNanos);
             return Result.failed(Status.INVALID_RESPONSE);
         } catch (IOException exception) {
+            traceTransportFailure("stream", Status.STREAM_FAILED, requestStartedNanos);
             return Result.failed(Status.STREAM_FAILED);
         }
+    }
+
+    private static void traceTransportFailure(
+            String phase, Status status, long requestStartedNanos) {
+        io.kaos.diagnostics.DebugTrace.event("ollama.chat.transport_failure", () -> java.util.Map.of(
+                "phase", phase, "status", status.name(),
+                "elapsedMs", (System.nanoTime() - requestStartedNanos) / 1_000_000));
     }
 
     private static byte[] encodeRequest(String model, ConversationHistory history,
@@ -366,7 +410,8 @@ public final class OllamaPromptClient {
                     true,
                     thinkingMode.enabled(),
                     format,
-                    new GenerateOptions(contextWindow, responseTokenLimit)));
+                    format == null ? new GenerateOptions(contextWindow, responseTokenLimit)
+                            : new GenerateOptions(contextWindow, responseTokenLimit, 0.0, 42)));
             return output.toByteArray();
         } catch (RequestLimitException exception) {
             return null;
@@ -417,6 +462,9 @@ public final class OllamaPromptClient {
         boolean thinkingSignaled = false;
         boolean answerStarted = false;
         ToolSelection selection = null;
+        long records = 0;
+        long thinkingRecords = 0;
+        long answerRecords = 0;
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(body, StandardCharsets.UTF_8.newDecoder()
                         .onMalformedInput(CodingErrorAction.REPORT)
@@ -435,8 +483,21 @@ public final class OllamaPromptClient {
                 if (record == null) {
                     return Result.failed(Status.INVALID_RESPONSE);
                 }
+                records++;
+                if (!record.thinking().isEmpty()) thinkingRecords++;
+                if (!record.response().isEmpty()) answerRecords++;
                 appendGeneratedText(thinking, record.thinking(), MAX_THINKING_CODE_POINTS);
                 appendGeneratedText(answer, record.response(), MAX_RESPONSE_CODE_POINTS);
+                if (records == 1 || records % 256 == 0) {
+                    long observedRecords = records;
+                    long observedThinkingRecords = thinkingRecords;
+                    long observedAnswerRecords = answerRecords;
+                    io.kaos.diagnostics.DebugTrace.event("ollama.chat.progress", () -> java.util.Map.of(
+                            "records", observedRecords, "answerCharacters", answer.length(),
+                            "thinkingCharacters", thinking.length(),
+                            "thinkingRecords", observedThinkingRecords,
+                            "answerRecords", observedAnswerRecords, "done", record.done()));
+                }
                 if (record.selection() != null) {
                     if (selection != null || answerStarted || !record.response().isEmpty()) {
                         return Result.failed(Status.INVALID_RESPONSE);
@@ -448,11 +509,25 @@ public final class OllamaPromptClient {
                         return Result.failed(Status.INVALID_RESPONSE);
                     }
                     if (!thinkingSignaled) {
+                        long phaseRecord = records;
+                        io.kaos.diagnostics.DebugTrace.event("ollama.chat.phase", () ->
+                                java.util.Map.of("phase", "thinking_started", "record", phaseRecord));
                         thinkingStarted.run();
                         thinkingSignaled = true;
                     }
                 }
                 if (record.done()) {
+                    long observedRecords = records;
+                    long observedThinkingRecords = thinkingRecords;
+                    long observedAnswerRecords = answerRecords;
+                    boolean toolWasSelected = selection != null;
+                    io.kaos.diagnostics.DebugTrace.event("ollama.chat.stream_complete", () ->
+                            java.util.Map.of("records", observedRecords,
+                                    "answerCharacters", answer.length(),
+                                    "thinkingCharacters", thinking.length(),
+                                    "thinkingRecords", observedThinkingRecords,
+                                    "answerRecords", observedAnswerRecords,
+                                    "toolSelected", toolWasSelected));
                     Result completed = complete(
                             record, thinkingMode, thinking, answer,
                             selection);
@@ -469,6 +544,11 @@ public final class OllamaPromptClient {
                         return Result.failed(Status.INVALID_RESPONSE);
                     }
                     answerStarted = true;
+                    if (answerRecords == 1) {
+                        long phaseRecord = records;
+                        io.kaos.diagnostics.DebugTrace.event("ollama.chat.phase", () ->
+                                java.util.Map.of("phase", "answer_started", "record", phaseRecord));
+                    }
                     answerChunkConsumer.accept(record.response());
                 }
             }
@@ -621,7 +701,13 @@ public final class OllamaPromptClient {
     }
 
     private record GenerateOptions(@JsonProperty("num_ctx") int contextWindow,
-            @JsonProperty("num_predict") int responseTokenLimit) { }
+            @JsonProperty("num_predict") int responseTokenLimit,
+            @JsonInclude(JsonInclude.Include.NON_NULL) Double temperature,
+            @JsonInclude(JsonInclude.Include.NON_NULL) Integer seed) {
+        private GenerateOptions(int contextWindow, int responseTokenLimit) {
+            this(contextWindow, responseTokenLimit, null, null);
+        }
+    }
 
     private record StreamRecord(JsonNode root, String response, String thinking, boolean done,
             ToolSelection selection) { }
@@ -766,6 +852,9 @@ public final class OllamaPromptClient {
         private final PublisherSubscriber subscriber;
         private final long deadlineNanos;
         private final long inactivityTimeoutNanos;
+        private final long streamStartedNanos = System.nanoTime();
+        private long lastDataNanos = streamStartedNanos;
+        private long dataEvents;
         private byte[] current = new byte[0];
         private int currentOffset;
         private boolean complete;
@@ -808,6 +897,7 @@ public final class OllamaPromptClient {
             long remainingNanos = deadlineNanos - System.nanoTime();
             if (remainingNanos <= 0) {
                 subscriber.cancel();
+                traceTimeout(Status.TOTAL_TIMEOUT, 0);
                 throw new StreamTimeoutException(Status.TOTAL_TIMEOUT);
             }
             boolean totalDeadlineFirst = remainingNanos <= inactivityTimeoutNanos;
@@ -821,19 +911,38 @@ public final class OllamaPromptClient {
             }
             if (event == null) {
                 subscriber.cancel();
-                throw new StreamTimeoutException(totalDeadlineFirst
-                        ? Status.TOTAL_TIMEOUT : Status.INACTIVITY_TIMEOUT);
+                Status status = totalDeadlineFirst
+                        ? Status.TOTAL_TIMEOUT : Status.INACTIVITY_TIMEOUT;
+                traceTimeout(status, Math.max(0, deadlineNanos - System.nanoTime()));
+                throw new StreamTimeoutException(status);
             }
             switch (event.type()) {
                 case DATA -> {
                     current = event.data();
                     currentOffset = 0;
+                    lastDataNanos = System.nanoTime();
+                    dataEvents++;
                 }
                 case COMPLETE -> complete = true;
                 case LIMIT -> throw new StreamLimitException();
-                case TIMEOUT -> throw new StreamTimeoutException(Status.TOTAL_TIMEOUT);
+                case TIMEOUT -> {
+                    traceTimeout(Status.TOTAL_TIMEOUT,
+                            Math.max(0, deadlineNanos - System.nanoTime()));
+                    throw new StreamTimeoutException(Status.TOTAL_TIMEOUT);
+                }
                 case FAILED -> throw new IOException("Ollama response stream failed.");
             }
+        }
+
+        private void traceTimeout(Status status, long remainingNanos) {
+            long now = System.nanoTime();
+            io.kaos.diagnostics.DebugTrace.event("ollama.chat.stream_timeout", () ->
+                    java.util.Map.of("status", status.name(),
+                            "elapsedMs", (now - streamStartedNanos) / 1_000_000,
+                            "sinceLastDataMs", (now - lastDataNanos) / 1_000_000,
+                            "remainingTotalMs", remainingNanos / 1_000_000,
+                            "dataEvents", dataEvents,
+                            "bytesReceived", subscriber.bytesReceived()));
         }
 
         @Override
@@ -927,6 +1036,8 @@ public final class OllamaPromptClient {
         private synchronized void requestNext() {
             if (subscription != null && !terminal.get()) subscription.request(1);
         }
+
+        private synchronized long bytesReceived() { return bytesReceived; }
 
         private void cancel() {
             terminal.set(true);

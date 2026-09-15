@@ -14,6 +14,10 @@ public final class WebSearchToolContract {
         ObjectNode parameters = JSON.objectNode().put("type", "object");
         parameters.set("properties", JSON.objectNode().set("query",
                 JSON.objectNode().put("type", "string").put("minLength", 1)
+                        .put("pattern", "^[^!]+$")
+                        .put("description", "Nonblank plain search terms on one line. "
+                                + "No control characters, exclamation marks, or colon-prefixed "
+                                + "engine/language selectors. Preserve the requested entity and season.")
                         .put("maxLength", WebSearchRequest.MAX_QUERY_CODE_POINTS)));
         parameters.set("required", JSON.arrayNode().add("query"));
         parameters.put("additionalProperties", false);

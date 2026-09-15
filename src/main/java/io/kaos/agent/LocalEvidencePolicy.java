@@ -32,9 +32,9 @@ public final class LocalEvidencePolicy {
     public boolean isRequired(AgentGoal goal) {
         String objective = goal.objective().toLowerCase(Locale.ROOT)
                 .replaceAll("\\s+", " ");
-        return LOCAL_INTENT.matcher(objective).find()
-                && (PROJECT_CONTEXT.matcher(objective).find()
-                        || NAMED_PROJECT_FILE.matcher(objective).find());
+        return NAMED_PROJECT_FILE.matcher(objective).find()
+                || (LOCAL_INTENT.matcher(objective).find()
+                        && PROJECT_CONTEXT.matcher(objective).find());
     }
 
     /** Returns the exact explicitly named portable project path, when one is present. */
@@ -59,7 +59,8 @@ public final class LocalEvidencePolicy {
     }
 
     void validate(AgentPlan plan) {
-        if (isRequired(plan.goal())
+        boolean required = isRequired(plan.goal());
+        if (required
                 && plan.informationNeed() != AgentPlan.InformationNeed.LOCAL_EVIDENCE
                 && plan.informationNeed() != AgentPlan.InformationNeed.MIXED_EVIDENCE) {
             throw new AgentPlanningException(

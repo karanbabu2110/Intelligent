@@ -26,6 +26,9 @@ public final class ToolSelector {
     /** Empty means a direct-answer candidate; the provider still validates its text and stream. */
     public Optional<ToolSelection> select(JsonNode calls) {
         if (calls == null) return Optional.empty();
+        io.kaos.diagnostics.DebugTrace.event("tool.selection", () ->
+                java.util.Map.of("allowed", allowed, "calls", calls == null
+                        ? com.fasterxml.jackson.databind.node.NullNode.instance : calls));
         if (!calls.isArray() || calls.size() > 1) throw invalid();
         if (calls.isEmpty()) return Optional.empty();
         JsonNode call = calls.get(0);
