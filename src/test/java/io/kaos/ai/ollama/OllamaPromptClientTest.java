@@ -154,23 +154,44 @@ class OllamaPromptClientTest {
             assertFalse(request.get("think").booleanValue());
             assertFalse(request.has("tools"));
             assertEquals(8_192, request.get("options").get("num_ctx").intValue());
-            assertEquals(512, request.get("options").get("num_predict").intValue());
+            assertEquals(OllamaModelConfiguration.DEFAULT_ORDINARY_RESPONSE_TOKEN_LIMIT,
+                    request.get("options").get("num_predict").intValue());
+            assertFalse(request.path("options").has("temperature"));
+            assertFalse(request.path("options").has("seed"));
         }
     }
 
     @Test
     void structuredOutputSendsTheExactJsonSchemaWithoutAdvertisingTools() throws Exception {
+        var debug = new java.io.ByteArrayOutputStream();
         JsonNode format = JSON.readTree("{\"type\":\"object\",\"required\":[\"steps\"]}");
         String plan = "{\"informationNeed\":\"STABLE_INTERNAL\",\"steps\":[]}";
         try (LocalChatServer server = LocalChatServer.streaming(
-                jsonLine(plan, "", false), TERMINAL)) {
+                jsonLine(plan, "private-reasoning", false), TERMINAL);
+                var trace = io.kaos.diagnostics.DebugTrace.open(true, new java.io.PrintStream(debug))) {
             OllamaPromptClient.Result result = client(server.endpoint())
-                    .submitWithStructuredOutput(new OllamaModelConfiguration("qwen3"),
+                    .submitWithStructuredOutput(new OllamaModelConfiguration("qwen3", 4096,
+                            OllamaThinkingMode.ON),
                             new OllamaPrompt("Plan one goal."), format);
 
             assertEquals(plan, result.response());
             JsonNode request = JSON.readTree(server.requestBody());
             assertEquals(format, request.path("format"));
+            assertEquals(0.0, request.path("options").path("temperature").doubleValue());
+            assertEquals(42, request.path("options").path("seed").intValue());
+            String log = debug.toString(java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(log.contains("ollama.chat.request"));
+            assertTrue(log.contains("ollama.chat.configuration"));
+            assertTrue(log.contains("\"thinkingMode\":\"ON\""));
+            assertTrue(log.contains("ollama.chat.progress"));
+            assertTrue(log.contains("thinkingRecords"));
+            assertTrue(log.contains("answerRecords"));
+            assertTrue(log.contains("ollama.chat.stream_complete"));
+            assertFalse(log.contains("ollama.chat.chunk"));
+            assertTrue(log.contains("ollama.chat.result"));
+            assertTrue(log.contains("num_predict"));
+            assertTrue(log.contains("STABLE_INTERNAL"));
+            assertFalse(log.contains("private-reasoning"));
             assertFalse(request.has("tools"));
             assertTrue(request.path("stream").asBoolean());
         }
@@ -793,8 +814,11 @@ class OllamaPromptClientTest {
     void stopsAtTheTotalDeadlineBeforeTheLongerInactivityBound() throws Exception {
         CountDownLatch firstWritten = new CountDownLatch(1);
         CountDownLatch releaseTerminal = new CountDownLatch(1);
+        var debug = new java.io.ByteArrayOutputStream();
         try (LocalChatServer server = LocalChatServer.gated(
-                jsonLine("partial", "", false), TERMINAL, firstWritten, releaseTerminal)) {
+                jsonLine("partial", "", false), TERMINAL, firstWritten, releaseTerminal);
+                var trace = io.kaos.diagnostics.DebugTrace.open(
+                        true, new java.io.PrintStream(debug))) {
             List<String> chunks = new ArrayList<>();
             OllamaPromptClient.Result result = client(
                     server.endpoint(), Duration.ofMillis(500), Duration.ofSeconds(2))
@@ -803,6 +827,11 @@ class OllamaPromptClientTest {
 
             assertEquals(OllamaPromptClient.Status.TOTAL_TIMEOUT, result.status());
             assertEquals(List.of("partial"), chunks);
+            String log = debug.toString(StandardCharsets.UTF_8);
+            assertTrue(log.contains("ollama.chat.stream_timeout"));
+            assertTrue(log.contains("\"status\":\"TOTAL_TIMEOUT\""));
+            assertTrue(log.contains("\"bytesReceived\""));
+            assertTrue(log.contains("ollama.chat.transport_failure"));
             releaseTerminal.countDown();
         }
     }

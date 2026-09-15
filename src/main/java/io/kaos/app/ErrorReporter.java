@@ -12,6 +12,8 @@ final class ErrorReporter {
         Objects.requireNonNull(errorOutput, "errorOutput");
         Objects.requireNonNull(code, "code");
         Objects.requireNonNull(message, "message");
+        io.kaos.diagnostics.DebugTrace.event("application.error", () ->
+                java.util.Map.of("code", code, "message", message));
         errorOutput.println("ERROR [" + code + "] " + message);
     }
 }

@@ -14,6 +14,7 @@ class LocalEvidencePolicyTest {
     void explicitProjectEvidenceGoalsRequireLocalInspection() {
         for (String objective : new String[] {
                 "Read README.md and summarize it.",
+                "What does README.md say?",
                 "Compare KAOS's local tool architecture with current guidance.",
                 "Inspect our agent implementation.",
                 "Review the repository design."

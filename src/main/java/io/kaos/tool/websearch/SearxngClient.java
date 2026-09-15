@@ -70,6 +70,8 @@ public final class SearxngClient {
     }
     public WebSearchResult execute(WebSearchApproval.Grant grant) {
         WebSearchRequest approved = grant.claim();
+        io.kaos.diagnostics.DebugTrace.event("search.request", () -> java.util.Map.of(
+                "query", approved.query(), "endpoint", endpoint.toString()));
         if (Thread.currentThread().isInterrupted()) throw failure(WebSearchException.Reason.CANCELLED);
         URI uri = URI.create(endpoint.toASCIIString() + "?q="
                 + URLEncoder.encode(approved.query(), StandardCharsets.UTF_8) + "&format=json");
@@ -85,6 +87,8 @@ public final class SearxngClient {
             pending = client.sendAsync(HttpRequest.newBuilder(uri).timeout(timeout)
                     .header("Accept", "application/json").GET().build(), info -> body);
             HttpResponse<byte[]> response = pending.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            io.kaos.diagnostics.DebugTrace.event("search.http", () -> java.util.Map.of(
+                    "status", response.statusCode(), "bytes", response.body().length));
             if (response.statusCode() != 200 || !response.headers().firstValue("Content-Type")
                     .orElse("").split(";", 2)[0].strip().equalsIgnoreCase("application/json")) {
                 throw failure(WebSearchException.Reason.INVALID_RESPONSE);
@@ -93,8 +97,13 @@ public final class SearxngClient {
                     .onMalformedInput(CodingErrorAction.REPORT)
                     .onUnmappableCharacter(CodingErrorAction.REPORT)
                     .decode(ByteBuffer.wrap(response.body())).toString();
-            return normalize(approved, JSON.readTree(text));
+            io.kaos.diagnostics.DebugTrace.json("search.response", text);
+            WebSearchResult result = normalize(approved, JSON.readTree(text));
+            io.kaos.diagnostics.DebugTrace.event("search.normalized", result::modelContent);
+            return result;
         } catch (WebSearchException exception) {
+            io.kaos.diagnostics.DebugTrace.event("search.failure", () ->
+                    java.util.Map.of("reason", exception.reason().name()));
             throw exception;
         } catch (TimeoutException exception) {
             throw failure(WebSearchException.Reason.SEARCH_TIMEOUT);

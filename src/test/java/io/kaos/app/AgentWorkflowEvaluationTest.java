@@ -54,6 +54,55 @@ class AgentWorkflowEvaluationTest {
     @TempDir Path root;
 
     @Test
+    void debugExplainsSynthesisOnlyAndRejectedPlanWithoutRunningTools() {
+        var bytes = new ByteArrayOutputStream();
+        try (var trace = io.kaos.diagnostics.DebugTrace.open(true, new PrintStream(bytes))) {
+            RecordingPrompts prompts = new RecordingPrompts(
+                    proposal("STABLE_INTERNAL", synthesis(1)), ignored -> success("Stable answer."));
+            ToolRegistry registry = registry(
+                    () -> { throw new AssertionError("file must not prepare"); },
+                    () -> { throw new AssertionError("search must not prepare"); });
+            assertEquals(KaosApplication.SUCCESS, command("", prompts, registry)
+                    .command.execute("Explain binary search."));
+            RecordingPrompts rejected = new RecordingPrompts(
+                    proposal("CURRENT_PUBLIC_EVIDENCE", tool(1, "web_search", "{}"), synthesis(2)),
+                    ignored -> { throw new AssertionError("must not synthesize"); });
+            assertEquals(KaosApplication.APPLICATION_ERROR, command("", rejected, registry)
+                    .command.execute("Explain binary search."));
+        }
+        String trace = bytes.toString(StandardCharsets.UTF_8);
+        assertTrue(trace.contains("agent.evidence_policy"));
+        assertTrue(trace.contains("agent.plan.proposal"));
+        assertTrue(trace.contains("agent.plan.validated"));
+        assertTrue(trace.contains("agent.synthesis.input"));
+        assertTrue(trace.contains("No tools ran"));
+        assertTrue(trace.contains("agent.plan.rejected"));
+        assertTrue(trace.contains("MALFORMED_ARGUMENTS"));
+        assertFalse(trace.contains("tool.transition"));
+    }
+
+    @Test
+    void debugTracksApprovedSearchFromRequestThroughNormalizationToSynthesis() throws Exception {
+        var bytes = new ByteArrayOutputStream();
+        try (SearchFixture search = SearchFixture.success("Title", "Useful snippet");
+                var trace = io.kaos.diagnostics.DebugTrace.open(true, new PrintStream(bytes))) {
+            var fixture = command("approve\n", currentPrompts(), registry(
+                    () -> new ReadLocalFilePermissionValidator(root),
+                    () -> new SearxngClient(search.endpoint())));
+            assertEquals(KaosApplication.SUCCESS, fixture.command.execute("Check current information."));
+            assertEquals(1, search.calls.get());
+        }
+        String trace = bytes.toString(StandardCharsets.UTF_8);
+        assertTrue(trace.indexOf("search.request") < trace.indexOf("search.response"));
+        assertTrue(trace.indexOf("search.response") < trace.indexOf("search.normalized"));
+        assertTrue(trace.indexOf("search.normalized") < trace.indexOf("agent.synthesis.input"));
+        assertTrue(trace.contains("Useful snippet"));
+        assertTrue(trace.contains("APPROVED"));
+        assertTrue(trace.contains("SUCCEEDED"));
+        assertFalse(trace.contains("debug.encoding_failed"));
+    }
+
+    @Test
     void stableQuestionSynthesizesWithoutPreparingAnyTool() {
         RecordingPrompts prompts = new RecordingPrompts(
                 proposal("STABLE_INTERNAL", synthesis(1)), ignored -> success("Stable answer."));
@@ -66,8 +115,12 @@ class AgentWorkflowEvaluationTest {
                 fixture.command.execute("What is dependency injection?"));
         assertEquals(1, prompts.planCalls.get());
         assertEquals(1, prompts.synthesisCalls.get());
-        assertEquals(4, prompts.formats.getFirst().path("oneOf").size());
+        assertEquals(2, prompts.formats.getFirst().path("oneOf").size());
         assertTrue(prompts.evidence.getFirst().isEmpty());
+        assertTrue(prompts.synthesisInstructions.getFirst().contains("No tools ran"));
+        assertFalse(prompts.synthesisInstructions.getFirst().contains("supplied search URLs"));
+        assertFalse(prompts.synthesisInstructions.getFirst().contains("snippets"));
+        assertTrue(fixture.output().contains("No web search ran."));
         assertTrue(fixture.history.records().isEmpty());
         assertTrue(fixture.output().contains("Current evidence: NOT_REQUIRED"));
         assertTrue(fixture.output().contains("Stable answer."));
@@ -87,13 +140,13 @@ class AgentWorkflowEvaluationTest {
             assertEquals(KaosApplication.SUCCESS,
                     fixture.command.execute("What is the current release?"));
             assertEquals(1, search.calls.get());
-            assertEquals(1, prompts.planCalls.get());
+            assertEquals(0, prompts.planCalls.get());
             assertEquals(1, prompts.synthesisCalls.get());
-            assertEquals(2, prompts.formats.getFirst().path("oneOf").size());
+            assertTrue(prompts.formats.isEmpty());
             assertEquals(List.of("web_search"), toolNames(prompts.evidence.getFirst()));
             assertEquals(ToolExecutionOutcome.SUCCEEDED,
                     fixture.history.records().getFirst().outcome());
-            assertTrue(fixture.output().contains("Current evidence: VERIFIED"));
+            assertTrue(fixture.output().contains("Current evidence: RETRIEVED"));
             assertTrue(fixture.output().contains("Current verified release is 2.0."));
         }
     }
@@ -117,10 +170,83 @@ class AgentWorkflowEvaluationTest {
                             () -> new SearxngClient(search.endpoint())));
 
             assertEquals(KaosApplication.SUCCESS, fixture.command.execute(goal));
-            assertEquals(4, prompts.formats.getFirst().path("oneOf").size());
+            assertEquals(0, prompts.planCalls.get());
+            assertTrue(prompts.formats.isEmpty());
             assertEquals(1, search.calls.get());
             assertEquals(List.of("web_search"), toolNames(prompts.evidence.getFirst()));
-            assertTrue(fixture.output().contains("Current evidence: VERIFIED"));
+            assertTrue(fixture.output().contains("Current evidence: RETRIEVED"));
+        }
+    }
+
+    @Test
+    void partialSnippetsCarryAnExplicitLimitAndGroundedSynthesisInstruction() throws Exception {
+        try (SearchFixture search = SearchFixture.success(
+                "Contestants announced", "Four contestants are named; more to be announced.")) {
+            RecordingPrompts prompts = new RecordingPrompts(
+                    proposal("CURRENT_PUBLIC_EVIDENCE", tool(1, "web_search",
+                            "{\"query\":\"season contestants\"}"), synthesis(2)),
+                    evidence -> success("Partial list: four names. The full list is not established."));
+            CommandFixture fixture = command("approve\n", prompts,
+                    registry(() -> new ReadLocalFilePermissionValidator(root),
+                            () -> new SearxngClient(search.endpoint())));
+
+            assertEquals(KaosApplication.SUCCESS,
+                    fixture.command.execute("List the contestants as of today."));
+            assertTrue(fixture.output().contains("Current evidence: RETRIEVED"));
+            assertTrue(fixture.output().contains("list completeness are not verified"));
+            assertTrue(fixture.output().contains("Partial list:"));
+            String instruction = prompts.synthesisInstructions.getFirst();
+            assertTrue(instruction.contains("label it 'Partial list'"));
+            assertTrue(instruction.contains("Cite only supplied search URLs"));
+            assertTrue(instruction.contains("must not override it or fill missing current facts"));
+            assertEquals(1, search.calls.get());
+        }
+    }
+
+    @Test
+    void publicFactDoesNotConsultPlanningMemoryBeforeRequiredSearch() throws Exception {
+        String goal = "Who are the contestants of Bigg Boss Tamil season 10?";
+        try (SearchFixture search = SearchFixture.success(
+                "Season contestants", "Public search evidence.")) {
+            RecordingPrompts prompts = new RecordingPrompts(
+                    proposal("STABLE_INTERNAL", synthesis(1)),
+                    ignored -> success("Answer from public search evidence."));
+            CommandFixture fixture = command("approve\n", prompts,
+                    registry(() -> new ReadLocalFilePermissionValidator(root),
+                            () -> new SearxngClient(search.endpoint())));
+
+            assertEquals(KaosApplication.SUCCESS, fixture.command.execute(goal));
+            assertEquals(0, prompts.planCalls.get());
+            assertEquals(1, prompts.synthesisCalls.get());
+            assertEquals(1, search.calls.get());
+            assertEquals(List.of("web_search"), toolNames(prompts.evidence.getFirst()));
+        }
+    }
+
+    @Test
+    void searchedPublicFactPrefersCurrentEvidenceOverOlderInternalKnowledge() throws Exception {
+        try (SearchFixture search = SearchFixture.success(
+                "Spring Boot release", "The supplied release evidence reports 2026.")) {
+            RecordingPrompts prompts = new RecordingPrompts(
+                    proposal("CURRENT_PUBLIC_EVIDENCE", tool(1, "web_search",
+                            "{\"query\":\"latest Spring Boot version release year\"}"),
+                            synthesis(2)),
+                    evidence -> {
+                        assertTrue(evidence.getFirst().modelContent().toString().contains("2026"));
+                        return success("The supplied current evidence reports 2026.");
+                    });
+            CommandFixture fixture = command("approve\n", prompts,
+                    registry(() -> new ReadLocalFilePermissionValidator(root),
+                            () -> new SearxngClient(search.endpoint())));
+
+            assertEquals(KaosApplication.SUCCESS,
+                    fixture.command.execute("What is the latest Spring Boot release year?"));
+            assertTrue(prompts.synthesisInstructions.getFirst()
+                    .contains("If they conflict, prefer the search evidence"));
+            assertTrue(prompts.synthesisInstructions.getFirst()
+                    .contains("must not be presented as verified fact"));
+            assertTrue(fixture.output().contains("2026"));
+            assertFalse(fixture.output().contains("2024"));
         }
     }
 
@@ -129,14 +255,16 @@ class AgentWorkflowEvaluationTest {
         String instruction = AgentCommand.PLANNING_INSTRUCTION;
 
         assertTrue(instruction.contains(
-                "STABLE_INTERNAL only for sufficient, reliable, reasonably stable internal"));
+                "STABLE_INTERNAL only when the answer is well-known, reliable, and reasonably"));
         assertTrue(instruction.contains("freshness can materially affect the answer"));
         assertTrue(instruction.contains(
-                "insufficient, uncertain, incomplete, obscure, or unlikely to be reliable"));
+                "insufficient, uncertain, incomplete, obscure, or potentially outdated"));
         assertTrue(instruction.contains("Do not invent missing information"));
         assertTrue(instruction.contains("prefer CURRENT_PUBLIC_EVIDENCE"));
-        assertTrue(instruction.contains("prefer MIXED_EVIDENCE"));
-        assertTrue(instruction.contains("return no reasoning or confidence score"));
+        assertTrue(instruction.contains(
+                "list of current participants, contestants, members, releases"));
+        assertTrue(instruction.contains("Use MIXED_EVIDENCE only when"));
+        assertTrue(instruction.contains("Return no reasoning, explanation"));
     }
 
     @Test
@@ -153,6 +281,9 @@ class AgentWorkflowEvaluationTest {
         assertEquals(KaosApplication.SUCCESS,
                 fixture.command.execute("Inspect architecture.md."));
         assertEquals(List.of("read_local_file"), toolNames(prompts.evidence.getFirst()));
+        assertTrue(prompts.synthesisInstructions.getFirst().contains("supplied local-file evidence"));
+        assertTrue(prompts.synthesisInstructions.getFirst().contains("No web search ran"));
+        assertFalse(prompts.synthesisInstructions.getFirst().contains("snippets"));
         assertTrue(fixture.output().contains("Current evidence: NOT_REQUIRED"));
         assertTrue(fixture.output().contains("The local architecture reuses Epic 008."));
     }
@@ -201,10 +332,10 @@ class AgentWorkflowEvaluationTest {
             assertEquals(2, boundaries.modelRequests.size());
             JsonNode planning = boundaries.modelRequests.getFirst();
             assertFalse(planning.has("tools"));
-            assertEquals(1, planning.path("format").path("oneOf").size());
+            assertEquals("MIXED_EVIDENCE", planning.path("format").path("properties")
+                    .path("informationNeed").path("const").asText());
             assertTrue(planning.path("messages").get(0).path("content").asText()
-                    .contains("If public evidence is also needed for a local goal, prefer "
-                            + "MIXED_EVIDENCE"));
+                    .contains("Use MIXED_EVIDENCE only when the goal explicitly requires both"));
             JsonNode synthesis = boundaries.modelRequests.getLast();
             assertFalse(synthesis.has("tools"));
             List<JsonNode> toolMessages = new ArrayList<>();
@@ -222,7 +353,7 @@ class AgentWorkflowEvaluationTest {
             assertTrue(output.contains("[completed] step 1 read_local_file"));
             assertTrue(output.contains("[completed] step 2 web_search"));
             assertTrue(output.contains("[completed] step 3 synthesis"));
-            assertTrue(output.contains("Current evidence: VERIFIED"));
+            assertTrue(output.contains("Current evidence: RETRIEVED"));
             assertTrue(output.contains("remembered 1.0 is stale"));
             assertTrue(output.contains(boundaries.sourceUrl()));
             assertEquals(List.of("read_local_file", "web_search"), fixture.history.records()
@@ -271,7 +402,8 @@ class AgentWorkflowEvaluationTest {
                     throw new AssertionError("later search must not load");
                 }));
 
-        assertEquals(KaosApplication.SUCCESS, fixture.command.execute("Compare evidence."));
+        assertEquals(KaosApplication.SUCCESS,
+                fixture.command.execute("Compare architecture.md with current public guidance."));
         assertEquals(0, searchLoads.get());
         assertEquals(0, prompts.synthesisCalls.get());
         assertEquals(ToolExecutionOutcome.DENIED,
@@ -289,7 +421,8 @@ class AgentWorkflowEvaluationTest {
                     registry(() -> new ReadLocalFilePermissionValidator(root),
                             () -> new SearxngClient(search.endpoint())));
 
-            assertEquals(KaosApplication.SUCCESS, fixture.command.execute("Compare evidence."));
+            assertEquals(KaosApplication.SUCCESS,
+                    fixture.command.execute("Compare architecture.md with current public guidance."));
             assertEquals(0, search.calls.get());
             assertEquals(0, prompts.synthesisCalls.get());
             assertEquals(2, fixture.history.records().size());
@@ -423,8 +556,6 @@ class AgentWorkflowEvaluationTest {
                 tool(1, "read_local_file", "{}"), synthesis(2));
         String invalidSequence = proposal("LOCAL_EVIDENCE",
                 tool(2, "read_local_file", "{\"path\":\"one.md\"}"), synthesis(1));
-        String missesFreshness = proposal("LOCAL_EVIDENCE",
-                tool(1, "read_local_file", "{\"path\":\"one.md\"}"), synthesis(2));
         record Failure(String goal, String proposal, String code, String message) { }
         List<Failure> failures = List.of(
                 new Failure("One bounded goal.", "private malformed response",
@@ -443,9 +574,6 @@ class AgentWorkflowEvaluationTest {
                         "MALFORMED-ARGUMENTS", "did not match the exact tool contract"),
                 new Failure("One bounded goal.", invalidSequence,
                         "INVALID-SEQUENCE", "not in the required sequential order"),
-                new Failure("Compare local evidence with current security guidance.",
-                        missesFreshness, "FRESHNESS-REQUIRED",
-                        "required current public evidence"),
                 new Failure("Read README.md and explain the project.",
                         proposal("STABLE_INTERNAL", synthesis(1)),
                         "LOCAL-EVIDENCE-REQUIRED", "required local project evidence"),
@@ -480,9 +608,9 @@ class AgentWorkflowEvaluationTest {
                     registry(() -> new ReadLocalFilePermissionValidator(root),
                             () -> new SearxngClient(search.endpoint())));
             assertEquals(KaosApplication.APPLICATION_ERROR,
-                    failedTool.command.execute("Current information."));
+                    failedTool.command.execute("What is the current release?"));
             assertEquals(1, search.calls.get());
-            assertEquals(1, toolFailure.planCalls.get());
+            assertEquals(0, toolFailure.planCalls.get());
             assertEquals(0, toolFailure.synthesisCalls.get());
 
             RecordingPrompts modelFailure = new RecordingPrompts(
@@ -674,6 +802,7 @@ class AgentWorkflowEvaluationTest {
         private final AtomicInteger synthesisCalls = new AtomicInteger();
         private final List<List<ToolResult<?>>> evidence = new ArrayList<>();
         private final List<JsonNode> formats = new ArrayList<>();
+        private final List<String> synthesisInstructions = new ArrayList<>();
 
         private RecordingPrompts(String proposal,
                 Function<List<ToolResult<?>>, OllamaPromptClient.Result> synthesis) {
@@ -693,6 +822,7 @@ class AgentWorkflowEvaluationTest {
         public OllamaPromptClient.Result synthesize(OllamaModelConfiguration model,
                 OllamaPrompt synthesisPrompt, List<ToolResult<?>> results) {
             synthesisCalls.incrementAndGet();
+            synthesisInstructions.add(synthesisPrompt.systemInstruction());
             List<ToolResult<?>> copy = List.copyOf(results);
             evidence.add(copy);
             return synthesis.apply(copy);

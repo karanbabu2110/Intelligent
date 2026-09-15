@@ -20,15 +20,18 @@ public final class AgentPlanFormat {
      * Java validation remains authoritative after generation.
      */
     public static JsonNode jsonSchema(FreshnessRequirement freshness,
-            boolean localEvidenceRequired, Optional<String> explicitPath) {
+            boolean localEvidenceRequired, boolean publicEvidenceRequired,
+            Optional<String> explicitPath) {
         Objects.requireNonNull(freshness, "freshness");
         Objects.requireNonNull(explicitPath, "explicitPath");
         ArrayNode alternatives = JSON.arrayNode();
-        if (freshness != FreshnessRequirement.REQUIRED && !localEvidenceRequired) {
+        boolean publicRequired = publicEvidenceRequired
+                || freshness == FreshnessRequirement.REQUIRED;
+        if (!publicRequired && !localEvidenceRequired) {
             alternatives.add(plan(AgentPlan.InformationNeed.STABLE_INTERNAL,
                     JSON.arrayNode().add(synthesis(1))));
         }
-        if (freshness != FreshnessRequirement.REQUIRED) {
+        if (!publicRequired && localEvidenceRequired) {
             alternatives.add(plan(AgentPlan.InformationNeed.LOCAL_EVIDENCE,
                     JSON.arrayNode().add(tool(1, ReadLocalFileToolContract.NAME,
                             localArguments(explicitPath)))
@@ -41,14 +44,18 @@ public final class AgentPlanFormat {
                                     .path("parameters")))
                             .add(synthesis(2))));
         }
-        alternatives.add(plan(AgentPlan.InformationNeed.MIXED_EVIDENCE,
-                JSON.arrayNode().add(tool(1, ReadLocalFileToolContract.NAME,
-                        localArguments(explicitPath)))
-                        .add(tool(2, WebSearchToolContract.NAME,
-                                WebSearchToolContract.definition()
-                                        .path("function").path("parameters")))
-                        .add(synthesis(3))));
-        return JSON.objectNode().set("oneOf", alternatives);
+        if (localEvidenceRequired && publicRequired) {
+            alternatives.add(plan(AgentPlan.InformationNeed.MIXED_EVIDENCE,
+                    JSON.arrayNode().add(tool(1, ReadLocalFileToolContract.NAME,
+                            localArguments(explicitPath)))
+                            .add(tool(2, WebSearchToolContract.NAME,
+                                    WebSearchToolContract.definition()
+                                            .path("function").path("parameters")))
+                            .add(synthesis(3))));
+        }
+        return alternatives.size() == 1
+                ? alternatives.get(0).deepCopy()
+                : JSON.objectNode().set("oneOf", alternatives);
     }
 
     private static JsonNode localArguments(Optional<String> explicitPath) {

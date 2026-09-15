@@ -49,19 +49,26 @@ evidence cannot silently become a supposedly current model-memory conclusion.
 | Status | Meaning |
 | --- | --- |
 | `NOT_REQUIRED` | the validated plan was stable-internal or local-only |
-| `VERIFIED` | the required bounded `web_search` step completed with a matching result |
+| `RETRIEVED` | the required bounded `web_search` step completed with a matching result |
 | `REQUIRED_BUT_UNAVAILABLE` | the validated plan required current evidence but search did not complete |
 
-A completed search remains `VERIFIED` if later synthesis fails, while the whole
+A completed search remains `RETRIEVED` if later synthesis fails, while the whole
 run remains failed and answer-free. If search fails after a local read, the
 local evidence and completed-step summary remain available, but freshness is
 explicitly unavailable.
 
-Successful synthesis may therefore prefer verified current evidence over stale
-model memory and retain the search result's public source title and URL. The
-result model does not claim that arbitrary model prose is factually correct;
-the deterministic end-to-end synthesis policy and contradiction scenario are
-the Epic exit-gate work in 009.09.
+Synthesis instructions are selected from the actual completed evidence: internal
+knowledge only, local-file evidence, or search evidence (optionally with a local
+file). Runs without search explicitly display that no web search ran and no
+public sources were retrieved. Search-backed runs display that only titles and
+snippets were retrieved, linked pages were not read, and answer accuracy and list
+completeness are not verified. The search instruction asks for a partial-list
+label when completeness cannot be established, prefers search evidence when it
+conflicts with internal understanding, and prohibits filling missing current
+facts from memory. `PublicFactPolicy` requires this search path for narrow
+deterministic public-fact patterns even when `FreshnessPolicy` does not classify
+the goal as required-current. These instructions guide generation; they do not
+prove that arbitrary model prose is factually correct or that the model obeys.
 
 ## Evidence and privacy
 

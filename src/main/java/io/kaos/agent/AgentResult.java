@@ -13,11 +13,11 @@ public final class AgentResult {
 
     public enum CurrentEvidenceStatus {
         NOT_REQUIRED,
-        VERIFIED,
+        RETRIEVED,
         REQUIRED_BUT_UNAVAILABLE
     }
 
-    /** Public source reference retained from one verified bounded search result. */
+    /** Public source reference retained from one retrieved bounded search result. */
     public record SourceReference(String title, String url) {
         public SourceReference {
             Objects.requireNonNull(title, "title");
@@ -116,11 +116,11 @@ public final class AgentResult {
         if (!required) {
             return CurrentEvidenceStatus.NOT_REQUIRED;
         }
-        boolean verified = execution.completedResults().stream()
+        boolean retrieved = execution.completedResults().stream()
                 .filter(WebSearchResult.class::isInstance)
                 .map(WebSearchResult.class::cast)
                 .anyMatch(result -> !result.results().isEmpty());
-        return verified ? CurrentEvidenceStatus.VERIFIED
+        return retrieved ? CurrentEvidenceStatus.RETRIEVED
                 : CurrentEvidenceStatus.REQUIRED_BUT_UNAVAILABLE;
     }
 

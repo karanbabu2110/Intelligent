@@ -461,8 +461,11 @@ class KaosApplicationTest {
         assertEquals(KaosApplication.SUCCESS, result.exitCode());
         assertEquals(
                 "Configured local Ollama model: llama3.2:latest "
-                        + "(context window: 4096 tokens, thinking: off, "
-                        + "response limit: 512 tokens)."
+                        + "(context window: "
+                        + OllamaModelConfiguration.DEFAULT_CONTEXT_WINDOW
+                        + " tokens, thinking: off, response limit: "
+                        + OllamaModelConfiguration.DEFAULT_ORDINARY_RESPONSE_TOKEN_LIMIT
+                        + " tokens)."
                         + System.lineSeparator(),
                 result.standardOutput());
         assertEquals("", result.errorOutput());

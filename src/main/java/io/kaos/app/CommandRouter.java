@@ -233,6 +233,8 @@ final class CommandRouter {
     }
 
     int route(String[] arguments) {
+        io.kaos.diagnostics.DebugTrace.event("command.route", () ->
+                java.util.Map.of("command", arguments.length == 0 ? "status" : arguments[0]));
         Objects.requireNonNull(arguments, "arguments");
 
         if (arguments.length == 0 || isCommand(arguments, "status")) {

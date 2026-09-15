@@ -57,9 +57,11 @@ over its environment variable.
 | --- | --- | --- |
 | `KAOS_APP_NAME` | Display name of at most 64 safe characters; defaults to `KAOS` | All commands and status output |
 | `KAOS_OLLAMA_MODEL` | Explicit installed Ollama chat model name; no default | `ollama-model`, `ollama-prompt`, `conversation`, `knowledge-ask`, `read-local-file`, `http-get`, `web-search`, `agent` |
-| `KAOS_OLLAMA_CONTEXT_WINDOW` | Whole number from 2,048 through 65,536; defaults to `4096` | Commands using `KAOS_OLLAMA_MODEL` |
+| `KAOS_OLLAMA_CONTEXT_WINDOW` | Whole number from 2,048 through 65,536; defaults to `8192` | Commands using `KAOS_OLLAMA_MODEL` |
 | `KAOS_OLLAMA_THINKING` | `off` or `on`; defaults to `off` | Commands using `KAOS_OLLAMA_MODEL` |
-| `KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT` | Whole number from 64 through 4,096; defaults to `512` with thinking off or `2048` with thinking on | Commands using `KAOS_OLLAMA_MODEL` |
+| `KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT` | Whole number from 64 through 8,192; defaults to `1024` with thinking off or `4096` with thinking on | Commands using `KAOS_OLLAMA_MODEL` |
+| `KAOS_DEBUG` | `true` enables bounded JSON-line data-flow traces on stderr; off by default. JVM override: `kaos.debug` | All application commands |
+| `KAOS_DEBUG_FILE` | Optional UTF-8 append-only trace file when debug is enabled; parent directory must exist. JVM override: `kaos.debug.file` | All application commands |
 | `KAOS_OLLAMA_EMBEDDING_MODEL` | Explicit installed Ollama embedding model name; no default | `knowledge-ingest`, `knowledge-retrieve`, `knowledge-ask` |
 | `KAOS_KNOWLEDGE_DATA_DIRECTORY` | Directory containing `knowledge.db`; defaults to the current user's `.kaos` directory | Knowledge commands |
 | `KAOS_CONVERSATION_DATA_DIRECTORY` | Directory containing `conversations.db`; defaults to the current user's `.kaos` directory | `conversation` |
@@ -226,7 +228,7 @@ Select and inspect the model that later AI commands will use:
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_OLLAMA_CONTEXT_WINDOW = "4096"
 $env:KAOS_OLLAMA_THINKING = "off"
-$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "512"
+$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "2048"
 ./gradlew.bat run --args=ollama-model
 ```
 
@@ -241,7 +243,7 @@ PowerShell, `--%` preserves the nested quotes through the Gradle batch wrapper:
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 $env:KAOS_OLLAMA_THINKING = "off"
-$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "512"
+$env:KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT = "2048"
 ./gradlew.bat --% run --args="ollama-prompt \"Why is the sky blue?\""
 ```
 
@@ -251,7 +253,7 @@ message, requests streaming NDJSON, validates each answer chunk before printing
 it, and assembles the same chunks into one bounded final answer. This one-shot
 command supplies empty history; the conversation command described below sends
 the selected ordered history before each prompt. The serialized request is limited to 1 MiB. Ordinary
-requests explicitly disable thinking and use a 512-token
+requests explicitly disable thinking and use a 1,024-token
 generation default. The prompt is limited to 4,096 characters; the response is
 limited to 1 MiB and 65,536 characters; and the complete request is bounded to
 five minutes with a 60-second no-data deadline. Ordinary thinking-off requests
@@ -308,19 +310,18 @@ $env:KAOS_OLLAMA_MODEL = "qwen3:4b-instruct"
 ./gradlew.bat --% --console=plain run --args="agent \"Read src/main/java/io/kaos/agent/package-info.java and compare the local agent boundaries with current SearXNG security guidance.\""
 ```
 
-The model proposes exactly one of four evidence shapes through an Ollama
-structured-output JSON Schema: stable/internal, local-file, current-public
-search, or local plus current-public. KAOS independently validates the proposal
-before execution. The planning instruction reserves stable/internal answers for
-sufficient, reliable, reasonably stable model knowledge and asks the model to
-choose search when freshness matters or its knowledge is insufficient,
-uncertain, incomplete, obscure, or unreliable. This knowledge-gap choice is
-model-driven; KAOS does not guess model knowledge with keywords or request a
-confidence score. A separate small deterministic freshness policy records
-`NOT_REQUIRED`, `RECOMMENDED`, or `REQUIRED` on the plan; `REQUIRED` rejects a
-plan that omits current-public evidence, while `RECOMMENDED` remains observable
-without hard failure. Explicit requests to read or compare local KAOS project
-evidence likewise cannot omit the local-file step. KAOS allows at most three ordered steps and two tool steps,
+The model proposes one valid evidence shape through an Ollama structured-output
+JSON Schema: stable/internal, local-file, current-public search, or local plus
+current-public. A small deterministic public-fact policy requires search for
+public identities, participant or contestant lists, prices, releases, versions,
+schedules, and related factual requests. It treats model memory as background,
+not evidence. `FreshnessPolicy` remains a separate guard that records
+`NOT_REQUIRED`, `RECOMMENDED`, or `REQUIRED`; `REQUIRED` independently rejects a
+plan that omits current-public evidence. Explicit local project requests require
+`read_local_file`, while ordinary public questions cannot introduce local-file
+evidence. The generated schema is narrowed to the shapes allowed by these rules,
+and `AgentPlanner` validates them again before execution. No confidence model or
+second model call is used. KAOS allows at most three ordered steps and two tool steps,
 and permits only `read_local_file` followed optionally by `web_search`.
 Every tool step shows its own existing Epic 008 approval prompt and requires a
 new single-use grant. A denial, invalid response, EOF, interruption, tool or
@@ -404,7 +405,7 @@ section while keeping the raw reasoning trace hidden. Unsupported models fail
 safely and are not replaced or retried automatically. See the
 [thinking policy and benchmark](docs/evolution/ollama-thinking-policy-and-benchmark.md).
 Thinking-on requests default to 2,048 generated tokens. Set
-`KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT` to a deliberate value from 64 through 4,096
+`KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT` to a deliberate value from 64 through 8,192
 when a request needs a different bounded maximum. See the
 [response-generation limit benchmark](docs/evolution/ollama-response-generation-limit-benchmark.md).
 
@@ -438,8 +439,8 @@ identifiers with an optional tag. Thinking uses `kaos.ollama.thinking` before
 accepted. No secret, remote endpoint, prompt-file, automatic thinking mode, or
 persistent configuration is implemented. Response generation uses
 `kaos.ollama.response-token-limit` before
-`KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT`, then 512 for thinking off or 2,048 for
-thinking on; only whole values from 64 through 4,096 are accepted.
+`KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT`, then 1,024 for thinking off or 4,096 for
+thinking on; only whole values from 64 through 8,192 are accepted.
 
 ## Development rule
 

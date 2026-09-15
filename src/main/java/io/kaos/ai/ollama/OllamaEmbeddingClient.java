@@ -65,6 +65,7 @@ public final class OllamaEmbeddingClient {
             } catch (IOException exception) {
                 throw new IllegalStateException("Unable to encode validated embedding request.", exception);
             }
+            io.kaos.diagnostics.DebugTrace.json("ollama.embedding.request", body);
             HttpRequest request = HttpRequest.newBuilder(endpoint)
                     .timeout(Duration.ofNanos(remaining))
                     .header("Accept", "application/json")
@@ -82,10 +83,13 @@ public final class OllamaEmbeddingClient {
                 return Result.failed(Status.UNAVAILABLE);
             }
             try (InputStream stream = response.body()) {
+                io.kaos.diagnostics.DebugTrace.event("ollama.embedding.http", () ->
+                        Map.of("status", response.statusCode()));
                 if (response.statusCode() != 200) return Result.failed(Status.REQUEST_FAILED);
                 if (!isJson(response)) return Result.failed(Status.INVALID_RESPONSE);
                 byte[] responseBytes = stream.readNBytes(MAX_RESPONSE_BYTES + 1);
                 if (responseBytes.length > MAX_RESPONSE_BYTES) return Result.failed(Status.LOCAL_LIMIT_REACHED);
+                io.kaos.diagnostics.DebugTrace.json("ollama.embedding.response", responseBytes);
                 double[] vector = decode(configuration.modelName(), responseBytes);
                 if (vector == null) return Result.failed(Status.INVALID_RESPONSE);
                 if (dimensions != null && dimensions != vector.length) {

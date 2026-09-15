@@ -56,6 +56,8 @@ final class KnowledgeIngestCommand {
             IngestedDocument document = new TextDocumentIngestor().ingest(Path.of(pathText));
             ExtractedText extractedText = new PlainTextExtractor().extract(document);
             List<DocumentChunk> chunks = new DocumentChunker().chunk(extractedText);
+            io.kaos.diagnostics.DebugTrace.event("knowledge.chunks", () -> java.util.Map.of(
+                    "characters", extractedText.codePointCount(), "chunks", chunks));
             OllamaEmbeddingConfiguration embeddingConfiguration = configurationLoader.get();
             OllamaEmbeddingClient.Result embeddingResult = embeddingSubmission.embed(
                     embeddingConfiguration, chunks);
@@ -65,6 +67,8 @@ final class KnowledgeIngestCommand {
             int dimensions = embeddingResult.embeddedChunks().getFirst().dimensions();
             long storedIdentifier = storageSubmission.store(
                     embeddingConfiguration.modelName(), embeddingResult.embeddedChunks());
+            io.kaos.diagnostics.DebugTrace.event("knowledge.stored", () -> java.util.Map.of(
+                    "documentId", storedIdentifier, "chunks", chunks.size(), "dimensions", dimensions));
             context.output().println("Ingested document: " + document.name()
                     + " (type: " + document.mediaType()
                     + ", bytes: " + document.byteCount()
