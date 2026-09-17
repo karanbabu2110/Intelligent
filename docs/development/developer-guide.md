@@ -378,6 +378,21 @@ may forward the approved query to external engines. See the
 [local setup](searxng-setup.md) and [bounded contract](../evolution/web-search-tool.md)
 for commands, privacy, limits, and safe failure recovery.
 
+For the separate verified-research use case, configure the existing local model,
+SearXNG endpoint and `KAOS_HTTP_ALLOWED_HOSTS`, then run:
+
+```powershell
+./gradlew.bat --% run --args="research \"What changed in the latest Java release?\""
+```
+
+The question is the exact search query (at most 400 code points). Approve the
+search, then review the source roles, purposes and exact normalized URLs before
+approving the one-to-three-source set. Every selected page must succeed before
+synthesis. Failure stops without a partial answer; retry requires a new run and
+new approvals. Research suppresses payload debug tracing, and its startup
+arguments are redacted. See [verified web research](../evolution/verified-web-research.md)
+for deterministic fixture commands, safety boundaries and residual limitations.
+
 Run one foreground bounded agent goal after configuring the dependencies that
 the goal may need:
 

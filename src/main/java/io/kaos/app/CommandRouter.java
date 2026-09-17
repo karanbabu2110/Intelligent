@@ -18,12 +18,18 @@ final class CommandRouter {
     private final ArgumentCommand readLocalFileCommand;
     private final ArgumentCommand httpGetCommand;
     private ArgumentCommand webSearchCommand = argument -> KaosApplication.USAGE_ERROR;
+    private ArgumentCommand researchCommand = argument -> KaosApplication.USAGE_ERROR;
     private ArgumentCommand agentCommand = argument -> KaosApplication.USAGE_ERROR;
     private Command toolCatalogCommand = () -> KaosApplication.USAGE_ERROR;
     private Command toolHistoryCommand = () -> KaosApplication.USAGE_ERROR;
 
     CommandRouter withWebSearch(ArgumentCommand command) {
         webSearchCommand = Objects.requireNonNull(command);
+        return this;
+    }
+
+    CommandRouter withResearch(ArgumentCommand command) {
+        researchCommand = Objects.requireNonNull(command);
         return this;
     }
 
@@ -283,6 +289,9 @@ final class CommandRouter {
         }
         if (arguments.length == 2 && "web-search".equals(arguments[0])) {
             return webSearchCommand.execute(arguments[1]);
+        }
+        if (arguments.length == 2 && "research".equals(arguments[0])) {
+            return researchCommand.execute(arguments[1]);
         }
         if (arguments.length == 2 && "agent".equals(arguments[0])) {
             return agentCommand.execute(arguments[1]);

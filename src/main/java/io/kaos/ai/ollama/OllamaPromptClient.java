@@ -117,7 +117,33 @@ public final class OllamaPromptClient {
             List<ToolResult<?>> evidence) {
         Objects.requireNonNull(model, "model");
         Objects.requireNonNull(prompt, "prompt");
-        List<ToolResult<?>> bounded = validateAgentEvidence(evidence);
+        return submitEvidence(model, prompt, validateAgentEvidence(evidence), null);
+    }
+
+    /** Research has a separate bound; this does not widen the Epic 009 agent contract. */
+    public Result submitWithResearchEvidence(OllamaModelConfiguration model, OllamaPrompt prompt,
+            List<ToolResult<?>> evidence, JsonNode format) {
+        List<ToolResult<?>> bounded = List.copyOf(evidence);
+        boolean search = bounded.size() == 1
+                && bounded.getFirst() instanceof io.kaos.tool.websearch.WebSearchResult;
+        boolean pages = !bounded.isEmpty() && bounded.size() <= 3
+                && bounded.stream().allMatch(io.kaos.tool.httpget.HttpGetResult.class::isInstance);
+        if ((!search && !pages) || format == null || !format.isObject() || format.isEmpty()) {
+            throw new IllegalArgumentException("Invalid bounded research evidence.");
+        }
+        // Conservative byte-based input allowance plus framing/output reserve. Never truncate evidence to fit.
+        long allowance = prompt.text().getBytes(StandardCharsets.UTF_8).length
+                + prompt.systemInstruction().getBytes(StandardCharsets.UTF_8).length
+                + bounded.stream().mapToLong(result -> result.modelContent().toString()
+                        .getBytes(StandardCharsets.UTF_8).length).sum()
+                + format.toString().getBytes(StandardCharsets.UTF_8).length
+                + model.responseTokenLimit() + 1024L;
+        if (allowance > model.contextWindow()) return Result.failed(Status.LOCAL_LIMIT_REACHED);
+        return submitEvidence(model, prompt, bounded, format.deepCopy());
+    }
+
+    private Result submitEvidence(OllamaModelConfiguration model, OllamaPrompt prompt,
+            List<ToolResult<?>> bounded, JsonNode format) {
         try {
             List<ChatMessage> messages = new ArrayList<>();
             if (!prompt.systemInstruction().isEmpty()) {
@@ -130,7 +156,7 @@ public final class OllamaPromptClient {
             }
             BoundedRequestOutputStream output = new BoundedRequestOutputStream(MAX_REQUEST_BYTES);
             JSON.writeValue(output, new ChatRequest(model.modelName(), List.copyOf(messages),
-                    List.of(), true, model.thinkingMode().enabled(), null,
+                    List.of(), true, model.thinkingMode().enabled(), format,
                     new GenerateOptions(model.contextWindow(), model.responseTokenLimit())));
             return submitRequest(output.toByteArray(), model.thinkingMode(),
                     () -> { }, ignored -> { }, new ToolSelector(tools, List.of()));
