@@ -85,6 +85,13 @@ entries fail the whole result. Fields are not silently truncated. Unknown
 provider metadata is discarded. Duplicate JSON keys, trailing data, malformed
 UTF-8, invalid JSON and unsupported responses fail safely.
 
+Before constructing bounded results, title and snippet display text has U+2060
+WORD JOINER and U+200C ZERO WIDTH NON-JOINER removed. This can change typographic
+joining; snippets are normalized display text, not verbatim quotations. Original
+field lengths are checked before removal. Queries and URLs are never changed by
+this normalization, and other controls (including bidirectional controls) remain
+rejected. Search results remain untrusted and result URLs are not fetched.
+
 ```json
 {"query":"latest stable Spring Boot release","results":[{"title":"Spring Boot","url":"https://spring.io/projects/spring-boot","snippet":"Release information"}]}
 ```

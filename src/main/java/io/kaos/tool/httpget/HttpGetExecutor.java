@@ -18,7 +18,6 @@ import java.util.Optional;
 
 /** Performs one approved, non-redirecting, bounded HTTPS GET. */
 public final class HttpGetExecutor {
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
 
     private final HttpGetPermissionValidator validator;
@@ -26,8 +25,9 @@ public final class HttpGetExecutor {
     private final Duration requestTimeout;
 
     public HttpGetExecutor(HttpGetPermissionValidator validator) {
-        this(validator, HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT)
-                .followRedirects(HttpClient.Redirect.NEVER).build(), REQUEST_TIMEOUT);
+        this.validator = Objects.requireNonNull(validator, "validator");
+        this.client = null;
+        this.requestTimeout = REQUEST_TIMEOUT;
     }
 
     HttpGetExecutor(HttpGetPermissionValidator validator, HttpClient client,
@@ -44,6 +44,12 @@ public final class HttpGetExecutor {
         Objects.requireNonNull(grant, "grant");
         HttpGetTarget target = grant.claim();
         rejectInterruption();
+        if (!validator.validate(target.request()).uri().equals(target.uri())) {
+            throw failure(HttpGetException.Reason.INVALID_REQUEST);
+        }
+        if (client == null) {
+            return PinnedHttpTransport.execute(validator, target, requestTimeout);
+        }
         validator.validateResolvedDestination(target);
         HttpRequest request = HttpRequest.newBuilder(target.uri())
                 .timeout(requestTimeout)
@@ -53,24 +59,8 @@ public final class HttpGetExecutor {
             HttpResponse<InputStream> response = client.send(
                     request, HttpResponse.BodyHandlers.ofInputStream());
             try (InputStream body = response.body()) {
-                if (response.statusCode() >= 300 && response.statusCode() < 400) {
-                    throw failure(HttpGetException.Reason.REDIRECTED);
-                }
-                if (response.statusCode() != 200) {
-                    throw failure(HttpGetException.Reason.REQUEST_FAILED);
-                }
-                String mediaType = supportedMediaType(response);
-                long declared = declaredLength(response);
-                if (declared > HttpGetResult.MAX_CONTENT_UTF8_BYTES) {
-                    throw failure(HttpGetException.Reason.TOO_LARGE);
-                }
-                byte[] bytes = readBounded(body);
-                String content = decodeUtf8(bytes);
-                try {
-                    return new HttpGetResult(target.request(), content, mediaType);
-                } catch (IllegalArgumentException exception) {
-                    throw failure(HttpGetException.Reason.INVALID_CONTENT);
-                }
+                return consume(target, response.statusCode(),
+                        name -> response.headers().firstValue(name), body);
             }
         } catch (HttpGetException exception) {
             throw exception;
@@ -84,11 +74,31 @@ public final class HttpGetExecutor {
         }
     }
 
-    private static String supportedMediaType(HttpResponse<?> response) {
-        String value = response.headers().firstValue("Content-Type").orElse("");
+    static HttpGetResult consume(HttpGetTarget target, int status,
+            java.util.function.Function<String, Optional<String>> headers, InputStream body)
+            throws IOException {
+        if (status >= 300 && status < 400) throw failure(HttpGetException.Reason.REDIRECTED);
+        if (status != 200) throw failure(HttpGetException.Reason.REQUEST_FAILED);
+        String mediaType = supportedMediaType(headers);
+        if (headers.apply("Content-Encoding").filter(v -> !v.equalsIgnoreCase("identity")).isPresent()) {
+            throw failure(HttpGetException.Reason.UNSUPPORTED_MEDIA_TYPE);
+        }
+        if (declaredLength(headers) > HttpGetResult.MAX_CONTENT_UTF8_BYTES) {
+            throw failure(HttpGetException.Reason.TOO_LARGE);
+        }
+        String content = decodeUtf8(readBounded(body));
+        try {
+            return new HttpGetResult(target.request(), content, mediaType);
+        } catch (IllegalArgumentException exception) {
+            throw failure(HttpGetException.Reason.INVALID_CONTENT);
+        }
+    }
+
+    private static String supportedMediaType(java.util.function.Function<String, Optional<String>> headers) {
+        String value = headers.apply("Content-Type").orElse("");
         String[] sections = value.split(";", -1);
         String mediaType = sections[0].strip().toLowerCase(Locale.ROOT);
-        boolean supported = mediaType.startsWith("text/")
+        boolean supported = "text/plain".equals(mediaType) || "text/html".equals(mediaType)
                 || "application/json".equals(mediaType)
                 || "application/xml".equals(mediaType);
         for (int index = 1; index < sections.length; index++) {
@@ -103,8 +113,8 @@ public final class HttpGetExecutor {
         return mediaType;
     }
 
-    private static long declaredLength(HttpResponse<?> response) {
-        Optional<String> value = response.headers().firstValue("Content-Length");
+    private static long declaredLength(java.util.function.Function<String, Optional<String>> headers) {
+        Optional<String> value = headers.apply("Content-Length");
         if (value.isEmpty()) return -1L;
         try {
             long length = Long.parseLong(value.orElseThrow());

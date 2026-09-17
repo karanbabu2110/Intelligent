@@ -24,6 +24,7 @@ repositories {
 }
 
 dependencies {
+    implementation("org.apache.httpcomponents.client5:httpclient5:5.6.4")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.22.1")
     implementation("org.xerial:sqlite-jdbc:3.53.4.0")
 

@@ -25,8 +25,8 @@ user question
 
 The request contains exactly one textual `url`. The successful result contains
 that URL, normalized media type, complete content, and exact UTF-8 byte count.
-The types remain owned by `io.kaos.tool.httpget`; Epic 008 has not established a
-generic tool API.
+The concrete types remain owned by `io.kaos.tool.httpget` and participate in the
+shared `KaosTool`, permission-policy and content-free history contracts.
 
 ## Configuration and permissions
 
@@ -37,7 +37,9 @@ case-insensitive after IDN-to-ASCII normalization.
 
 Only absolute HTTPS URLs on port 443 or the implicit standard port are valid.
 User information and fragments are rejected. A query string is allowed because
-it is part of the exact URL shown for approval. DNS resolution occurs only after
+it is part of the exact URL shown for approval. Recognized credential-bearing
+query keys (tokens, passwords, API keys, signatures and sessions) are rejected,
+including percent-encoded parameter names. DNS resolution occurs only after
 approval; every returned address must be public according to the Java
 platform's loopback, local, link-local, unspecified, and multicast checks.
 
@@ -46,9 +48,9 @@ platform's loopback, local, link-local, unspecified, and multicast checks.
 - method: one `GET`;
 - redirect policy: never follow;
 - connect timeout: two seconds;
-- total request timeout: fifteen seconds;
+- total request timeout: fifteen seconds including DNS and the entire body;
 - accepted status: `200` only;
-- accepted media: `text/*`, `application/json`, or `application/xml`;
+- accepted media: `text/plain`, `text/html`, `application/json`, or `application/xml`;
 - accepted charset: absent or UTF-8 only;
 - maximum body: 32,768 bytes, with no partial result; and
 - credentials, cookies, caller headers, retry, cache, persistence, background
@@ -70,10 +72,23 @@ Denial or cancellation performs no DNS lookup, HTTP request, or model
 continuation. An approved grant permits one execution attempt. Recovery is a
 new question, model request, validation, and approval; KAOS never retries.
 
-Checking DNS immediately before execution blocks observable private and local
-destinations. It cannot guarantee that a hostname will not change between that
-check and the HTTP client's own connection, so complete DNS-rebinding resistance
-is not claimed.
+Feature 019.01 hardens this shared path for [verified research](verified-web-research.md).
+Every DNS answer must pass the public-address policy. One validated address is
+passed directly to the connection; there is no second independent hostname
+lookup and no alternate-address fallback. TLS still verifies the original
+hostname using the platform trust roots. Raw IP URLs and special-purpose address
+ranges are rejected. Percent-escaped paths and queries retain their exact meaning;
+normalization removes the explicit default port and is idempotent.
+
+Apache HttpClient 5.6.4 supplies protocol parsing, TLS and connection-time DNS
+binding. Both HTTP and Java socket-level SOCKS proxy selection are disabled.
+Automatic retries, redirects, authentication, cookies and decompression are
+disabled. Responses have at most 32 headers and 4096 characters per protocol line.
+Rejected bodies are aborted rather than drained. A foreground-owned virtual task
+allows the caller to cancel DNS/connection/body work at the total deadline.
+An OS DNS lookup that ignores interruption can finish later, but cancellation is
+checked after resolution and cannot initiate a late source request. There is no
+background research job.
 
 ## Verification
 
@@ -85,9 +100,10 @@ is not claimed.
 Tests use deterministic fake HTTP and loopback Ollama boundaries. They do not
 contact an installed Ollama process or public network service.
 
-## Deliberate next checkpoint
+## Research reuse
 
-Feature 008.02 will define `web_search` using evidence from this second concrete
-tool. Tool discovery, selection across tools, shared metadata, permission
-policies, execution history, and contract refinement remain assigned to later
-Epic 008 features.
+The focused research command now composes search with up to three individually
+bound HTTP grants after one explicit approval for the frozen source set. The
+standalone `http-get` command remains one URL and one continuation. See
+[verified web research](verified-web-research.md) for the implemented first slice
+and the remaining Epic 019 work.

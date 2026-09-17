@@ -65,6 +65,7 @@ public final class HttpGetPermissionValidator {
             String host = uri.getHost();
             if (!"https".equalsIgnoreCase(uri.getScheme()) || host == null
                     || uri.getRawUserInfo() != null || uri.getRawFragment() != null
+                    || credentialQuery(uri.getRawQuery())
                     || (uri.getPort() != -1 && uri.getPort() != 443)
                     || !uri.isAbsolute() || uri.isOpaque()) {
                 throw failure(HttpGetException.Reason.INVALID_REQUEST);
@@ -73,9 +74,10 @@ public final class HttpGetPermissionValidator {
             if (!allowedHosts.contains(normalizedHost)) {
                 throw failure(HttpGetException.Reason.DISALLOWED_HOST);
             }
-            URI normalized = new URI("https", null, normalizedHost, uri.getPort(),
-                    uri.getRawPath().isEmpty() ? "/" : uri.getRawPath(),
-                    uri.getRawQuery(), null);
+            // Raw components are already escaped; the component constructor would escape '%' again.
+            URI normalized = new URI("https://" + normalizedHost
+                    + (uri.getRawPath().isEmpty() ? "/" : uri.getRawPath())
+                    + (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery()));
             return new HttpGetTarget(request, normalized);
         } catch (URISyntaxException | IllegalArgumentException exception) {
             throw failure(HttpGetException.Reason.INVALID_REQUEST);
@@ -84,6 +86,11 @@ public final class HttpGetPermissionValidator {
 
     /** Performs the post-approval DNS check immediately before the HTTP attempt. */
     public void validateResolvedDestination(HttpGetTarget target) {
+        resolvePublicDestination(target);
+    }
+
+    /** The transport connects to this validated address, without resolving the hostname again. */
+    InetAddress resolvePublicDestination(HttpGetTarget target) {
         Objects.requireNonNull(target, "target");
         InetAddress[] addresses;
         try {
@@ -95,6 +102,8 @@ public final class HttpGetPermissionValidator {
                 || Arrays.stream(addresses).anyMatch(HttpGetPermissionValidator::notPublic)) {
             throw failure(HttpGetException.Reason.NON_PUBLIC_DESTINATION);
         }
+        if (Thread.currentThread().isInterrupted()) throw failure(HttpGetException.Reason.INTERRUPTED);
+        return addresses[0]; // One connection attempt, no multi-address fallback.
     }
 
     private static String normalizeConfiguredHost(String host) {
@@ -104,10 +113,25 @@ public final class HttpGetPermissionValidator {
         return normalizeHost(host);
     }
 
+    private static boolean credentialQuery(String query) {
+        if (query == null) return false;
+        for (String parameter : query.split("[&;]", -1)) {
+            String key = java.net.URLDecoder.decode(parameter.split("=", 2)[0],
+                    java.nio.charset.StandardCharsets.UTF_8).toLowerCase(Locale.ROOT)
+                    .replaceAll("[-_.]", "");
+            if (key.contains("token") || key.contains("secret") || key.contains("password")
+                    || key.contains("credential") || key.contains("signature")
+                    || Set.of("auth", "authorization", "apikey", "key", "passwd", "session",
+                            "sessionid", "sid", "sig", "code").contains(key)) return true;
+        }
+        return false;
+    }
+
     private static String normalizeHost(String host) {
         String ascii = IDN.toASCII(host, IDN.USE_STD3_ASCII_RULES)
                 .toLowerCase(Locale.ROOT);
-        if (ascii.isBlank() || ascii.length() > 253 || ascii.endsWith(".")) {
+        if (ascii.isBlank() || ascii.length() > 253 || ascii.endsWith(".")
+                || ascii.matches("[0-9.]+") || ascii.startsWith("0x")) {
             throw new IllegalArgumentException("Invalid host.");
         }
         return ascii;
@@ -141,6 +165,7 @@ public final class HttpGetPermissionValidator {
                 || (first == 169 && second == 254)
                 || (first == 172 && second >= 16 && second <= 31)
                 || (first == 192 && second == 0 && (third == 0 || third == 2))
+                || (first == 192 && second == 88 && third == 99)
                 || (first == 192 && second == 168)
                 || (first == 198 && (second == 18 || second == 19))
                 || (first == 198 && second == 51 && third == 100)
@@ -150,11 +175,14 @@ public final class HttpGetPermissionValidator {
     private static boolean reservedIpv6(byte[] bytes) {
         int first = Byte.toUnsignedInt(bytes[0]);
         int second = Byte.toUnsignedInt(bytes[1]);
-        boolean uniqueLocal = (first & 0xfe) == 0xfc;
-        boolean documentation = first == 0x20 && second == 0x01
-                && Byte.toUnsignedInt(bytes[2]) == 0x0d
-                && Byte.toUnsignedInt(bytes[3]) == 0xb8;
-        return uniqueLocal || documentation;
+        // Fail closed outside ordinary global unicast; exclude special-purpose and transition space.
+        int third = Byte.toUnsignedInt(bytes[2]);
+        int fourth = Byte.toUnsignedInt(bytes[3]);
+        return (first & 0xe0) != 0x20
+                || (first == 0x20 && second == 0x01 && third <= 1)
+                || (first == 0x20 && second == 0x01 && third == 0x0d && fourth == 0xb8)
+                || (first == 0x20 && second == 0x02)
+                || (first == 0x3f && second == 0xff && (third & 0xf0) == 0);
     }
 
     private static HttpGetException failure(HttpGetException.Reason reason) {

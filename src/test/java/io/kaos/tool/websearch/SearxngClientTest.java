@@ -47,6 +47,32 @@ class SearxngClientTest {
             assertEquals(1, calls.get());
         } finally { server.stop(0); }
     }
+    @Test void normalizesJoiningHintsOnlyInBoundedDisplayText() throws Exception {
+        String entry = ENTRY.replace("Spring Boot", "Spring\u2060 Boot\u200c")
+                .replace("snippet", "Flood\u2060 report\u200c remains unverified");
+        var result = response(200, "{\"results\":[" + entry + "]}");
+        assertEquals("Spring Boot", result.results().getFirst().title());
+        assertEquals("Flood report remains unverified", result.results().getFirst().snippet());
+        assertEquals("https://spring.io", result.results().getFirst().url());
+    }
+    @Test void normalizationDoesNotRelaxControlsUrlsQueriesOrOriginalSizeBounds() {
+        for (String entry : List.of(
+                ENTRY.replace("Spring Boot", "\u200c\u2060"),
+                ENTRY.replace("Spring Boot", "x".repeat(256) + "\u2060"),
+                ENTRY.replace("snippet", "x".repeat(512) + "\u200c"),
+                ENTRY.replace("snippet", "bad\\ntext"),
+                ENTRY.replace("snippet", "bad\u202etext"),
+                ENTRY.replace("snippet", "bad\u2066text\u2069"),
+                ENTRY.replace("https://spring.io", "https://spring.io/\u2060"),
+                ENTRY.replace("https://spring.io", "https://spring.io/\u200c"))) {
+            assertEquals(WebSearchException.Reason.INVALID_RESPONSE,
+                    assertThrows(WebSearchException.class,
+                            () -> response(200, "{\"results\":[" + entry + "]}")).reason());
+        }
+        for (String hint : List.of("\u2060", "\u200c")) {
+            assertThrows(WebSearchException.class, () -> new WebSearchRequest("query" + hint));
+        }
+    }
     @Test void emptyResultsAreSuccess() throws Exception {
         assertEquals(0, response(200, "{\"results\":[]}").results().size());
     }

@@ -172,7 +172,8 @@ final class ApplicationRuntime {
             PrintStream errorOutput) {
         try (var trace = io.kaos.diagnostics.DebugTrace.configured(errorOutput)) {
             io.kaos.diagnostics.DebugTrace.event("application.start", () ->
-                    java.util.Map.of("arguments", arguments));
+                    java.util.Map.of("arguments", arguments.length > 0 && "research".equals(arguments[0])
+                            ? new String[] {"research", "[REDACTED]"} : arguments));
             try {
                 int exit = executeCommand(arguments, configuration, input, output, errorOutput);
                 io.kaos.diagnostics.DebugTrace.event("application.end", () ->
@@ -228,6 +229,11 @@ final class ApplicationRuntime {
                         return client;
                     }
                 }, toolRegistry).withToolHistory(toolHistory);
+        CommandRouter.ArgumentCommand researchCommand = question -> new ResearchCommand(context, modelConfigurationLoader,
+                toolRegistry, io.kaos.tool.httpget.HttpGetPermissionValidator::load,
+                (model, prompt, evidence, format) -> agentClient.get()
+                        .submitWithResearchEvidence(model, prompt, evidence, format))
+                .withToolHistory(toolHistory).execute(question);
         ToolCatalogCommand toolCatalogCommand = new ToolCatalogCommand(context, toolRegistry);
         ToolHistoryCommand toolHistoryCommand = new ToolHistoryCommand(context, toolHistory);
         if (localToolsClient != null) conversationCommand.withLocalTools(localToolsCommand);
@@ -327,6 +333,7 @@ final class ApplicationRuntime {
                 conversationCommand::execute)
                 .withWebSearch(localToolsCommand::execute)
                 .withAgent(agentCommand::execute)
+                .withResearch(researchCommand)
                 .withToolCatalog(toolCatalogCommand::execute)
                 .withToolHistory(toolHistoryCommand::execute)
                 .route(arguments);

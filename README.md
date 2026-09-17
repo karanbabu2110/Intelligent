@@ -56,7 +56,7 @@ over its environment variable.
 | Environment variable | Accepted value and default | Used by |
 | --- | --- | --- |
 | `KAOS_APP_NAME` | Display name of at most 64 safe characters; defaults to `KAOS` | All commands and status output |
-| `KAOS_OLLAMA_MODEL` | Explicit installed Ollama chat model name; no default | `ollama-model`, `ollama-prompt`, `conversation`, `knowledge-ask`, `read-local-file`, `http-get`, `web-search`, `agent` |
+| `KAOS_OLLAMA_MODEL` | Explicit installed Ollama chat model name; no default | `ollama-model`, `ollama-prompt`, `conversation`, `knowledge-ask`, `read-local-file`, `http-get`, `web-search`, `agent`, `research` |
 | `KAOS_OLLAMA_CONTEXT_WINDOW` | Whole number from 2,048 through 65,536; defaults to `8192` | Commands using `KAOS_OLLAMA_MODEL` |
 | `KAOS_OLLAMA_THINKING` | `off` or `on`; defaults to `off` | Commands using `KAOS_OLLAMA_MODEL` |
 | `KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT` | Whole number from 64 through 8,192; defaults to `1024` with thinking off or `4096` with thinking on | Commands using `KAOS_OLLAMA_MODEL` |
@@ -69,7 +69,7 @@ over its environment variable.
 | `KAOS_TOOL_HISTORY_DATA_DIRECTORY` | Directory containing `tool-history.db`; defaults to the current user's `.kaos` directory | Tool execution recording, including agent tool steps, and `tool-history` |
 | `KAOS_TOOL_READ_ROOT` | Required absolute, non-filesystem-root directory; no default | `tools` status; file selection in `read-local-file`, `web-search`, `conversation`, or `agent` |
 | `KAOS_WEB_SEARCH_SEARXNG_URL` | Optional trusted HTTP(S) service origin, e.g. `http://127.0.0.1:8080`; no default. JVM override: `kaos.web-search.searxng-url` | `tools` status; search selection in `web-search`, `conversation`, or `agent` |
-| `KAOS_HTTP_ALLOWED_HOSTS` | Required comma-separated exact host names; no default | `tools` status; `http-get`, before showing an approval request |
+| `KAOS_HTTP_ALLOWED_HOSTS` | Required comma-separated exact host names; no default | `tools` status; `http-get` and `research`, before showing an approval request |
 
 ### Commands and arguments
 
@@ -92,6 +92,7 @@ quotes.
 | `kaos knowledge-retrieve "<query>"` | One quoted knowledge query | Rank stored chunks and construct grounded context |
 | `kaos knowledge-ask "<question>"` | One quoted knowledge question | Generate one grounded answer with source citations |
 | `kaos read-local-file "<question>"` | One quoted question that identifies a relative file for the model | Ask about one model-requested, validated, explicitly approved file |
+| `kaos research "<question>"` | One public-information question, at most 400 code points | Approved search, up to three exact approved source URLs, bounded retrieval and attributed answer |
 | `kaos http-get "<question>"` | One quoted question from which the model may select an allowed HTTPS URL | Ask about one model-requested, explicitly approved web resource |
 | `kaos web-search "<question>"` | One quoted question; model chooses search, local file, or no tool | At most one approved tool, followed by one no-tools answer |
 | `kaos agent "<goal>"` | One quoted goal up to 4,096 Unicode code points | One model-proposed validated plan of at most three sequential steps, up to two independently approved tools, then one synthesis/result |
@@ -205,10 +206,29 @@ shows the normalized URL, and requires `approve` before DNS resolution or any
 GET. The approved foreground request follows no redirects, sends no credentials
 or cookies, retries nothing, and accepts at most 32,768 strict UTF-8 bytes of
 text, JSON, or XML. Its result is untrusted model context for one final local
-Ollama answer; no further tool is advertised. DNS is checked for non-public
-addresses immediately before execution, but a host changing addresses between
-that check and the HTTP client's connection remains a documented residual DNS
-rebinding limitation. See [HTTP GET tool](docs/evolution/http-get-tool.md).
+Ollama answer; no further tool is advertised. Every DNS answer is checked for
+public addressing and one validated address is bound directly to the connection.
+The fifteen-second deadline covers DNS, connection and body reads. System HTTP
+and SOCKS proxies are disabled. See [HTTP GET tool](docs/evolution/http-get-tool.md).
+
+Verified research is a separate foreground command:
+
+```powershell
+$env:KAOS_OLLAMA_MODEL = "qwen3.5:4b"
+$env:KAOS_WEB_SEARCH_SEARXNG_URL = "http://127.0.0.1:8080"
+$env:KAOS_HTTP_ALLOWED_HOSTS = "docs.oracle.com,openjdk.org"
+./gradlew.bat --% run --args="research \"What changed in the latest Java release?\""
+```
+
+Review and approve the exact search query, then review the proposed source roles,
+purposes and normalized URLs before approving the source set. A successful run
+retrieves every selected page and prints claims with source references and
+uncertainty. Any retrieval failure stops without a final answer, reporting how
+many sources completed. Existing `agent` limits stay unchanged. Research disables
+payload debug tracing, including when `KAOS_DEBUG` is enabled. Source suitability
+and factual support remain model judgments; attribution checks do not prove truth.
+See [verified research](docs/evolution/verified-web-research.md) for limits,
+privacy, deterministic demonstrations and remaining work.
 
 Check whether Ollama is reachable on the fixed local endpoint
 `http://127.0.0.1:11434/api/version`:

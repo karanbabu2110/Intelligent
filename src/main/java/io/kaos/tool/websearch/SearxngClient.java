@@ -139,8 +139,8 @@ public final class SearxngClient {
                 throw failure(WebSearchException.Reason.INVALID_RESPONSE);
             }
             try {
-                entries.add(new WebSearchResult.Entry(node.get("title").textValue(),
-                        node.get("url").textValue(), node.path("content").asText("")));
+                entries.add(new WebSearchResult.Entry(displayText(node.get("title").textValue(), 256),
+                        node.get("url").textValue(), displayText(node.path("content").asText(""), 512)));
             } catch (WebSearchException exception) {
                 throw failure(WebSearchException.Reason.INVALID_RESPONSE);
             }
@@ -148,6 +148,15 @@ public final class SearxngClient {
         var result = new WebSearchResult(request, entries);
         WebSearchToolContract.encodeResult(result); // Enforce total normalized payload boundary now.
         return result;
+    }
+    private static String displayText(String value, int maximum) {
+        // Bound the original field too: invisible padding must not bypass the contract.
+        if (value.codePointCount(0, value.length()) > maximum) {
+            throw failure(WebSearchException.Reason.INVALID_RESPONSE);
+        }
+        // SearXNG snippets can contain these typographic joining hints. Strip only
+        // these two from display text; URLs and all other controls remain strict.
+        return value.replace("\u2060", "").replace("\u200c", "");
     }
     private static WebSearchException failure(WebSearchException.Reason reason) {
         return new WebSearchException(reason);
