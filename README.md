@@ -221,10 +221,14 @@ $env:KAOS_HTTP_ALLOWED_HOSTS = "docs.oracle.com,openjdk.org"
 ```
 
 Review and approve the exact search query, then review the proposed source roles,
-purposes and normalized URLs before approving the source set. A successful run
-retrieves every selected page and prints claims with source references and
-uncertainty. Any retrieval failure stops without a final answer, reporting how
-many sources completed. Existing `agent` limits stay unchanged. Research disables
+purposes and normalized URLs before approving the source set. Source retrieval
+failures are recorded without content; remaining approved URLs are attempted once.
+With successful page evidence, research prints claims with source references and
+uncertainty, explicitly reporting partial coverage. If all pages fail, it can
+produce a separately labeled search-only outcome from the selected titles and
+snippets; those claims cannot be `FACT` and are not verified page evidence.
+Each failure prints a content-free `ERROR` reason. Cancellation and approval/history failures still stop the run.
+Existing `agent` limits stay unchanged. Research disables
 payload debug tracing, including when `KAOS_DEBUG` is enabled. Source suitability
 and factual support remain model judgments; attribution checks do not prove truth.
 See [verified research](docs/evolution/verified-web-research.md) for limits,

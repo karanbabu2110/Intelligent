@@ -24,6 +24,8 @@ public final class HttpSourceFixture implements AutoCloseable {
     public final List<Map<String, List<String>>> headers = new CopyOnWriteArrayList<>();
     public final Map<String, String> bodies = new java.util.concurrent.ConcurrentHashMap<>();
     public final Map<String, String> responseHeaders = new java.util.concurrent.ConcurrentHashMap<>();
+    public final Map<String, Integer> statuses = new java.util.concurrent.ConcurrentHashMap<>();
+    public final Map<String, HttpGetException.Reason> failures = new java.util.concurrent.ConcurrentHashMap<>();
     private final byte[] content;
     private final String media;
     private final int status;
@@ -45,7 +47,8 @@ public final class HttpSourceFixture implements AutoCloseable {
                 exchange.getResponseHeaders().set("Location", "http://127.0.0.1/never");
                 exchange.getResponseHeaders().set("Set-Cookie", "secret=never-send");
                 responseHeaders.forEach((name, value) -> exchange.getResponseHeaders().set(name, value));
-                int code = exchange.getRequestURI().getPath().equals("/fail") ? 503 : status;
+                int code = statuses.getOrDefault(exchange.getRequestURI().getPath(),
+                        exchange.getRequestURI().getPath().equals("/fail") ? 503 : status);
                 exchange.sendResponseHeaders(code, 0);
                 if (stall) {
                     exchange.getResponseBody().write('x');
@@ -66,7 +69,12 @@ public final class HttpSourceFixture implements AutoCloseable {
     }
 
     public HttpGet tool() {
-        return new HttpGet(this::validator, (validator, grant) -> retrieve(grant.claim(), Duration.ofSeconds(2)));
+        return new HttpGet(this::validator, (validator, grant) -> {
+            var target = grant.claim();
+            var failure = failures.get(target.uri().getPath());
+            if (failure != null) throw new HttpGetException(failure);
+            return retrieve(target, Duration.ofSeconds(2));
+        });
     }
 
     HttpGetResult retrieve(HttpGetTarget approved, Duration timeout) {

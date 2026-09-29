@@ -78,6 +78,10 @@ public final class HttpGetExecutor {
             java.util.function.Function<String, Optional<String>> headers, InputStream body)
             throws IOException {
         if (status >= 300 && status < 400) throw failure(HttpGetException.Reason.REDIRECTED);
+        if (status == 401) throw failure(HttpGetException.Reason.HTTP_UNAUTHORIZED);
+        if (status == 403) throw failure(HttpGetException.Reason.HTTP_FORBIDDEN);
+        if (status == 404) throw failure(HttpGetException.Reason.HTTP_NOT_FOUND);
+        if (status == 429) throw failure(HttpGetException.Reason.HTTP_RATE_LIMITED);
         if (status != 200) throw failure(HttpGetException.Reason.REQUEST_FAILED);
         String mediaType = supportedMediaType(headers);
         if (headers.apply("Content-Encoding").filter(v -> !v.equalsIgnoreCase("identity")).isPresent()) {

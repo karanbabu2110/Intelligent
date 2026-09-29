@@ -188,6 +188,10 @@ final class HttpGetCommand {
             case TIMEOUT -> "The approved HTTP GET timed out; make a new request to retry.";
             case INTERRUPTED -> "The approved HTTP GET was cancelled.";
             case REDIRECTED -> "The approved HTTP GET returned a redirect, which is not followed.";
+            case HTTP_UNAUTHORIZED -> "The approved HTTP GET returned HTTP 401 Unauthorized.";
+            case HTTP_FORBIDDEN -> "The approved HTTP GET returned HTTP 403 Forbidden.";
+            case HTTP_NOT_FOUND -> "The approved HTTP GET returned HTTP 404 Not Found.";
+            case HTTP_RATE_LIMITED -> "The approved HTTP GET returned HTTP 429 Too Many Requests.";
             case REQUEST_FAILED -> "The approved HTTP GET did not return a successful response.";
             case UNSUPPORTED_MEDIA_TYPE -> "The response was not a supported textual media type.";
             case TOO_LARGE -> "The response exceeded the 32768-byte HTTP GET limit.";

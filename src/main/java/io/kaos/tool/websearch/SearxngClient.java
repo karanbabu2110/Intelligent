@@ -154,9 +154,9 @@ public final class SearxngClient {
         if (value.codePointCount(0, value.length()) > maximum) {
             throw failure(WebSearchException.Reason.INVALID_RESPONSE);
         }
-        // SearXNG snippets can contain these typographic joining hints. Strip only
-        // these two from display text; URLs and all other controls remain strict.
-        return value.replace("\u2060", "").replace("\u200c", "");
+        // Strip these three zero-width characters only from display text;
+        // URLs and all other controls remain strict.
+        return value.replace("\u2060", "").replace("\u200c", "").replace("\u200b", "");
     }
     private static WebSearchException failure(WebSearchException.Reason reason) {
         return new WebSearchException(reason);

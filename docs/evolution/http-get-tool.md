@@ -107,3 +107,7 @@ bound HTTP grants after one explicit approval for the frozen source set. The
 standalone `http-get` command remains one URL and one continuation. See
 [verified web research](verified-web-research.md) for the implemented first slice
 and the remaining Epic 019 work.
+
+HTTP status failures never retain response bodies. Fixed content-free reasons
+distinguish redirects, 401 unauthorized, 403 forbidden, 404 not found and 429
+rate limited; other non-200 statuses remain `REQUEST_FAILED`.
