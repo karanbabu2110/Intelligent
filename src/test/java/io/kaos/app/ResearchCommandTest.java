@@ -138,16 +138,127 @@ class ResearchCommandTest {
         }
     }
 
-    @Test void partialFailureStopsRemainingSourcesAndNeverSynthesizes() throws Exception {
+    @Test void partialFailureContinuesAndSynthesizesOnlySuccessfulSources() throws Exception {
         try (var rig = new Rig()) {
             rig.secondPath = "/fail";
             rig.proposal = proposal(1,2,3);
-            assertNotEquals(0, rig.run("approve\napprove\n"));
-            assertEquals(2, rig.sources.calls.get());
-            assertEquals(1, rig.modelCalls.get());
-            assertTrue(rig.output().contains("retrieved 1/3"));
+            rig.answer = ANSWER.replace("[1]", "[2]");
+            assertEquals(0, rig.run("approve\napprove\n"), rig::output);
+            assertEquals(3, rig.sources.calls.get());
+            assertEquals(2, rig.modelCalls.get());
+            assertEquals(2, rig.inputs.get(1).size());
+            assertTrue(rig.output().contains("retrieved 2/3"));
+            assertTrue(rig.output().contains("FACT: The release is 42. [3]"));
+            assertFalse(rig.inputs.get(1).stream().anyMatch(p -> p.modelContent().toString().contains("/fail")));
             assertTrue(rig.output().contains("REQUEST_FAILED"));
             assertEquals(4, rig.history.records().size());
+        }
+    }
+
+    @Test void firstSourceDeniedByPublisherStillAllowsLaterApprovedEvidence() throws Exception {
+        try (var rig = new Rig()) {
+            rig.sources.statuses.put("/a b", 401);
+            rig.proposal = proposal(1,2,3);
+            assertEquals(0, rig.run("approve\napprove\n"), rig::output);
+            assertEquals(3, rig.sources.calls.get());
+            assertTrue(rig.output().contains("ERROR: Source [1] retrieval failed: HTTP_UNAUTHORIZED"));
+            assertTrue(rig.output().contains("FACT: The release is 42. [2]"));
+            assertEquals(2, rig.inputs.get(1).size());
+        }
+    }
+
+    @Test void allSourcesFailedProducesExplicitNonFactSearchOnlyOutcome() throws Exception {
+        try (var rig = new Rig()) {
+            rig.proposal = proposal(1,2,3);
+            for (String path : List.of("/a b", "/second", "/third")) rig.sources.statuses.put(path, 401);
+            rig.answer = """
+                    {"claims":[{"text":"Search snippets mention release 42.","kind":"INFERENCE","sources":[1,3]}],
+                     "uncertainty":"No selected page was retrieved; snippets may be incomplete or stale."}
+                    """;
+            assertEquals(0, rig.run("approve\napprove\n"), rig::output);
+            assertEquals(3, rig.sources.calls.get());
+            assertEquals(2, rig.modelCalls.get());
+            assertEquals(1, rig.inputs.get(1).size());
+            assertInstanceOf(WebSearchResult.class, rig.inputs.get(1).getFirst());
+            assertEquals(3, ((WebSearchResult) rig.inputs.get(1).getFirst()).results().size());
+            assertTrue(rig.output().contains("Search-only outcome"));
+            assertTrue(rig.output().contains("SEARCH RESULT ONLY"));
+            assertFalse(rig.output().contains("FACT:"));
+            assertEquals(4, rig.history.records().size());
+            assertFalse(rig.output().contains("PAGE_SECRET"));
+        }
+    }
+
+    @Test void searchOnlyFallbackRejectsFactClaimsAndMissingResultCitations() throws Exception {
+        for (String invalid : List.of(ANSWER,
+                "{\"claims\":[{\"text\":\"Snippet claim.\",\"kind\":\"INFERENCE\",\"sources\":[2]}],"
+                        + "\"uncertainty\":\"No page was retrieved.\"}")) {
+            try (var rig = new Rig()) {
+                rig.proposal = proposal(1);
+                rig.sources.statuses.put("/a b", 401);
+                rig.answer = invalid;
+                assertNotEquals(0, rig.run("approve\napprove\n"));
+                assertEquals(1, rig.sources.calls.get());
+                assertEquals(2, rig.modelCalls.get());
+                assertFalse(rig.output().contains("Research answer"));
+                assertFalse(rig.output().contains("Search-only outcome"));
+                assertTrue(rig.output().contains("SEARCH_ONLY_SYNTHESIS_INVALID_OR_UNAVAILABLE"));
+            }
+        }
+    }
+
+    @Test void emptySearchOnlyClaimsStopWithoutAnAnswer() throws Exception {
+        try (var rig = new Rig()) {
+            rig.sources.statuses.put("/a b", 401);
+            rig.answer = "{\"claims\":[],\"uncertainty\":\"No page was retrieved; insufficient evidence.\"}";
+            assertNotEquals(0, rig.run("approve\napprove\n"));
+            assertEquals(2, rig.modelCalls.get());
+            assertTrue(rig.output().contains("INSUFFICIENT_SEARCH_EVIDENCE"));
+            assertFalse(rig.output().contains("Search-only outcome"));
+        }
+    }
+
+    @Test void interruptionAndGrantFailuresStillStopLaterSources() throws Exception {
+        for (var reason : List.of(io.kaos.tool.httpget.HttpGetException.Reason.INTERRUPTED,
+                io.kaos.tool.httpget.HttpGetException.Reason.APPROVAL_REUSED)) {
+            try (var rig = new Rig()) {
+                rig.proposal = proposal(1,2,3);
+                rig.sources.failures.put("/second", reason);
+                assertNotEquals(0, rig.run("approve\napprove\n"));
+                assertEquals(1, rig.sources.calls.get());
+                assertEquals(1, rig.modelCalls.get());
+                assertTrue(rig.output().contains(reason.name()));
+            }
+        }
+    }
+
+    @Test void timeoutAndUnsafeDestinationRemainExcludedWhileLaterSourcesRun() throws Exception {
+        for (var reason : List.of(io.kaos.tool.httpget.HttpGetException.Reason.TIMEOUT,
+                io.kaos.tool.httpget.HttpGetException.Reason.NON_PUBLIC_DESTINATION,
+                io.kaos.tool.httpget.HttpGetException.Reason.REDIRECTED,
+                io.kaos.tool.httpget.HttpGetException.Reason.TOO_LARGE)) {
+            try (var rig = new Rig()) {
+                rig.proposal = proposal(1,2,3);
+                rig.sources.failures.put("/second", reason);
+                assertEquals(0, rig.run("approve\napprove\n"), rig::output);
+                assertEquals(2, rig.sources.calls.get());
+                assertEquals(2, rig.inputs.get(1).size());
+                assertTrue(rig.output().contains(reason.name()));
+            }
+        }
+    }
+
+    @Test void partialEvidenceCannotCiteMissingPageOrInheritItsPrimaryRole() throws Exception {
+        for (boolean invalidCitation : List.of(true, false)) {
+            try (var rig = new Rig()) {
+                rig.sources.statuses.put("/a b", 401);
+                rig.proposal = proposal(1,2).replace("\"result\":2,\"role\":\"PRIMARY\"",
+                        "\"result\":2,\"role\":\"SECONDARY\"");
+                rig.answer = invalidCitation ? ANSWER.replace("[1]", "[2]") : ANSWER;
+                assertNotEquals(0, rig.run("approve\napprove\n"));
+                assertEquals(2, rig.sources.calls.get());
+                assertFalse(rig.output().contains("FACT: The release is 42."));
+            }
         }
     }
 

@@ -49,7 +49,7 @@ class SearxngClientTest {
     }
     @Test void normalizesJoiningHintsOnlyInBoundedDisplayText() throws Exception {
         String entry = ENTRY.replace("Spring Boot", "Spring\u2060 Boot\u200c")
-                .replace("snippet", "Flood\u2060 report\u200c remains unverified");
+                .replace("snippet", "Flood\u2060 report\u200c remains\u200b unverified");
         var result = response(200, "{\"results\":[" + entry + "]}");
         assertEquals("Spring Boot", result.results().getFirst().title());
         assertEquals("Flood report remains unverified", result.results().getFirst().snippet());
@@ -57,7 +57,7 @@ class SearxngClientTest {
     }
     @Test void normalizationDoesNotRelaxControlsUrlsQueriesOrOriginalSizeBounds() {
         for (String entry : List.of(
-                ENTRY.replace("Spring Boot", "\u200c\u2060"),
+                ENTRY.replace("Spring Boot", "\u200b\u200c\u2060"),
                 ENTRY.replace("Spring Boot", "x".repeat(256) + "\u2060"),
                 ENTRY.replace("snippet", "x".repeat(512) + "\u200c"),
                 ENTRY.replace("snippet", "bad\\ntext"),
@@ -69,7 +69,7 @@ class SearxngClientTest {
                     assertThrows(WebSearchException.class,
                             () -> response(200, "{\"results\":[" + entry + "]}")).reason());
         }
-        for (String hint : List.of("\u2060", "\u200c")) {
+        for (String hint : List.of("\u2060", "\u200c", "\u200b")) {
             assertThrows(WebSearchException.class, () -> new WebSearchRequest("query" + hint));
         }
     }

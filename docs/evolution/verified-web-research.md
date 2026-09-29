@@ -5,6 +5,12 @@ belongs to [Epic 019 / #1094](https://github.com/karanbabu2110/KAOS/issues/1094)
 under [roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814).
 This implements a first end-to-end workflow, not the entire epic.
 
+Follow-up [019.04 / #1096](https://github.com/karanbabu2110/KAOS/issues/1096)
+completes partial retrieval and explicit search-only outcomes. It advances this
+bounded retrieval improvement before candidate-selection work because publisher
+failures otherwise discard useful approved evidence. Persistent host approvals
+remain separate future work.
+
 ## Actual behavior
 
 `kaos research "question"` uses the exact question as one approved SearXNG query.
@@ -28,14 +34,19 @@ endpoint and explicit HTTP allowed hosts as shown in the [README](../../README.m
    concrete grant. Every DNS answer must be public. One validated address is
    connected directly, while TLS checks the original hostname. No redirects,
    alternate-address attempts, automatic retries, proxy, cookies or credentials
-   are used. A source failure stops later sources. Output reports completed
-   retrievals, and no partial answer is generated.
-5. Only after every selected page succeeds, one structured local-model call
+   are used. A source retrieval failure records its failed outcome in content-free
+   history and prints its source number and fixed reason. Remaining approved sources
+   are attempted once, with no replacement URLs or retries.
+5. After retrieval, if at least one page succeeded, one structured local-model call
    receives the pages as untrusted tool-result messages. Search snippets are
    absent. It receives no tools. Returned source numbers must reference those
    pages; the application renders citations from the frozen URLs. Claims carry
    FACT, INFERENCE, OPINION, ANECDOTE or CONTRADICTION labels and an uncertainty
    statement. Empty claims mean insufficient evidence and no final answer.
+6. If no page succeeded, the same final model-call slot receives only the selected
+   search titles, URLs and snippets. Output is labeled `Search-only outcome`, cannot
+   contain `FACT`, and must say that pages were not retrieved. These citations point
+   to discovery results, not page evidence. Empty claims still produce no answer.
 
 Research also rejects model input that exceeds a conservative byte-based allowance
 within the configured context window, reserving output tokens and 1024 units for
@@ -68,13 +79,21 @@ limitations. No source is declared universally trusted.
 | Content | Status 200; plain text, HTML, JSON or XML; strict UTF-8; nonblank; no unsafe control characters or compressed content |
 | Selection output | At most three entries; purpose 256 and reason 512 code points |
 | Answer output | At most eight claims, 1024 code points each; uncertainty at most 1024; one to three valid source references per claim |
-| Model operations | One selection and one synthesis; existing local request/token/stream timeouts; no retries or tools |
+| Model operations | One selection and one page or search-only synthesis; existing local request/token/stream timeouts; no retries or tools |
 
 Malformed model output, unexpected tool calls, invalid citations, unsafe URLs,
-missing configuration, denial, cancellation, read failure, empty evidence,
-history failure or network failure stop without a final answer. Recovery requires
-a new invocation and fresh approvals. Terminal output may describe the failure
-and successful retrieval count; it never prints raw page content.
+missing configuration, denial, cancellation, input failure, empty evidence,
+history failure or invalid/reused approval stop without a final answer. Recovery requires
+a new invocation and fresh approvals. Source-local network, HTTP status, DNS safety,
+redirect, content and size failures exclude that source and continue through the
+approved set. A partial answer reports successful/approved counts and cites only
+successful pages using their original approval numbers. Missing primary sources
+cannot satisfy the evidence-role guard; a single remaining secondary source is
+still insufficient for a FACT claim. If every source fails, search-only synthesis
+uses the already approved search data and rejects `FACT`; it never presents snippets
+as retrieved pages. Terminal output prints a content-free `ERROR` with source number
+and fixed failure reason plus the successful retrieval count; it never prints raw
+page content, failure bodies or a failed URL.
 
 Bodies are bounded textual responses, not browser-rendered articles. HTML/script
 text is never executed, JSON/XML is not parsed for external entities, and links
@@ -176,9 +195,32 @@ HTTP contracts continue to test exact grants and malformed UTF-8.
 
 An optional live demonstration uses the README command after configuring actual
 publisher hosts. Review both approval prompts; redirects, non-UTF-8 pages,
-oversized pages, disallowed hosts or model schema failures stop the run. The separate [live evaluation](verified-web-research-live-evaluation.md) records
+oversized pages exclude individual sources; disallowed candidate hosts before approval
+or model schema failures stop the run. The separate [live evaluation](verified-web-research-live-evaluation.md) records
 local-model/public-source runs and the quality and safety problems they exposed.
 The deterministic tests alone do not demonstrate public-source factual accuracy.
+
+### Live follow-up: 2026-09-29
+
+With local SearXNG at `127.0.0.1:8080`, `qwen3.5:4b`, thinking off and
+the default context settings, two runs of `latest stock market news` stopped
+at `DISALLOWED_HOST` before retrieval. A separate search inspection did not
+guarantee that its result hosts would match the next application search.
+
+A scoped run, `site:reuters.com/markets/ latest stock market news`, with
+`www.reuters.com,reuters.com` allowed, selected `/markets/`, `/markets/us/`
+and `/markets/news/` on `www.reuters.com`. After exact-set approval, all three
+returned `HTTP_UNAUTHORIZED`. KAOS attempted each once and completed a labeled
+`Search-only outcome` with `SEARCH RESULT ONLY` citations and an explicit
+no-pages-retrieved uncertainty statement. Gradle reported success in 38 seconds.
+This demonstrates the live all-failed continuation, not successful page retrieval
+or the mixed-success path (which remains covered by deterministic fixtures).
+
+The generated prose still contained factual-sounding market claims labeled as
+OPINION and called a market contrast CONTRADICTION. Neither freshness nor factual
+support was established. Rejecting the FACT label and displaying the fallback
+warning does not enforce semantic claim quality. The cause of the publisher's
+401 responses was not established by this run.
 
 ## Roadmap and next slice
 
@@ -189,6 +231,6 @@ this feature does not revise unrelated roadmap scope.
 
 The smallest next feature is 019.02, Candidate Source Selection: improve selection
 of suitable primary sources and explain exclusions before approval, without
-retries or extra retrieval. Rich partial-result synthesis, robust publisher
+retries or extra retrieval. Robust publisher
 independence checks, passage-level attribution and semantic evidence validation
 remain unimplemented. The epic stays open.

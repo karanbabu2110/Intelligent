@@ -83,6 +83,10 @@ class PinnedHttpTransportTest {
             }));
         } finally { ProxySelector.setDefault(old); }
         assertFailure(302, "text/plain", "redirect", HttpGetException.Reason.REDIRECTED);
+        assertFailure(401, "text/plain", "private", HttpGetException.Reason.HTTP_UNAUTHORIZED);
+        assertFailure(403, "text/plain", "private", HttpGetException.Reason.HTTP_FORBIDDEN);
+        assertFailure(404, "text/plain", "private", HttpGetException.Reason.HTTP_NOT_FOUND);
+        assertFailure(429, "text/plain", "private", HttpGetException.Reason.HTTP_RATE_LIMITED);
         assertFailure(503, "text/plain", "failure", HttpGetException.Reason.REQUEST_FAILED);
     }
 

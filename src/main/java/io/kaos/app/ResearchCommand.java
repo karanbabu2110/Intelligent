@@ -142,6 +142,9 @@ final class ResearchCommand {
                 return stopped("SOURCES_NOT_APPROVED", 0, selected);
             }
             var pages = new ArrayList<ToolResult<?>>();
+            var successfulCandidates = new ArrayList<ResearchFormat.Candidate>();
+            var successfulUrls = new ArrayList<String>();
+            var sourceIds = new ArrayList<Integer>();
             stage = "RETRIEVAL";
             for (int i = 0; i < selected; i++) {
                 checkInterrupted();
@@ -150,30 +153,79 @@ final class ResearchCommand {
                     record(permission);
                     return stopped("CANCELLED", retrieved, selected);
                 }
-                ToolResult<?> page = attempt(permission);
-                retrieved++;
+                ToolResult<?> page;
+                try {
+                    page = attempt(permission);
+                } catch (HttpGetException exception) {
+                    if (exception.reason() == HttpGetException.Reason.INTERRUPTED
+                            || exception.reason() == HttpGetException.Reason.APPROVAL_REUSED
+                            || exception.reason() == HttpGetException.Reason.INVALID_REQUEST
+                            || exception.reason() == HttpGetException.Reason.INVALID_CONFIGURATION) throw exception;
+                    checkInterrupted();
+                    context.errorOutput().println("ERROR: Source [" + (i + 1) + "] retrieval failed: "
+                            + exception.reason().name() + "; continuing with remaining approved sources.");
+                    continue;
+                }
                 record(permission);
                 if (!selections.get(i).matches(page) || !(page instanceof HttpGetResult)) {
                     throw new IllegalArgumentException();
                 }
                 pages.add(page);
-                context.output().println("Retrieved source [" + retrieved + "] successfully.");
+                successfulCandidates.add(candidates.get(i));
+                successfulUrls.add(urls.get(i));
+                sourceIds.add(i + 1);
+                retrieved++;
+                context.output().println("Retrieved source [" + (i + 1) + "] successfully.");
             }
             checkInterrupted();
+            if (pages.isEmpty()) {
+                stage = "SEARCH_ONLY_SYNTHESIS";
+                var fallbackEntries = new ArrayList<WebSearchResult.Entry>();
+                for (int i = 0; i < selected; i++) {
+                    var discovered = search.results().get(candidates.get(i).result() - 1);
+                    fallbackEntries.add(new WebSearchResult.Entry(
+                            discovered.title(), urls.get(i), discovered.snippet()));
+                }
+                var fallback = prompts.submit(model,
+                        new OllamaPrompt(goal.objective(), ResearchFormat.SYNTHESIZE_SEARCH_ONLY),
+                        List.of(new WebSearchResult(search.request(), fallbackEntries)),
+                        ResearchFormat.searchOnlyAnswerSchema());
+                requireModel(fallback);
+                checkInterrupted();
+                var answer = ResearchFormat.searchOnlyAnswer(fallback.response(), candidates);
+                if (answer.claims().isEmpty()) {
+                    context.output().println("Insufficient search evidence: " + answer.uncertainty());
+                    return stopped("INSUFFICIENT_SEARCH_EVIDENCE", retrieved, selected);
+                }
+                context.output().println("Search-only outcome (no selected page was retrieved; titles and snippets "
+                        + "are unverified discovery evidence):");
+                for (var claim : answer.claims()) {
+                    context.output().println(claim.kind() + ": " + claim.text() + " " + claim.sources());
+                }
+                context.output().println("Uncertainty: " + answer.uncertainty());
+                for (int i = 0; i < urls.size(); i++) {
+                    context.output().println("[" + (i + 1) + "] SEARCH RESULT ONLY: " + urls.get(i));
+                }
+                return KaosApplication.SUCCESS;
+            }
+            context.output().println("Evidence coverage: retrieved " + retrieved + "/" + selected
+                    + " approved sources." + (retrieved < selected
+                            ? " Partial retrieval; failed sources are excluded from the answer." : ""));
             stage = "SYNTHESIS";
             String roles = " Provisional source roles in order: "
-                    + candidates.stream().map(ResearchFormat.Candidate::role).toList() + ".";
+                    + successfulCandidates.stream().map(ResearchFormat.Candidate::role).toList() + "."
+                    + (retrieved < selected ? " Partial retrieval: use only supplied evidence; acknowledge missing sources." : "");
             var synthesis = prompts.submit(model,
                     new OllamaPrompt(goal.objective(), ResearchFormat.SYNTHESIZE + roles),
                     List.copyOf(pages), ResearchFormat.answerSchema());
             requireModel(synthesis);
             checkInterrupted();
-            var answer = ResearchFormat.answer(synthesis.response(), candidates);
+            var answer = ResearchFormat.answer(synthesis.response(), successfulCandidates);
             // Host separation is a necessary coarse guard, not proof of publisher independence.
             for (var claim : answer.claims()) {
                 if (claim.kind().equals("FACT")
-                        && claim.sources().stream().noneMatch(id -> candidates.get(id - 1).role().equals("PRIMARY"))
-                        && claim.sources().stream().map(id -> java.net.URI.create(urls.get(id - 1)).getHost())
+                        && claim.sources().stream().noneMatch(id -> successfulCandidates.get(id - 1).role().equals("PRIMARY"))
+                        && claim.sources().stream().map(id -> java.net.URI.create(successfulUrls.get(id - 1)).getHost())
                                 .distinct().count() < 2) throw new IllegalArgumentException();
             }
             if (answer.claims().isEmpty()) {
@@ -182,10 +234,13 @@ final class ResearchCommand {
             }
             context.output().println("Research answer (attribution is checked; factual correctness is not guaranteed):");
             for (var claim : answer.claims()) {
-                context.output().println(claim.kind() + ": " + claim.text() + " " + claim.sources());
+                context.output().println(claim.kind() + ": " + claim.text() + " "
+                        + claim.sources().stream().map(id -> sourceIds.get(id - 1)).toList());
             }
             context.output().println("Uncertainty: " + answer.uncertainty());
-            for (int i = 0; i < urls.size(); i++) context.output().println("[" + (i + 1) + "] " + urls.get(i));
+            for (int i = 0; i < successfulUrls.size(); i++) {
+                context.output().println("[" + sourceIds.get(i) + "] " + successfulUrls.get(i));
+            }
             return KaosApplication.SUCCESS;
         } catch (ResearchFailure exception) {
             return stopped(exception.code, retrieved, selected);

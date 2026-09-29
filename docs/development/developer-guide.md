@@ -387,9 +387,14 @@ SearXNG endpoint and `KAOS_HTTP_ALLOWED_HOSTS`, then run:
 
 The question is the exact search query (at most 400 code points). Approve the
 search, then review the source roles, purposes and exact normalized URLs before
-approving the one-to-three-source set. Every selected page must succeed before
-synthesis. Failure stops without a partial answer; retry requires a new run and
-new approvals. Research suppresses payload debug tracing, and its startup
+approving the one-to-three-source set. Each source retrieval failure is recorded
+without content, and remaining approved sources are attempted once. Synthesis
+uses only successful pages and reports partial coverage. If no page succeeds,
+the selected search titles/snippets may produce a clearly labeled search-only
+outcome with no `FACT` claims. Empty search-only claims still mean no answer.
+Failures print fixed content-free `ERROR` reasons; cancellation, approval and
+history failures still stop the run.
+Retry requires a new run and new approvals. Research suppresses payload debug tracing, and its startup
 arguments are redacted. See [verified web research](../evolution/verified-web-research.md)
 for deterministic fixture commands, safety boundaries and residual limitations.
 
