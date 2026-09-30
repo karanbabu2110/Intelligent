@@ -336,6 +336,7 @@ final class ApplicationRuntime {
                 .withWebSearch(localToolsCommand::execute)
                 .withAgent(agentCommand::execute)
                 .withBrowserInspect(new BrowserInspectCommand(context)::execute)
+                .withBrowserSession(new BrowserSessionCommand(context)::execute)
                 .withResearch(researchCommand)
                 .withToolCatalog(toolCatalogCommand::execute)
                 .withToolHistory(toolHistoryCommand::execute)

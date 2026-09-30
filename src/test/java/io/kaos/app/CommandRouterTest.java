@@ -59,6 +59,31 @@ class CommandRouterTest {
     }
 
     @Test
+    void dispatchesBrowserSessionWithOneUrl() {
+        AtomicInteger calls = new AtomicInteger();
+        CommandRouter router = new CommandRouter(
+                context(new ByteArrayOutputStream(), new ByteArrayOutputStream()),
+                argument -> KaosApplication.USAGE_ERROR,
+                () -> KaosApplication.SUCCESS,
+                () -> KaosApplication.SUCCESS,
+                argument -> KaosApplication.USAGE_ERROR,
+                () -> KaosApplication.SUCCESS)
+                .withBrowserSession(url -> {
+                    assertEquals("http://127.0.0.1:8080/", url);
+                    calls.incrementAndGet();
+                    return KaosApplication.SUCCESS;
+                });
+
+        assertEquals(KaosApplication.SUCCESS, router.route(new String[] {
+                "browser", "session", "http://127.0.0.1:8080/"}));
+        assertEquals(KaosApplication.USAGE_ERROR,
+                router.route(new String[] {"browser", "session"}));
+        assertEquals(KaosApplication.USAGE_ERROR, router.route(new String[] {
+                "browser", "session", "one", "extra"}));
+        assertEquals(1, calls.get());
+    }
+
+    @Test
     void dispatchesToolHistoryWithoutArguments() {
         AtomicInteger historyCalls = new AtomicInteger();
         CommandRouter.Command command = () -> KaosApplication.SUCCESS;
