@@ -23,10 +23,24 @@ context close when the command ends.
 - Do not print query strings or fragments from the final URL.
 
 This slice is intended for inspecting a local application or development page.
-External websites, interactive actions, approval prompts, session reuse,
+External websites, interactive page actions, approval prompts, saved sessions,
 screenshots, and workflow recording remain future features. A local page can
 still return data or perform server-side effects for HTTP GET requests; use a
 local service whose behavior you understand.
+
+## Temporary session control (Feature 010.02)
+
+`kaos browser session <loopback-url>` opens the same isolated context but keeps
+it alive in the foreground. The prompt accepts:
+
+- `inspect <loopback-url>` to inspect another page in the same in-memory context;
+- `status` to show the current safe URL; and
+- `close` to close the context and exit.
+
+End-of-input also closes the session. Navigation uses the same loopback-only
+GET-document policy as one-shot inspection. Session state exists only in the
+current process and is discarded on close; KAOS does not use or save a browser
+profile. The session is headless and does not offer page actions.
 
 ## Run
 
@@ -44,6 +58,15 @@ Start a local server bound to `127.0.0.1`, then run:
 ```powershell
 ./gradlew.bat run --args="browser inspect http://127.0.0.1:8080/"
 ```
+
+For a foreground session, run:
+
+```powershell
+./gradlew.bat run --args="browser session http://127.0.0.1:8080/"
+```
+
+Then enter `inspect http://127.0.0.1:8080/other`, `status`, or `close` at the
+`browser-session>` prompt.
 
 If the browser binary or local page is unavailable, the command exits with an
 actionable error and does not report a successful inspection.

@@ -8,7 +8,7 @@ inside the verified single application.
 
 - Roadmap: [KAOS Evolutionary Development Roadmap #814](https://github.com/karanbabu2110/KAOS/issues/814)
 - Completed epics: [Epic 000 — Development Model Reset](https://github.com/karanbabu2110/KAOS/issues/815), [Epic 001 — Minimal KAOS Application](https://github.com/karanbabu2110/KAOS/issues/2), [Epic 002 — First AI Integration](https://github.com/karanbabu2110/KAOS/issues/3), [Epic 003 — Conversation Capability](https://github.com/karanbabu2110/KAOS/issues/9), [Epic 004 — Local Persistence](https://github.com/karanbabu2110/KAOS/issues/823), [Epic 005 — First Knowledge and RAG Capability](https://github.com/karanbabu2110/KAOS/issues/11), [Epic 006 — First Memory Capability](https://github.com/karanbabu2110/KAOS/issues/10), [Epic 007 — First Tool Integration](https://github.com/karanbabu2110/KAOS/issues/15), [Epic 008 — Multi-Tool Capability](https://github.com/karanbabu2110/KAOS/issues/63), and [Epic 009 — First Agent Workflow](https://github.com/karanbabu2110/KAOS/issues/53)
-- Active epic: [Epic 010 — Browser Automation](https://github.com/karanbabu2110/KAOS/issues/26); active feature: [010.01 — Browser Automation Use Case](https://github.com/karanbabu2110/KAOS/issues/910)
+- Active epic: [Epic 010 — Browser Automation](https://github.com/karanbabu2110/KAOS/issues/26); active feature: [010.02 — Browser Session Control](https://github.com/karanbabu2110/KAOS/issues/909)
 - Release checkpoint: [KAOS 1.7.0 — Multi-Tool Capability](https://github.com/Knowledge-Autonomous-Operating-System/KAOS/releases/tag/v1.7.0)
 - Repository state: one root Gradle/Java 21 application with one production entry point, explicit bounded memory, local SQLite conversations/knowledge/memory/tool history, bounded local Ollama chat and embeddings, grounded answers with citations, three concrete approval-gated tools, SearXNG-backed discovery, a read-only `tools` catalog, and one foreground bounded agent workflow
 - Completed features, stories, tasks, and verified evidence: [completed work and evidence](docs/evolution/completed-work-and-evidence.md)
@@ -98,6 +98,7 @@ quotes.
 | `kaos web-search "<question>"` | One quoted question; model chooses search, local file, or no tool | At most one approved tool, followed by one no-tools answer |
 | `kaos agent "<goal>"` | One quoted goal up to 4,096 Unicode code points | One model-proposed validated plan of at most three sequential steps, up to two independently approved tools, then one synthesis/result |
 | `kaos browser inspect <loopback-url>` | One `http://127.0.0.1` URL with explicit port | Inspect one local page in an isolated temporary Chromium context and print its title and at most 4,000 code points of visible text |
+| `kaos browser session <loopback-url>` | One `http://127.0.0.1` URL with explicit port | Keep one temporary context open in the foreground for repeat local inspections; close with `close` or end of input |
 | `kaos ollama-status` | None | Check the fixed local Ollama endpoint |
 | `kaos ollama-model` | None | Validate and display the configured chat model |
 | `kaos ollama-prompt "<prompt>"` | One quoted prompt | Generate one local Ollama answer |
@@ -515,6 +516,6 @@ Epic 009 is complete at the repository level. Its
 goal-to-result workflow above the unchanged Epic 008 tool runtime. The next
 evolutionary stage is
 [Epic 010 - Browser Automation](https://github.com/karanbabu2110/KAOS/issues/26),
-which is active with Feature 010.01. Its first slice is a read-only, loopback-only page inspection command, documented in [the use-case record](docs/evolution/browser-automation-use-case.md). Epic 009 did not include browser automation.
+which is active with Feature 010.02. Feature 010.01 delivered a read-only, loopback-only page inspection command, documented in [the use-case record](docs/evolution/browser-automation-use-case.md). Feature 010.02 adds temporary in-process session lifecycle control. Epic 009 did not include browser automation.
 background work, replanning, parallel execution, or sub-agent behavior is
 implemented by Epic 009.
