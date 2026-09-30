@@ -77,6 +77,10 @@ final class BrowserSessionCommand {
         return java.util.Set.of("text", "email", "search", "tel", "url").contains(type);
     }
 
+    static boolean approvalGranted(String response) {
+        return response != null && "approve".equals(response.strip());
+    }
+
     enum SessionAction {
         CLOSE,
         STATUS,

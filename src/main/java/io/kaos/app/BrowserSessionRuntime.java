@@ -70,7 +70,7 @@ final class BrowserSessionRuntime {
                         case INSPECT_CURRENT -> printPage(context, page);
                         case INSPECT_URL -> inspect(context, page, inputCommand.uri());
                         case FILL -> {
-                            int fillExitCode = fill(context, page,
+                            int fillExitCode = fill(context, input, page,
                                     inputCommand.selector(), inputCommand.value());
                             if (fillExitCode != KaosApplication.SUCCESS) exitCode = fillExitCode;
                         }
@@ -139,7 +139,8 @@ final class BrowserSessionRuntime {
         printPage(context, page);
     }
 
-    private static int fill(CommandContext context, Page page, String selector, String value) {
+    private static int fill(
+            CommandContext context, BufferedReader input, Page page, String selector, String value) {
         Locator target = page.locator(selector);
         if (target.count() != 1) {
             context.errorOutput().println(
@@ -168,6 +169,35 @@ final class BrowserSessionRuntime {
             } catch (NumberFormatException ignored) {
                 // Invalid maxlength attributes have no browser-enforced limit.
             }
+        }
+
+        context.output().printf(
+                "Approve filling one eligible local text field with %d code points (value hidden)? "
+                        + "Type approve or deny: ",
+                value.codePointCount(0, value.length()));
+        context.output().flush();
+        String response;
+        try {
+            response = input.readLine();
+        } catch (IOException exception) {
+            context.errorOutput().println("Fill cancelled; approval could not be read.");
+            return KaosApplication.APPLICATION_ERROR;
+        }
+        if (!BrowserSessionCommand.approvalGranted(response)) {
+            context.output().println("Fill cancelled; approval was not granted.");
+            return KaosApplication.SUCCESS;
+        }
+
+        if (target.count() != 1) {
+            context.output().println("Fill cancelled; the field changed before approval completed.");
+            return KaosApplication.SUCCESS;
+        }
+        tagName = target.evaluate("element => element.tagName.toLowerCase()").toString();
+        type = "input".equals(tagName) ? target.getAttribute("type") : null;
+        if (!BrowserSessionCommand.eligibleFillTarget(tagName, type,
+                target.isVisible(), target.isEnabled(), target.isEditable())) {
+            context.output().println("Fill cancelled; the field is no longer eligible.");
+            return KaosApplication.SUCCESS;
         }
         target.fill(value);
         context.output().println("Filled one eligible text field. It was not submitted; value was not echoed.");

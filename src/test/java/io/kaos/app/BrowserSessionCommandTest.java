@@ -74,6 +74,16 @@ class BrowserSessionCommandTest {
     }
 
     @Test
+    void grantsOnlyAnExactSingleUseApprovalResponse() {
+        assertTrue(BrowserSessionCommand.approvalGranted("approve"));
+        assertTrue(BrowserSessionCommand.approvalGranted(" approve "));
+        assertFalse(BrowserSessionCommand.approvalGranted("Approve"));
+        assertFalse(BrowserSessionCommand.approvalGranted("deny"));
+        assertFalse(BrowserSessionCommand.approvalGranted(""));
+        assertFalse(BrowserSessionCommand.approvalGranted(null));
+    }
+
+    @Test
     void rejectsNonLoopbackUrlBeforeStartingBrowser() {
         ByteArrayOutputStream error = new ByteArrayOutputStream();
         CommandContext context = new CommandContext(
