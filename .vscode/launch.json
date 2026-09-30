@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Debug KAOS Agent",
+            "request": "launch",
+            "mainClass": "io.kaos.app.KaosApplication",
+            "args": "agent \"find the participants of tamil big boss in season 10.\"",
+            "env": {
+                "KAOS_TOOL_READ_ROOT": "D:\\Study\\AI\\AI OS\\Repos\\KAOS",
+                "KAOS_WEB_SEARCH_SEARXNG_URL": "http://127.0.0.1:8080",
+                "KAOS_OLLAMA_MODEL": "qwen3.5:4b",
+                "KAOS_OLLAMA_THINKING": "on",
+                "KAOS_OLLAMA_CONTEXT_WINDOW": "16384",
+                "KAOS_OLLAMA_RESPONSE_TOKEN_LIMIT": "8192",
+                "KAOS_DEBUG": "true",
+                "KAOS_DEBUG_FILE": "${env:TEMP}\\kaos-debug.jsonl"
+            }
+        }
+    ]
+}
