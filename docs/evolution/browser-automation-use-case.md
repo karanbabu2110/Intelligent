@@ -111,3 +111,21 @@ approval prompt to apply the value.
 
 If the browser binary or local page is unavailable, the command exits with an
 actionable error and does not report a successful inspection.
+
+## End-to-end demonstration (Feature 010.08)
+
+Run the complete browser flow without starting a separate web server:
+
+```powershell
+./gradlew.bat run --args="browser demo"
+```
+
+KAOS starts a temporary HTTP fixture on an ephemeral `127.0.0.1` port and runs
+the existing foreground browser session against it. The scripted session
+visits a second page, navigates back and forward, records successful navigation
+steps, attempts a field fill and denies it, then approves one fill. It displays
+the recorded trace and closes the isolated browser context and fixture. The
+fixture counts non-GET requests; successful completion confirms that no form
+submission reached it and no data was persisted. The trace stays in memory and
+omits query strings and fragments. This demo exercises only the local fixture;
+it does not contact an external site or submit the form.
