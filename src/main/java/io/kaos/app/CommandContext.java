@@ -8,13 +8,13 @@ import java.util.Objects;
 /**
  * Immutable process resources shared by application commands.
  */
-record CommandContext(
+public record CommandContext(
         ApplicationConfiguration configuration,
         InputStream input,
         PrintStream output,
         PrintStream errorOutput) {
 
-    CommandContext {
+    public CommandContext {
         Objects.requireNonNull(configuration, "configuration");
         Objects.requireNonNull(input, "input");
         Objects.requireNonNull(output, "output");

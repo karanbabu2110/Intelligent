@@ -12,6 +12,13 @@ capability as a module, repository, plugin, or service.
 src/
 |-- main/java/io/kaos/app/
 |   |-- KaosApplication.java
+|   |-- ApplicationRuntime.java
+|   |-- CommandRouter.java
+|   |-- browser/
+|   |   |-- BrowserInspectCommand.java
+|   |   |-- BrowserSessionCommand.java
+|   |   |-- BrowserDemoCommand.java
+|   |   `-- package-info.java
 |   `-- package-info.java
 `-- test/java/io/kaos/app/
     `-- KaosApplicationTest.java
@@ -35,8 +42,9 @@ For a new capability named `<capability>`:
 2. keep its behavior, domain terms, and consumer-specific configuration in that
    package;
 3. call it directly in-process from `io.kaos.app` or another current consumer;
-4. add subpackages only after multiple classes create a concrete naming or
-   ownership problem;
+4. group a cohesive family into a subpackage when it has multiple
+   implementation and support classes; keep application composition in
+   `io.kaos.app` and document the ownership boundary in package-info;
 5. do not create a Gradle module, repository, process, network contract, or
    plugin boundary by default.
 

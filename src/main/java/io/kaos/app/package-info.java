@@ -8,6 +8,7 @@
  * stable coded-error format. Product rules and infrastructure
  * behavior remain in direct capability packages such as {@code io.kaos.ai}
  * and {@code io.kaos.memory};
- * they do not accumulate in this package.</p>
+ * they do not accumulate in this package. The browser command family and its
+ * Playwright runtime are grouped in {@code io.kaos.app.browser}.</p>
  */
 package io.kaos.app;

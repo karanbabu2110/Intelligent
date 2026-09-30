@@ -1,4 +1,8 @@
-package io.kaos.app;
+package io.kaos.app.browser;
+
+import io.kaos.app.KaosApplication;
+
+import io.kaos.app.CommandContext;
 
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;

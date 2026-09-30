@@ -1,17 +1,23 @@
-package io.kaos.app;
+package io.kaos.app.browser;
+
+import io.kaos.app.KaosApplication;
+
+import io.kaos.app.CommandContext;
 
 import java.net.URI;
 import java.util.Objects;
+import io.kaos.app.CommandContext;
+import io.kaos.app.KaosApplication;
 
 /** Inspects one user-selected loopback page without persistent browser state or page actions. */
-final class BrowserInspectCommand {
+public final class BrowserInspectCommand {
     private final CommandContext context;
 
-    BrowserInspectCommand(CommandContext context) {
+    public BrowserInspectCommand(CommandContext context) {
         this.context = Objects.requireNonNull(context, "context");
     }
 
-    int execute(String rawUrl) {
+    public int execute(String rawUrl) {
         URI uri = parse(rawUrl);
         if (uri == null) {
             context.errorOutput().println(
