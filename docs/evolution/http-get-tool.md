@@ -52,7 +52,7 @@ platform's loopback, local, link-local, unspecified, and multicast checks.
 - accepted status: `200` only;
 - accepted media: `text/plain`, `text/html`, `application/json`, or `application/xml`;
 - accepted charset: absent or UTF-8 only;
-- maximum body: 32,768 bytes, with no partial result; and
+- maximum raw body: 512 KiB, with no partial result, followed by a 64 KiB model-text bound; and
 - credentials, cookies, caller headers, retry, cache, persistence, background
   execution, multiple URLs, and chaining: unsupported.
 
@@ -103,7 +103,7 @@ contact an installed Ollama process or public network service.
 ## Research reuse
 
 The focused research command now composes search with up to three individually
-bound HTTP grants after one explicit approval for the frozen source set. The
+bound HTTP grants authorized by explicitly remembered research host approvals. The
 standalone `http-get` command remains one URL and one continuation. See
 [verified web research](verified-web-research.md) for the implemented first slice
 and the remaining Epic 019 work.
@@ -111,3 +111,13 @@ and the remaining Epic 019 work.
 HTTP status failures never retain response bodies. Fixed content-free reasons
 distinguish redirects, 401 unauthorized, 403 forbidden, 404 not found and 429
 rate limited; other non-200 statuses remain `REQUEST_FAILED`.
+
+Raw responses are streamed up to 512 KiB, with an early `Content-Length` check.
+HTML is reduced to readable bounded text before becoming model evidence, with
+scripts, styles, navigation, footers and common advertisement/consent blocks
+removed. The model-facing text limit is 64 KiB, so a large page can succeed when
+its extracted text is smaller. Stable retrieval categories are `SUCCESS`,
+`TOO_LARGE`, `HTTP_ERROR`, `TIMEOUT`, `UNAVAILABLE` and `UNSUPPORTED_CONTENT`.
+Failures retain safe HTTP status, content type, final URL and response-header
+diagnostics. Transient unavailable and timeout failures receive at most two
+short-backoff retries; HTTP, size and content failures are not retried.

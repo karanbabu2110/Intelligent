@@ -11,17 +11,25 @@ import java.util.Objects;
 
 /** One complete bounded UTF-8 HTTP response associated with its approved request. */
 public record HttpGetResult(HttpGetRequest request, String content, String mediaType) implements ToolResult<HttpGetRequest> {
+    public RetrievalStatus status() { return RetrievalStatus.SUCCESS; }
+    public int httpStatus() { return 200; }
+    public String contentType() { return mediaType; }
+    public String finalUrl() { return request.url(); }
     @Override public String toolName() { return HttpGetToolContract.NAME; }
     @Override public JsonNode modelContent() {
         return HttpGetToolContract.encodeResult(this);
     }
 
-    public static final int MAX_CONTENT_UTF8_BYTES = 32_768;
+    /** Maximum text sent to the model after transport and HTML extraction. */
+    public static final int MAX_MODEL_TEXT_UTF8_BYTES = 64 * 1024;
+    public static final int MAX_MODEL_TEXT_CODE_POINTS = 64 * 1024;
+    /** Compatibility alias for callers that use the result boundary. */
+    public static final int MAX_CONTENT_UTF8_BYTES = MAX_MODEL_TEXT_UTF8_BYTES;
 
     public HttpGetResult {
         Objects.requireNonNull(request, "request");
         if (content == null || content.isBlank()
-                || encodedLength(content) > MAX_CONTENT_UTF8_BYTES
+                || encodedLength(content) > MAX_MODEL_TEXT_UTF8_BYTES
                 || content.codePoints().anyMatch(HttpGetResult::unsafeControl)) {
             throw new IllegalArgumentException("HTTP GET content is invalid.");
         }

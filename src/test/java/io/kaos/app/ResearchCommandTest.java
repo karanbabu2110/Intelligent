@@ -27,6 +27,67 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class ResearchCommandTest {
+    @Test void hostApprovalSurvivesNewCommandAndAllowsDifferentPathUntilRevoked() throws Exception {
+        try (var first = new Rig()) {
+            assertEquals(0, first.run("approve\napprove\n"), first::output);
+            assertEquals("one.example\n", java.nio.file.Files.readString(first.hostApprovals.path()));
+            try (var restarted = new Rig()) {
+                restarted.hostApprovals = new ResearchHostApprovals(first.hostApprovals.path());
+                restarted.firstUrl = "https://one.example/different-page";
+                assertEquals(0, restarted.run("approve\n"), restarted::output);
+                assertTrue(restarted.output().contains("Using saved publisher host approvals"));
+                assertEquals(1, restarted.sources.calls.get());
+            }
+            java.nio.file.Files.writeString(first.hostApprovals.path(), "");
+            try (var revoked = new Rig()) {
+                revoked.hostApprovals = new ResearchHostApprovals(first.hostApprovals.path());
+                assertNotEquals(0, revoked.run("approve\n"));
+                assertTrue(revoked.output().contains("New publisher hostnames: one.example"));
+                assertEquals(0, revoked.sources.calls.get());
+            }
+        }
+    }
+
+    @Test void unknownHostPromptsAndMixedSetDenialDoesNotBroadenStoredApproval() throws Exception {
+        try (var rig = new Rig()) {
+            rig.hostApprovals.remember(java.util.Set.of("one.example"));
+            rig.proposal = proposal(1, 2);
+            assertNotEquals(0, rig.run("approve\ndeny\n"));
+            assertTrue(rig.output().contains("New publisher hostnames: two.example"));
+            assertEquals(java.util.Set.of("one.example"), rig.hostApprovals.read());
+            assertEquals(0, rig.sources.calls.get());
+        }
+        try (var rig = new Rig()) {
+            rig.firstUrl = "https://other.example/page";
+            assertEquals(0, rig.run("approve\napprove\n"), rig::output);
+            assertEquals(java.util.Set.of("other.example"), rig.hostApprovals.read());
+        }
+    }
+
+    @Test void corruptApprovalStoreStopsBeforeAnySearch() throws Exception {
+        try (var rig = new Rig()) {
+            java.nio.file.Files.writeString(rig.hostApprovals.path(), "*.example\n");
+            assertNotEquals(0, rig.run("approve\napprove\n"));
+            assertTrue(rig.output().contains("HOST_APPROVAL_STORE_UNAVAILABLE"));
+            assertEquals(0, rig.searchCalls.get());
+            assertEquals(0, rig.sources.calls.get());
+        }
+    }
+
+    @Test void approvalWriteFailureStopsBeforeAnyPageRequest() throws Exception {
+        try (var rig = new Rig();
+                var channel = java.nio.channels.FileChannel.open(
+                        rig.approvalDirectory.resolve("hosts.txt.lock"),
+                        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.WRITE);
+                var lock = channel.lock()) {
+            assertNotEquals(0, rig.run("approve\napprove\n"));
+            assertTrue(rig.output().contains("HOST_APPROVAL_STORE_UNAVAILABLE"));
+            assertEquals(1, rig.searchCalls.get());
+            assertEquals(0, rig.sources.calls.get());
+            assertTrue(rig.hostApprovals.read().isEmpty());
+        }
+    }
+
     @Test void oversizedResearchContextIsRejectedLocallyRatherThanTruncated() throws Exception {
         try (var rig = new Rig()) {
             var client = OllamaPromptClientTestSupport.client(URI.create(rig.endpoint() + "/api/chat"));
@@ -69,7 +130,7 @@ class ResearchCommandTest {
              "uncertainty":"Only the retrieved sources support this answer."}
             """;
 
-    @Test void endToEndThreeSourcesUsesExactGroupApprovalAndKeepsPayloadsOutOfHistoryAndDebug() throws Exception {
+    @Test void endToEndThreeSourcesRemembersHostsAndKeepsPayloadsOutOfHistoryAndDebug() throws Exception {
         try (var rig = new Rig()) {
             rig.proposal = proposal(1, 2, 3);
             var debug = new ByteArrayOutputStream();
@@ -100,6 +161,7 @@ class ResearchCommandTest {
                 assertNotEquals(0, rig.run(input));
                 assertEquals(0, rig.sources.calls.get());
                 assertTrue(rig.modelCalls.get() <= 1);
+                assertTrue(rig.hostApprovals.read().isEmpty());
                 assertTrue(rig.output().contains("No final answer was produced"));
             }
         }
@@ -114,20 +176,20 @@ class ResearchCommandTest {
                 assertNotEquals(0, rig.run("approve\napprove\n"));
                 assertEquals(0, rig.sources.calls.get());
                 assertEquals(1, rig.modelCalls.get());
-                assertFalse(rig.output().contains("Approve only this exact set"));
+                assertFalse(rig.output().contains("New publisher hostnames:"));
             }
         }
     }
 
     @Test void unsafeOrDuplicateNormalizedUrlsStopBeforeSourceApproval() throws Exception {
-        for (String url : List.of("http://one.example/a", "https://127.0.0.1/a", "https://other.example/a",
+        for (String url : List.of("http://one.example/a", "https://127.0.0.1/a",
                 "https://one.example:444/a", "https://one.example/a#fragment",
                 "https://one.example/a?accessToken=private")) {
             try (var rig = new Rig()) {
                 rig.firstUrl = url;
                 assertNotEquals(0, rig.run("approve\napprove\n"));
                 assertEquals(0, rig.sources.calls.get());
-                assertFalse(rig.output().contains("Approve only this exact set"));
+                assertFalse(rig.output().contains("New publisher hostnames:"));
             }
         }
         try (var rig = new Rig()) {
@@ -161,7 +223,7 @@ class ResearchCommandTest {
             rig.proposal = proposal(1,2,3);
             assertEquals(0, rig.run("approve\napprove\n"), rig::output);
             assertEquals(3, rig.sources.calls.get());
-            assertTrue(rig.output().contains("ERROR: Source [1] retrieval failed: HTTP_UNAUTHORIZED"));
+            assertTrue(rig.output().contains("ERROR: Source [1] retrieval failed: HTTP_ERROR; reason=HTTP_UNAUTHORIZED"));
             assertTrue(rig.output().contains("FACT: The release is 42. [2]"));
             assertEquals(2, rig.inputs.get(1).size());
         }
@@ -378,6 +440,8 @@ class ResearchCommandTest {
         final List<List<ToolResult<?>>> inputs = new ArrayList<>();
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         final RecordingToolHistory history = new RecordingToolHistory();
+        final java.nio.file.Path approvalDirectory = java.nio.file.Files.createTempDirectory("kaos-research-test-");
+        ResearchHostApprovals hostApprovals = new ResearchHostApprovals(approvalDirectory.resolve("hosts.txt"));
         String proposal = proposal(1);
         String answer = ANSWER;
         String firstUrl = "https://ONE.example:443/a%20b?q=a%2Fb";
@@ -410,7 +474,8 @@ class ResearchCommandTest {
             var context = new CommandContext(new ApplicationConfiguration("KAOS"),
                     new ByteArrayInputStream(approvals.getBytes(StandardCharsets.UTF_8)),
                     new PrintStream(output), new PrintStream(output));
-            var registry = new ToolRegistry(List.of(new WebSearch(() -> new SearxngClient(endpoint())), sources.tool()));
+            var registry = new ToolRegistry(List.of(new WebSearch(() -> new SearxngClient(endpoint())),
+                    sources.tool(() -> hostApprovals.validator())));
             ResearchCommand.Prompts prompts = realPrompts == null ? (model, prompt, evidence, format) -> {
                 inputs.add(evidence);
                 int call = modelCalls.incrementAndGet();
@@ -419,9 +484,16 @@ class ResearchCommandTest {
                 return new OllamaPromptClient.Result(OllamaPromptClient.Status.SUCCESS, "", call == 1 ? proposal : answer);
             } : realPrompts;
             return new ResearchCommand(context, () -> new OllamaModelConfiguration("fixture"), () -> registry,
-                    sources::validator, prompts).withToolHistory(() -> history).execute("What is the current release?");
+                    () -> hostApprovals, prompts).withToolHistory(() -> history).execute("What is the current release?");
         }
 
-        @Override public void close() { search.stop(0); sources.close(); }
+        @Override public void close() throws Exception {
+            search.stop(0);
+            sources.close();
+            try (var files = java.nio.file.Files.list(approvalDirectory)) {
+                for (var file : files.toList()) java.nio.file.Files.deleteIfExists(file);
+            }
+            java.nio.file.Files.delete(approvalDirectory);
+        }
     }
 }

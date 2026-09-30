@@ -69,7 +69,11 @@ public final class HttpSourceFixture implements AutoCloseable {
     }
 
     public HttpGet tool() {
-        return new HttpGet(this::validator, (validator, grant) -> {
+        return tool(this::validator);
+    }
+
+    public HttpGet tool(java.util.function.Supplier<HttpGetPermissionValidator> configuration) {
+        return new HttpGet(configuration, (validator, grant) -> {
             var target = grant.claim();
             var failure = failures.get(target.uri().getPath());
             if (failure != null) throw new HttpGetException(failure);

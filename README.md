@@ -69,7 +69,8 @@ over its environment variable.
 | `KAOS_TOOL_HISTORY_DATA_DIRECTORY` | Directory containing `tool-history.db`; defaults to the current user's `.kaos` directory | Tool execution recording, including agent tool steps, and `tool-history` |
 | `KAOS_TOOL_READ_ROOT` | Required absolute, non-filesystem-root directory; no default | `tools` status; file selection in `read-local-file`, `web-search`, `conversation`, or `agent` |
 | `KAOS_WEB_SEARCH_SEARXNG_URL` | Optional trusted HTTP(S) service origin, e.g. `http://127.0.0.1:8080`; no default. JVM override: `kaos.web-search.searxng-url` | `tools` status; search selection in `web-search`, `conversation`, or `agent` |
-| `KAOS_HTTP_ALLOWED_HOSTS` | Required comma-separated exact host names; no default | `tools` status; `http-get` and `research`, before showing an approval request |
+| `KAOS_HTTP_ALLOWED_HOSTS` | Required comma-separated exact host names; no default | `tools` status and standalone `http-get` |
+| `KAOS_RESEARCH_APPROVED_HOSTS_FILE` | Optional approval file; defaults to `%USERPROFILE%\.kaos\research-approved-hosts.txt` | `research` remembers explicitly approved exact publisher hosts |
 
 ### Commands and arguments
 
@@ -204,7 +205,8 @@ The model may answer directly or request exactly one `http_get` URL. KAOS
 accepts only HTTPS on the standard port, requires an exact configured host,
 shows the normalized URL, and requires `approve` before DNS resolution or any
 GET. The approved foreground request follows no redirects, sends no credentials
-or cookies, retries nothing, and accepts at most 32,768 strict UTF-8 bytes of
+or cookies, retries nothing, and accepts at most 512 KiB of raw response followed
+by 64 KiB of extracted strict UTF-8 text for model evidence.
 text, JSON, or XML. Its result is untrusted model context for one final local
 Ollama answer; no further tool is advertised. Every DNS answer is checked for
 public addressing and one validated address is bound directly to the connection.
@@ -216,13 +218,23 @@ Verified research is a separate foreground command:
 ```powershell
 $env:KAOS_OLLAMA_MODEL = "qwen3.5:4b"
 $env:KAOS_WEB_SEARCH_SEARXNG_URL = "http://127.0.0.1:8080"
-$env:KAOS_HTTP_ALLOWED_HOSTS = "docs.oracle.com,openjdk.org"
 ./gradlew.bat --% run --args="research \"What changed in the latest Java release?\""
 ```
 
 Review and approve the exact search query, then review the proposed source roles,
-purposes and normalized URLs before approving the source set. Source retrieval
+purposes and normalized URLs. For new publisher hostnames, type `approve` to
+remember access to any HTTPS page on those exact hosts for this and future research
+runs. Subdomains require separate approval. Research checks the saved file on each
+run and before each page attempt; it does not use `KAOS_HTTP_ALLOWED_HOSTS`.
+The default file is `%USERPROFILE%\.kaos\research-approved-hosts.txt`, one hostname
+per line. Remove a hostname to revoke approval, or delete the file to reset all.
+Search still asks for approval each run. Source retrieval
 failures are recorded without content; remaining approved URLs are attempted once.
+Raw publisher responses stream up to 512 KiB. HTML is reduced to bounded readable
+text with titles, headings, paragraphs and list content; scripts, navigation,
+footers and common advertisement/consent blocks are removed. Only extracted text
+up to 64 KiB reaches Ollama. Retrieval diagnostics classify size, HTTP, timeout,
+availability and unsupported-content failures.
 With successful page evidence, research prints claims with source references and
 uncertainty, explicitly reporting partial coverage. If all pages fail, it can
 produce a separately labeled search-only outcome from the selected titles and

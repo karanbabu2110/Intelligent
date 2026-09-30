@@ -59,6 +59,15 @@ public final class HttpGetPermissionValidator {
 
     /** Validates only local syntax and configured authority before user approval. */
     public HttpGetTarget validate(HttpGetRequest request) {
+        var target = validateSyntax(request);
+        if (!allowedHosts.contains(target.uri().getHost())) {
+            throw failure(HttpGetException.Reason.DISALLOWED_HOST);
+        }
+        return target;
+    }
+
+    /** Checks URL syntax without granting host or network access. */
+    public static HttpGetTarget validateSyntax(HttpGetRequest request) {
         Objects.requireNonNull(request, "request");
         try {
             URI uri = new URI(request.url()).normalize();
@@ -71,9 +80,6 @@ public final class HttpGetPermissionValidator {
                 throw failure(HttpGetException.Reason.INVALID_REQUEST);
             }
             String normalizedHost = normalizeHost(host);
-            if (!allowedHosts.contains(normalizedHost)) {
-                throw failure(HttpGetException.Reason.DISALLOWED_HOST);
-            }
             // Raw components are already escaped; the component constructor would escape '%' again.
             URI normalized = new URI("https://" + normalizedHost
                     + (uri.getRawPath().isEmpty() ? "/" : uri.getRawPath())

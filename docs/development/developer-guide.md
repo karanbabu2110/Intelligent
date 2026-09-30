@@ -226,7 +226,7 @@ command validates one model-requested standard-port HTTPS URL, displays it to
 the user, and resolves DNS only after exact `approve`. Execution rejects any
 non-public resolved address, follows no redirects, sends no credentials or
 cookies, and returns only a successful supported strict UTF-8 body of at most
-32,768 bytes. Entering `deny`, invalid input, cancellation, or end-of-input
+512 KiB raw response and 64 KiB extracted model text. Entering `deny`, invalid input, cancellation, or end-of-input
 performs no DNS or HTTP request. Tests use injected deterministic boundaries
 and never contact the public internet. See
 [HTTP GET tool](../evolution/http-get-tool.md).
@@ -379,7 +379,7 @@ may forward the approved query to external engines. See the
 for commands, privacy, limits, and safe failure recovery.
 
 For the separate verified-research use case, configure the existing local model,
-SearXNG endpoint and `KAOS_HTTP_ALLOWED_HOSTS`, then run:
+and SearXNG endpoint, then run:
 
 ```powershell
 ./gradlew.bat --% run --args="research \"What changed in the latest Java release?\""
@@ -387,16 +387,37 @@ SearXNG endpoint and `KAOS_HTTP_ALLOWED_HOSTS`, then run:
 
 The question is the exact search query (at most 400 code points). Approve the
 search, then review the source roles, purposes and exact normalized URLs before
-approving the one-to-three-source set. Each source retrieval failure is recorded
+approving any new publisher hostnames. Approval permits future research reads of
+any HTTPS page on those exact hosts. Saved hosts skip the page prompt; search
+approval is still required each run. Each source retrieval failure is recorded
 without content, and remaining approved sources are attempted once. Synthesis
 uses only successful pages and reports partial coverage. If no page succeeds,
 the selected search titles/snippets may produce a clearly labeled search-only
 outcome with no `FACT` claims. Empty search-only claims still mean no answer.
 Failures print fixed content-free `ERROR` reasons; cancellation, approval and
 history failures still stop the run.
-Retry requires a new run and new approvals. Research suppresses payload debug tracing, and its startup
+Publisher retrieval streams at most 512 KiB and checks `Content-Length` first when
+available. HTML is extracted to readable title, heading, paragraph and list text;
+scripts, navigation, footers and common advertisement/consent blocks are removed.
+Only extracted text capped at 64 KiB is sent to Ollama. Transient unavailable and
+timeout failures receive at most two short-backoff retries. Diagnostics preserve
+HTTP status, content type, final URL and safe response headers.
+Retry requires a new run and search approval. Research suppresses payload debug tracing, and its startup
 arguments are redacted. See [verified web research](../evolution/verified-web-research.md)
 for deterministic fixture commands, safety boundaries and residual limitations.
+
+Research stores hostnames in `%USERPROFILE%\.kaos\research-approved-hosts.txt`.
+Override with `KAOS_RESEARCH_APPROVED_HOSTS_FILE` or the higher-priority JVM property
+`kaos.research.approved-hosts-file`. Use one exact hostname per line; no schemes,
+paths or wildcards. Removing a line revokes that hostname; deleting the file resets
+approvals. Subdomains are separate. The store allows at most 256 hosts and 64 KiB
+of strict UTF-8. Unreadable, malformed, busy or unwritable storage stops the run
+with `HOST_APPROVAL_STORE_UNAVAILABLE` rather than granting temporary access.
+Writes use a sibling lock file and atomic replacement; filesystems must support
+atomic moves. The file contains hostnames, not queries, URLs or credentials.
+Keep it writable only by trusted local users, since editing it changes access
+authority. No environment allowlist is imported; standalone `http-get` retains
+its existing configuration and per-request approval.
 
 Run one foreground bounded agent goal after configuring the dependencies that
 the goal may need:
