@@ -23,7 +23,7 @@ context close when the command ends.
 - Do not print query strings or fragments from the final URL.
 
 This slice is intended for inspecting a local application or development page.
-External websites, clicks, submissions, approval prompts, saved profiles,
+External websites, clicks, submissions, saved profiles,
 screenshots, and workflow recording remain future features. Bounded text-field
 filling is documented below. A local page can still return data or perform
 server-side effects for HTTP GET requests; use a local service whose behavior
@@ -51,9 +51,12 @@ The session also accepts `fill <selector> <text>` for one visible, enabled,
 editable `<textarea>` or `<input>` of type `text`, `email`, `search`, `tel`, or
 `url`. The selector must match exactly one element and the value is limited to
 256 Unicode code points. Passwords, hidden or readonly fields, other input
-types, and ambiguous selectors are rejected. KAOS does not echo the value,
-click a control, or submit a form. JavaScript remains disabled and the filled
-value exists only in the temporary page context.
+types, and ambiguous selectors are rejected. Feature 010.05 adds a separate
+approval prompt for each fill. The prompt shows only the character count; type
+exactly `approve` to authorize that one fill. Any other response or end of
+input cancels it. KAOS does not echo the value, click a control, or submit a
+form. The target is checked again after approval. JavaScript remains disabled
+and the filled value exists only in the temporary page context.
 
 ## Run
 
@@ -80,7 +83,8 @@ For a foreground session, run:
 
 Then enter `inspect http://127.0.0.1:8080/other`, `back`, `forward`, `reload`,
 `fill #search example query`, `inspect`, `status`, or `close` at the
-`browser-session>` prompt.
+`browser-session>` prompt. After `fill`, respond `approve` at the separate
+approval prompt to apply the value.
 
 If the browser binary or local page is unavailable, the command exits with an
 actionable error and does not report a successful inspection.
