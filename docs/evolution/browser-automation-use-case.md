@@ -58,6 +58,17 @@ input cancels it. KAOS does not echo the value, click a control, or submit a
 form. The target is checked again after approval. JavaScript remains disabled
 and the filled value exists only in the temporary page context.
 
+## Navigation failure recovery (Feature 010.06)
+
+After the first page loads, the session keeps its last successfully loaded
+loopback URL in memory. If `inspect`, `back`, `forward`, or `reload` fails,
+KAOS attempts to load that URL again, reports whether recovery succeeded, and
+keeps the session open for another command. Transport failures and HTTP 400 or
+higher responses count as failed navigation. Retry the failed navigation after
+the local page is available again. Recovery does not persist across session
+close. If the initial page cannot load, the command exits because there is no
+known-good page to restore.
+
 ## Run
 
 Install the Chromium binary pinned by Playwright Java 1.63.0 once:
