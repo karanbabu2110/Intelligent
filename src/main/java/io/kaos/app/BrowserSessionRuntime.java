@@ -13,12 +13,16 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /** Playwright-backed foreground session, loaded only when the session command runs. */
 final class BrowserSessionRuntime {
     private static final int NAVIGATION_TIMEOUT_MILLIS = 15000;
+    private static final int MAX_RECORDED_STEPS = 20;
+    private static final int MAX_RECORDED_URL_CODE_POINTS = 512;
 
     private BrowserSessionRuntime() {
     }
@@ -36,9 +40,11 @@ final class BrowserSessionRuntime {
             Page page = browserContext.newPage();
             int exitCode = inspect(context, page, initialUri);
             URI lastKnownGoodUri = initialUri;
+            Deque<String> recordedSteps = new ArrayDeque<>();
+            boolean recording = false;
             context.output().println(
                     "Browser session is open. Commands: inspect [loopback-url], back, forward, reload, "
-                            + "fill <selector> <text>, status, close.");
+                            + "fill <selector> <text>, record on|off|show|clear, status, close.");
             BufferedReader input = new BufferedReader(
                     new InputStreamReader(context.input(), StandardCharsets.UTF_8));
             while (true) {
@@ -72,6 +78,7 @@ final class BrowserSessionRuntime {
                         case INSPECT_URL -> {
                             inspect(context, page, inputCommand.uri());
                             lastKnownGoodUri = URI.create(page.url());
+                            if (recording) recordStep(recordedSteps, "inspect", page);
                         }
                         case FILL -> {
                             int fillExitCode = fill(context, input, page,
@@ -83,14 +90,20 @@ final class BrowserSessionRuntime {
                                     .setTimeout(NAVIGATION_TIMEOUT_MILLIS));
                             ensureSuccessfulNavigation(response);
                             historyNavigation(context, page, response);
-                            if (response != null) lastKnownGoodUri = URI.create(page.url());
+                            if (response != null) {
+                                lastKnownGoodUri = URI.create(page.url());
+                                if (recording) recordStep(recordedSteps, "back", page);
+                            }
                         }
                         case FORWARD -> {
                             Response response = page.goForward(new Page.GoForwardOptions()
                                     .setTimeout(NAVIGATION_TIMEOUT_MILLIS));
                             ensureSuccessfulNavigation(response);
                             historyNavigation(context, page, response);
-                            if (response != null) lastKnownGoodUri = URI.create(page.url());
+                            if (response != null) {
+                                lastKnownGoodUri = URI.create(page.url());
+                                if (recording) recordStep(recordedSteps, "forward", page);
+                            }
                         }
                         case RELOAD -> {
                             Response response = page.reload(new Page.ReloadOptions()
@@ -98,6 +111,22 @@ final class BrowserSessionRuntime {
                             ensureSuccessfulNavigation(response);
                             printPage(context, page);
                             lastKnownGoodUri = URI.create(page.url());
+                            if (recording) recordStep(recordedSteps, "reload", page);
+                        }
+                        case RECORD_ON -> {
+                            recording = true;
+                            context.output().println(
+                                    "Workflow recording started. Only successful navigation steps are recorded.");
+                        }
+                        case RECORD_OFF -> {
+                            recording = false;
+                            context.output().println("Workflow recording stopped.");
+                        }
+                        case RECORD_SHOW -> printRecordedSteps(context, recordedSteps);
+                        case RECORD_CLEAR -> {
+                            recordedSteps.clear();
+                            recording = false;
+                            context.output().println("Recorded workflow cleared; recording stopped.");
                         }
                         case INVALID_URL -> {
                             context.errorOutput().println(
@@ -106,13 +135,14 @@ final class BrowserSessionRuntime {
                         }
                         case INVALID_INPUT -> {
                             context.errorOutput().println(
-                                    "Expected fill <single-token-selector> <text> with at most 256 Unicode code points.");
+                                    "Expected fill <single-token-selector> <text> with at most 256 Unicode code points, "
+                                            + "or record on, off, show, or clear.");
                             exitCode = KaosApplication.USAGE_ERROR;
                         }
                         case UNKNOWN -> {
                             context.errorOutput().println(
                                     "Expected inspect [loopback-url], back, forward, reload, "
-                                            + "fill <selector> <text>, status, or close.");
+                                            + "fill <selector> <text>, record on|off|show|clear, status, or close.");
                             exitCode = KaosApplication.USAGE_ERROR;
                         }
                     }
@@ -186,6 +216,24 @@ final class BrowserSessionRuntime {
             case INSPECT_URL, BACK, FORWARD, RELOAD -> true;
             default -> false;
         };
+    }
+
+    private static void recordStep(Deque<String> recordedSteps, String action, Page page) {
+        if (recordedSteps.size() == MAX_RECORDED_STEPS) recordedSteps.removeFirst();
+        String safeUrl = BrowserInspectCommand.withoutQueryAndFragment(page.url());
+        recordedSteps.addLast(action + " "
+                + prefix(safeUrl, MAX_RECORDED_URL_CODE_POINTS - 3));
+    }
+
+    private static void printRecordedSteps(CommandContext context, Deque<String> recordedSteps) {
+        if (recordedSteps.isEmpty()) {
+            context.output().println("No workflow steps recorded in this session.");
+            return;
+        }
+        context.output().println("Recorded workflow (last " + recordedSteps.size()
+                + " successful navigation steps; in-memory only):");
+        int number = 1;
+        for (String step : recordedSteps) context.output().println(number++ + ". " + step);
     }
 
     private static void ensureSuccessfulNavigation(Response response) {

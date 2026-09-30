@@ -48,6 +48,20 @@ class BrowserSessionCommandTest {
     }
 
     @Test
+    void parsesOnlySupportedWorkflowRecordingCommands() {
+        assertEquals(BrowserSessionCommand.SessionAction.RECORD_ON,
+                BrowserSessionCommand.parseInput("record on").action());
+        assertEquals(BrowserSessionCommand.SessionAction.RECORD_OFF,
+                BrowserSessionCommand.parseInput("record off").action());
+        assertEquals(BrowserSessionCommand.SessionAction.RECORD_SHOW,
+                BrowserSessionCommand.parseInput("record show").action());
+        assertEquals(BrowserSessionCommand.SessionAction.RECORD_CLEAR,
+                BrowserSessionCommand.parseInput("record clear").action());
+        assertEquals(BrowserSessionCommand.SessionAction.INVALID_INPUT,
+                BrowserSessionCommand.parseInput("record replay").action());
+    }
+
+    @Test
     void rejectsFillCommandsWithoutSelectorOrWithOverlongText() {
         assertEquals(BrowserSessionCommand.SessionAction.INVALID_INPUT,
                 BrowserSessionCommand.parseInput("fill").action());
