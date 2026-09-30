@@ -27,10 +27,19 @@ dependencies {
     implementation("org.apache.httpcomponents.client5:httpclient5:5.6.4")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.22.1")
     implementation("org.xerial:sqlite-jdbc:3.53.4.0")
+    implementation("com.microsoft.playwright:playwright:1.63.0")
 
     testImplementation(platform("org.junit:junit-bom:6.1.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.register<JavaExec>("installChromium") {
+    group = "application"
+    description = "Installs the Chromium binary required by local browser inspection."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.microsoft.playwright.CLI")
+    args("install", "chromium")
 }
 
 tasks.withType<JavaCompile>().configureEach {

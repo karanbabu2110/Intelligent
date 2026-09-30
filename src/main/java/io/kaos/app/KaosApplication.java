@@ -163,7 +163,7 @@ public final class KaosApplication {
 
     static String helpText() {
         return """
-                Usage: kaos [status|help|tools|tool-history|memory-create answer-detail <value>|memory-inspect answer-detail|memory-edit answer-detail <value>|memory-delete answer-detail|memory-privacy|knowledge-ingest <path>|knowledge-retrieve <query>|knowledge-ask <question>|read-local-file <question>|http-get <question>|web-search <question>|agent <goal>|research <question>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
+                Usage: kaos [status|help|tools|tool-history|memory-create answer-detail <value>|memory-inspect answer-detail|memory-edit answer-detail <value>|memory-delete answer-detail|memory-privacy|knowledge-ingest <path>|knowledge-retrieve <query>|knowledge-ask <question>|read-local-file <question>|http-get <question>|web-search <question>|agent <goal>|research <question>|browser inspect <loopback-url>|ollama-status|ollama-model|ollama-prompt <prompt>|conversation]
 
                 Commands:
                   status         Show local application status (default).
@@ -183,6 +183,7 @@ public final class KaosApplication {
                   web-search     Ask with one approved web search or local-file read.
                   research       Search, remember publisher host approvals, retrieve up to three URLs and attribute an answer.
                   agent          Run one bounded goal with up to two independently approved tools.
+                  browser inspect  Read a local web page in a temporary isolated Chromium session.
                   ollama-status  Check connectivity to the local Ollama server.
                   ollama-model   Show the explicitly configured local Ollama model.
                   ollama-prompt  Submit one quoted prompt and stream the answer.
