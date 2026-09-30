@@ -23,8 +23,8 @@ context close when the command ends.
 - Do not print query strings or fragments from the final URL.
 
 This slice is intended for inspecting a local application or development page.
-External websites, clicks, submissions, saved profiles,
-screenshots, and workflow recording remain future features. Bounded text-field
+External websites, clicks, submissions, saved profiles, and screenshots remain
+future features. Bounded text-field
 filling is documented below. A local page can still return data or perform
 server-side effects for HTTP GET requests; use a local service whose behavior
 you understand.
@@ -69,6 +69,17 @@ the local page is available again. Recovery does not persist across session
 close. If the initial page cannot load, the command exits because there is no
 known-good page to restore.
 
+## Workflow recording (Feature 010.07)
+
+Recording is opt-in within the foreground session: use `record on` to start,
+`record off` to stop, `record show` to inspect the trace, and `record clear` to
+clear it and stop recording. Only successful `inspect <url>`, `back`,
+`forward`, and `reload` commands issued while recording are kept. The trace is
+bounded to the latest 20 steps, with each displayed URL capped at 512 Unicode
+code points. URLs omit query strings and fragments; field fills and values are
+never recorded. The trace exists only in memory for the current session and is
+informational, not replayable.
+
 ## Run
 
 Install the Chromium binary pinned by Playwright Java 1.63.0 once:
@@ -93,7 +104,8 @@ For a foreground session, run:
 ```
 
 Then enter `inspect http://127.0.0.1:8080/other`, `back`, `forward`, `reload`,
-`fill #search example query`, `inspect`, `status`, or `close` at the
+`fill #search example query`, `record on`, `record off`, `record show`,
+`record clear`, `inspect`, `status`, or `close` at the
 `browser-session>` prompt. After `fill`, respond `approve` at the separate
 approval prompt to apply the value.
 

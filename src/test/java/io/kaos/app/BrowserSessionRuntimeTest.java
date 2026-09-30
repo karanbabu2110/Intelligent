@@ -11,6 +11,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -59,6 +61,66 @@ class BrowserSessionRuntimeTest {
             assertTrue(result.output().split("Browser inspection complete", -1).length >= 3);
             assertEquals(0, posts.get());
         }
+    }
+
+    @Test
+    void recordsOnlyOptedInSuccessfulNavigationAndOmitsQueryAndFillValues() throws Exception {
+        AtomicInteger posts = new AtomicInteger();
+        try (LocalPage page = new LocalPage(posts)) {
+            String inspect = "inspect " + page.uri() + "?token=private-query#private-fragment";
+            SessionResult result = run(page, "record show\nrecord on\n" + inspect
+                    + "\nfill #query private-field-value\napprove\nrecord off\nreload\n"
+                    + "record show\nrecord clear\nrecord show\nclose\n");
+
+            assertEquals(KaosApplication.SUCCESS, result.exitCode());
+            assertTrue(result.output().contains("inspect " + page.uri()));
+            assertFalse(result.output().contains("private-query"));
+            assertFalse(result.output().contains("private-fragment"));
+            assertFalse(result.output().contains("private-field-value"));
+            assertEquals(2, occurrences(result.output(), "No workflow steps recorded in this session."));
+            assertEquals(1, occurrences(result.output(), "1. inspect " + page.uri()));
+            assertEquals(0, posts.get());
+        }
+    }
+
+    @Test
+    void keepsOnlyTheLastTwentyRecordedSteps() throws Exception {
+        AtomicInteger posts = new AtomicInteger();
+        try (LocalPage page = new LocalPage(posts)) {
+            List<String> commands = new ArrayList<>();
+            commands.add("record on");
+            for (int index = 0; index < 21; index++) commands.add("reload");
+            commands.add("record show");
+            commands.add("close");
+            SessionResult result = run(page, String.join("\n", commands) + "\n");
+            String listing = result.output().substring(
+                    result.output().indexOf("Recorded workflow (last "));
+
+            assertEquals(KaosApplication.SUCCESS, result.exitCode());
+            assertTrue(listing.startsWith("Recorded workflow (last 20 successful navigation steps"));
+            assertEquals(20, occurrences(listing, ". reload " + page.uri()));
+            assertFalse(listing.contains("21. reload"));
+        }
+    }
+
+    @Test
+    void capsEachRecordedUrlAt512CodePoints() throws Exception {
+        AtomicInteger posts = new AtomicInteger();
+        try (LocalPage page = new LocalPage(posts)) {
+            String longPath = "p".repeat(600);
+            SessionResult result = run(page, "record on\ninspect " + page.uri().resolve(longPath)
+                    + "\nrecord show\nclose\n");
+            String step = result.output().lines()
+                    .filter(line -> line.startsWith("1. inspect "))
+                    .findFirst().orElseThrow().substring("1. inspect ".length());
+
+            assertEquals(KaosApplication.SUCCESS, result.exitCode());
+            assertTrue(step.codePointCount(0, step.length()) <= 512);
+        }
+    }
+
+    private static int occurrences(String value, String search) {
+        return value.split(java.util.regex.Pattern.quote(search), -1).length - 1;
     }
 
     private static SessionResult run(LocalPage page, String commands) {

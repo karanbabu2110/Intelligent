@@ -34,6 +34,15 @@ final class BrowserSessionCommand {
             return new SessionInput(SessionAction.INVALID_INPUT, null, null, null);
         }
         if (raw.startsWith("fill ")) return parseFill(raw.substring("fill ".length()));
+        if (raw.startsWith("record ")) {
+            return switch (raw.stripTrailing()) {
+                case "record on" -> new SessionInput(SessionAction.RECORD_ON, null);
+                case "record off" -> new SessionInput(SessionAction.RECORD_OFF, null);
+                case "record show" -> new SessionInput(SessionAction.RECORD_SHOW, null);
+                case "record clear" -> new SessionInput(SessionAction.RECORD_CLEAR, null);
+                default -> new SessionInput(SessionAction.INVALID_INPUT, null, null, null);
+            };
+        }
         String input = raw.stripTrailing();
         return switch (input) {
             case "close" -> new SessionInput(SessionAction.CLOSE, null);
@@ -90,6 +99,10 @@ final class BrowserSessionCommand {
         INSPECT_CURRENT,
         INSPECT_URL,
         FILL,
+        RECORD_ON,
+        RECORD_OFF,
+        RECORD_SHOW,
+        RECORD_CLEAR,
         INVALID_INPUT,
         INVALID_URL,
         UNKNOWN
