@@ -8,15 +8,17 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.PlaywrightException;
 import com.microsoft.playwright.Response;
-import com.microsoft.playwright.Route;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Playwright-backed foreground session, loaded only when the session command runs. */
 final class BrowserSessionRuntime {
@@ -36,10 +38,14 @@ final class BrowserSessionRuntime {
                      new Browser.NewContextOptions()
                              .setJavaScriptEnabled(false)
                              .setAcceptDownloads(false))) {
-            browserContext.route("**/*", BrowserSessionRuntime::allowLoopbackOnly);
+            AtomicReference<URI> selectedNavigation = new AtomicReference<>(initialUri);
             Page page = browserContext.newPage();
-            int exitCode = inspect(context, page, initialUri);
-            URI lastKnownGoodUri = initialUri;
+            BrowserRequestGuard.attach(browserContext, page, selectedNavigation);
+            int exitCode = inspect(context, page, initialUri, selectedNavigation);
+            URI lastKnownGoodUri = URI.create(page.url());
+            List<URI> navigationHistory = new ArrayList<>();
+            navigationHistory.add(URI.create(page.url()));
+            int historyIndex = 0;
             Deque<String> recordedSteps = new ArrayDeque<>();
             boolean recording = false;
             context.output().println(
@@ -76,8 +82,13 @@ final class BrowserSessionRuntime {
                         }
                         case INSPECT_CURRENT -> printPage(context, page);
                         case INSPECT_URL -> {
-                            inspect(context, page, inputCommand.uri());
+                            inspect(context, page, inputCommand.uri(), selectedNavigation);
                             lastKnownGoodUri = URI.create(page.url());
+                            while (navigationHistory.size() > historyIndex + 1) {
+                                navigationHistory.remove(navigationHistory.size() - 1);
+                            }
+                            navigationHistory.add(lastKnownGoodUri);
+                            historyIndex = navigationHistory.size() - 1;
                             if (recording) recordStep(recordedSteps, "inspect", page);
                         }
                         case FILL -> {
@@ -86,26 +97,35 @@ final class BrowserSessionRuntime {
                             if (fillExitCode != KaosApplication.SUCCESS) exitCode = fillExitCode;
                         }
                         case BACK -> {
+                            URI target = historyIndex > 0
+                                    ? navigationHistory.get(historyIndex - 1) : URI.create(page.url());
+                            selectedNavigation.set(target);
                             Response response = page.goBack(new Page.GoBackOptions()
                                     .setTimeout(NAVIGATION_TIMEOUT_MILLIS));
                             ensureSuccessfulNavigation(response);
                             historyNavigation(context, page, response);
                             if (response != null) {
+                                historyIndex = Math.max(0, historyIndex - 1);
                                 lastKnownGoodUri = URI.create(page.url());
                                 if (recording) recordStep(recordedSteps, "back", page);
                             }
                         }
                         case FORWARD -> {
+                            URI target = historyIndex + 1 < navigationHistory.size()
+                                    ? navigationHistory.get(historyIndex + 1) : URI.create(page.url());
+                            selectedNavigation.set(target);
                             Response response = page.goForward(new Page.GoForwardOptions()
                                     .setTimeout(NAVIGATION_TIMEOUT_MILLIS));
                             ensureSuccessfulNavigation(response);
                             historyNavigation(context, page, response);
                             if (response != null) {
+                                historyIndex = Math.min(navigationHistory.size() - 1, historyIndex + 1);
                                 lastKnownGoodUri = URI.create(page.url());
                                 if (recording) recordStep(recordedSteps, "forward", page);
                             }
                         }
                         case RELOAD -> {
+                            selectedNavigation.set(URI.create(page.url()));
                             Response response = page.reload(new Page.ReloadOptions()
                                     .setTimeout(NAVIGATION_TIMEOUT_MILLIS));
                             ensureSuccessfulNavigation(response);
@@ -150,7 +170,8 @@ final class BrowserSessionRuntime {
                     if (isNavigationAction(inputCommand.action())) {
                         context.errorOutput().println(
                                 "Browser navigation failed. Check that the local page is available.");
-                        if (restoreLastKnownGoodPage(context, page, lastKnownGoodUri)) {
+                        if (restoreLastKnownGoodPage(
+                                context, page, lastKnownGoodUri, selectedNavigation)) {
                             context.output().println(
                                     "Recovered the last successfully loaded page. The session remains open.");
                         } else {
@@ -172,7 +193,12 @@ final class BrowserSessionRuntime {
         }
     }
 
-    private static int inspect(CommandContext context, Page page, URI uri) {
+    private static int inspect(
+            CommandContext context,
+            Page page,
+            URI uri,
+            AtomicReference<URI> selectedNavigation) {
+        selectedNavigation.set(uri);
         Response response = page.navigate(uri.toASCIIString(), new Page.NavigateOptions()
                 .setTimeout(NAVIGATION_TIMEOUT_MILLIS));
         ensureSuccessfulNavigation(response);
@@ -182,12 +208,12 @@ final class BrowserSessionRuntime {
 
     private static void printPage(CommandContext context, Page page) {
         String title = page.title();
-        String text = page.locator("body").innerText();
+        String text = BrowserPageText.extract(page);
         context.output().println("Browser inspection complete (temporary session).");
         context.output().println("URL: " + BrowserInspectCommand.withoutQueryAndFragment(page.url()));
         context.output().println("Title: " + prefix(oneLine(title), 256));
         context.output().println("Visible text:");
-        context.output().println(BrowserInspectCommand.bound(text));
+        context.output().println(text);
     }
 
     private static void historyNavigation(CommandContext context, Page page, Response response) {
@@ -199,8 +225,12 @@ final class BrowserSessionRuntime {
     }
 
     private static boolean restoreLastKnownGoodPage(
-            CommandContext context, Page page, URI lastKnownGoodUri) {
+            CommandContext context,
+            Page page,
+            URI lastKnownGoodUri,
+            AtomicReference<URI> selectedNavigation) {
         try {
+            selectedNavigation.set(lastKnownGoodUri);
             Response response = page.navigate(lastKnownGoodUri.toASCIIString(),
                     new Page.NavigateOptions().setTimeout(NAVIGATION_TIMEOUT_MILLIS));
             ensureSuccessfulNavigation(response);
@@ -279,8 +309,8 @@ final class BrowserSessionRuntime {
         }
 
         context.output().printf(
-                "Approve filling one eligible local text field with %d code points (value hidden)? "
-                        + "Type approve or deny: ",
+                "Approve filling one eligible local text field with %d code points? "
+                        + "KAOS will not repeat the value. Type approve or deny: ",
                 value.codePointCount(0, value.length()));
         context.output().flush();
         String response;
@@ -307,14 +337,9 @@ final class BrowserSessionRuntime {
             return KaosApplication.SUCCESS;
         }
         target.fill(value);
-        context.output().println("Filled one eligible text field. It was not submitted; value was not echoed.");
+        context.output().println(
+                "Filled one eligible text field. It was not submitted; KAOS did not repeat the value.");
         return KaosApplication.SUCCESS;
-    }
-
-    private static void allowLoopbackOnly(Route route) {
-        if (BrowserInspectCommand.allowRequest(route.request().url(), route.request().method(),
-                route.request().resourceType())) route.resume();
-        else route.abort();
     }
 
     private static String oneLine(String value) {

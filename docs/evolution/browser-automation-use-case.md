@@ -15,12 +15,20 @@ context close when the command ends.
 ## Safety boundary
 
 - Accept only `http://127.0.0.1` URLs with an explicit port and no user-info.
-- Allow only HTTP GET document requests to `127.0.0.1`; other methods,
-  redirects to other hosts, and all subresource requests are blocked.
+- Allow only HTTP GET document requests to the origin selected for that
+  navigation (scheme, host, and port); a redirect to another local port or
+  host is blocked. Select a different origin with a new `inspect` command.
+- Other methods and all subresource requests are blocked.
 - Disable JavaScript and downloads.
 - Do not load a saved profile, cookies, credentials, or persistent storage.
 - Do not click, type, submit forms, download files, or modify the page.
 - Do not print query strings or fragments from the final URL.
+
+One-shot inspection treats HTTP 400 and higher responses as failures. Visible
+text extraction walks at most 10,000 text nodes and returns at most 4,000
+Unicode code points, stopping at either limit before building a full-page text
+string. Hidden nodes and script/style/template content are skipped using
+computed visibility; the output is a bounded text view, not a full layout dump.
 
 This slice is intended for inspecting a local application or development page.
 External websites, clicks, submissions, saved profiles, and screenshots remain
@@ -54,9 +62,12 @@ editable `<textarea>` or `<input>` of type `text`, `email`, `search`, `tel`, or
 types, and ambiguous selectors are rejected. Feature 010.05 adds a separate
 approval prompt for each fill. The prompt shows only the character count; type
 exactly `approve` to authorize that one fill. Any other response or end of
-input cancels it. KAOS does not echo the value, click a control, or submit a
-form. The target is checked again after approval. JavaScript remains disabled
-and the filled value exists only in the temporary page context.
+input cancels it. KAOS does not repeat the value in its prompt or output, click
+a control, or submit a form. The terminal normally echoes the `fill` command as
+you type it, so the value may be visible in terminal input/history; do not use
+this command for secrets. The target is checked again after approval.
+JavaScript remains disabled and the filled value exists only in the temporary
+page context.
 
 ## Navigation failure recovery (Feature 010.06)
 
