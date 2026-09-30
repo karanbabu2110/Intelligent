@@ -48,7 +48,7 @@ class PinnedHttpTransportTest {
             fixture.responseHeaders.clear();
             fixture.responseHeaders.put("X-Large", "x".repeat(5000));
             assertThrows(HttpGetException.class, () -> fixture.retrieve(target(fixture), Duration.ofSeconds(2)));
-            assertEquals(2, fixture.calls.get());
+            assertEquals(4, fixture.calls.get());
         }
     }
 
@@ -90,10 +90,22 @@ class PinnedHttpTransportTest {
         assertFailure(503, "text/plain", "failure", HttpGetException.Reason.REQUEST_FAILED);
     }
 
+    @Test void httpFailuresRetainSafeResponseDiagnostics() throws Exception {
+        try (var fixture = new HttpSourceFixture("private", "text/plain", 401, false)) {
+            var failure = assertThrows(HttpGetException.class,
+                    () -> fixture.retrieve(target(fixture), Duration.ofSeconds(2)));
+            assertEquals(RetrievalStatus.HTTP_ERROR, failure.status());
+            assertEquals(401, failure.httpStatus());
+            assertEquals("text/plain", failure.contentType());
+            assertTrue(failure.finalUrl().startsWith("http://one.example:"));
+            assertEquals("text/plain", failure.responseHeaders().get("Content-Type"));
+        }
+    }
+
     @Test void rejectsUnsupportedOversizedAndEmptyRealResponses() throws Exception {
         assertFailure(200, "application/octet-stream", "binary", HttpGetException.Reason.UNSUPPORTED_MEDIA_TYPE);
         assertFailure(200, "text/javascript", "script", HttpGetException.Reason.UNSUPPORTED_MEDIA_TYPE);
-        assertFailure(200, "text/plain", "x".repeat(32769), HttpGetException.Reason.TOO_LARGE);
+        assertFailure(200, "text/plain", "x".repeat(HttpGetExecutor.MAX_RAW_RESPONSE_BYTES + 1), HttpGetException.Reason.TOO_LARGE);
         assertFailure(200, "text/plain", " ", HttpGetException.Reason.INVALID_CONTENT);
         for (String type : List.of("text/html", "text/plain", "application/json", "application/xml")) {
             try (var fixture = new HttpSourceFixture("bounded text", type, 200, false)) {
@@ -109,7 +121,7 @@ class PinnedHttpTransportTest {
                     () -> fixture.retrieve(target(fixture), Duration.ofMillis(300)));
             assertEquals(HttpGetException.Reason.TIMEOUT, failure.reason());
             assertTrue(Duration.ofNanos(System.nanoTime() - start).toMillis() < 2000);
-            assertEquals(1, fixture.calls.get());
+            assertEquals(3, fixture.calls.get());
         }
     }
 
@@ -177,7 +189,16 @@ class PinnedHttpTransportTest {
         try (var fixture = new HttpSourceFixture(content, media, status, false)) {
             assertEquals(reason, assertThrows(HttpGetException.class,
                     () -> fixture.retrieve(target(fixture), Duration.ofSeconds(2))).reason());
-            assertEquals(1, fixture.calls.get());
+            assertEquals(reason == HttpGetException.Reason.REQUEST_FAILED
+                    || reason == HttpGetException.Reason.HTTP_UNAUTHORIZED
+                    || reason == HttpGetException.Reason.HTTP_FORBIDDEN
+                    || reason == HttpGetException.Reason.HTTP_NOT_FOUND
+                    || reason == HttpGetException.Reason.HTTP_RATE_LIMITED
+                    || reason == HttpGetException.Reason.REDIRECTED
+                    || reason == HttpGetException.Reason.UNSUPPORTED_MEDIA_TYPE
+                    || reason == HttpGetException.Reason.TOO_LARGE
+                    || reason == HttpGetException.Reason.INVALID_CONTENT ? 1 : 3,
+                    fixture.calls.get());
         }
     }
 }

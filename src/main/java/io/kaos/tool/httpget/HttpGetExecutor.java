@@ -15,10 +15,13 @@ import java.time.Duration;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /** Performs one approved, non-redirecting, bounded HTTPS GET. */
 public final class HttpGetExecutor {
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
+    public static final int MAX_RAW_RESPONSE_BYTES = 512 * 1024;
 
     private final HttpGetPermissionValidator validator;
     private final HttpClient client;
@@ -77,24 +80,48 @@ public final class HttpGetExecutor {
     static HttpGetResult consume(HttpGetTarget target, int status,
             java.util.function.Function<String, Optional<String>> headers, InputStream body)
             throws IOException {
-        if (status >= 300 && status < 400) throw failure(HttpGetException.Reason.REDIRECTED);
-        if (status == 401) throw failure(HttpGetException.Reason.HTTP_UNAUTHORIZED);
-        if (status == 403) throw failure(HttpGetException.Reason.HTTP_FORBIDDEN);
-        if (status == 404) throw failure(HttpGetException.Reason.HTTP_NOT_FOUND);
-        if (status == 429) throw failure(HttpGetException.Reason.HTTP_RATE_LIMITED);
-        if (status != 200) throw failure(HttpGetException.Reason.REQUEST_FAILED);
-        String mediaType = supportedMediaType(headers);
+        String contentType = headers.apply("Content-Type").orElse("");
+        String finalUrl = target.uri().toASCIIString();
+        Map<String, String> diagnostics = diagnosticHeaders(headers);
+        if (status >= 300 && status < 400) throw failure(HttpGetException.Reason.REDIRECTED, status, contentType, finalUrl, diagnostics);
+        if (status == 401) throw failure(HttpGetException.Reason.HTTP_UNAUTHORIZED, status, contentType, finalUrl, diagnostics);
+        if (status == 403) throw failure(HttpGetException.Reason.HTTP_FORBIDDEN, status, contentType, finalUrl, diagnostics);
+        if (status == 404) throw failure(HttpGetException.Reason.HTTP_NOT_FOUND, status, contentType, finalUrl, diagnostics);
+        if (status == 429) throw failure(HttpGetException.Reason.HTTP_RATE_LIMITED, status, contentType, finalUrl, diagnostics);
+        if (status != 200) throw failure(HttpGetException.Reason.REQUEST_FAILED, status, contentType, finalUrl, diagnostics);
+        String mediaType;
+        try {
+            mediaType = supportedMediaType(headers);
+        } catch (HttpGetException exception) {
+            throw failure(exception.reason(), status, contentType, finalUrl, diagnostics);
+        }
         if (headers.apply("Content-Encoding").filter(v -> !v.equalsIgnoreCase("identity")).isPresent()) {
-            throw failure(HttpGetException.Reason.UNSUPPORTED_MEDIA_TYPE);
+            throw failure(HttpGetException.Reason.UNSUPPORTED_MEDIA_TYPE, status, contentType, finalUrl, diagnostics);
         }
-        if (declaredLength(headers) > HttpGetResult.MAX_CONTENT_UTF8_BYTES) {
-            throw failure(HttpGetException.Reason.TOO_LARGE);
+        try {
+            if (declaredLength(headers) > MAX_RAW_RESPONSE_BYTES) {
+                throw failure(HttpGetException.Reason.TOO_LARGE);
+            }
+        } catch (HttpGetException exception) {
+            throw failure(exception.reason(), status, contentType, finalUrl, diagnostics);
         }
-        String content = decodeUtf8(readBounded(body));
+        byte[] raw;
+        try {
+            raw = readBounded(body);
+        } catch (HttpGetException exception) {
+            throw failure(exception.reason(), status, contentType, finalUrl, diagnostics);
+        }
+        String decoded;
+        try {
+            decoded = decodeUtf8(raw);
+        } catch (HttpGetException exception) {
+            throw failure(exception.reason(), status, contentType, finalUrl, diagnostics);
+        }
+        String content = "text/html".equals(mediaType) ? HtmlTextExtractor.extract(decoded) : decoded;
         try {
             return new HttpGetResult(target.request(), content, mediaType);
         } catch (IllegalArgumentException exception) {
-            throw failure(HttpGetException.Reason.INVALID_CONTENT);
+            throw failure(HttpGetException.Reason.INVALID_CONTENT, status, contentType, finalUrl, diagnostics);
         }
     }
 
@@ -133,15 +160,15 @@ public final class HttpGetExecutor {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         byte[] buffer = new byte[1_024];
         int total = 0;
-        while (total <= HttpGetResult.MAX_CONTENT_UTF8_BYTES) {
+        while (total <= MAX_RAW_RESPONSE_BYTES) {
             rejectInterruption();
-            int remaining = HttpGetResult.MAX_CONTENT_UTF8_BYTES + 1 - total;
+            int remaining = MAX_RAW_RESPONSE_BYTES + 1 - total;
             int count = input.read(buffer, 0, Math.min(buffer.length, remaining));
             if (count < 0) break;
             output.write(buffer, 0, count);
             total += count;
         }
-        if (total > HttpGetResult.MAX_CONTENT_UTF8_BYTES) {
+        if (total > MAX_RAW_RESPONSE_BYTES) {
             throw failure(HttpGetException.Reason.TOO_LARGE);
         }
         return output.toByteArray();
@@ -166,5 +193,26 @@ public final class HttpGetExecutor {
 
     private static HttpGetException failure(HttpGetException.Reason reason) {
         return new HttpGetException(reason);
+    }
+
+    private static HttpGetException failure(HttpGetException.Reason reason, int status,
+            String contentType, String finalUrl) {
+        return new HttpGetException(reason, status, contentType, finalUrl);
+    }
+
+    private static HttpGetException failure(HttpGetException.Reason reason, int status,
+            String contentType, String finalUrl, Map<String, String> headers) {
+        return new HttpGetException(reason, status, contentType, finalUrl, headers);
+    }
+
+    private static Map<String, String> diagnosticHeaders(
+            java.util.function.Function<String, Optional<String>> headers) {
+        var result = new LinkedHashMap<String, String>();
+        for (String name : new String[]{"Content-Type", "Content-Length", "Content-Encoding",
+                "Location", "Retry-After", "Server", "Date", "WWW-Authenticate"}) {
+            headers.apply(name).ifPresent(value -> result.put(name, value.length() > 512
+                    ? value.substring(0, 512) : value));
+        }
+        return result;
     }
 }

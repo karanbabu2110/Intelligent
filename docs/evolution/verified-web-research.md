@@ -8,15 +8,19 @@ This implements a first end-to-end workflow, not the entire epic.
 Follow-up [019.04 / #1096](https://github.com/karanbabu2110/KAOS/issues/1096)
 completes partial retrieval and explicit search-only outcomes. It advances this
 bounded retrieval improvement before candidate-selection work because publisher
-failures otherwise discard useful approved evidence. Persistent host approvals
-remain separate future work.
+failures otherwise discard useful approved evidence.
+
+Feature [019.09 / #1097](https://github.com/karanbabu2110/KAOS/issues/1097)
+adds user-requested persistent exact-host approval for research. This explicitly
+replaces research's original non-persistent exact-set approval contract; concrete
+HTTP request grants remain single-use. Standalone HTTP and search approvals are unchanged.
 
 ## Actual behavior
 
 `kaos research "question"` uses the exact question as one approved SearXNG query.
 It must satisfy the existing 400-code-point query contract; there is no silent
 query truncation or model rewrite. Configure the local Ollama model, SearXNG
-endpoint and explicit HTTP allowed hosts as shown in the [README](../../README.md).
+endpoint as shown in the [README](../../README.md).
 
 1. Approve the displayed search query. SearXNG contributes at most five titles,
    URLs and snippets. They are discovery data; their URLs are not fetched yet.
@@ -26,10 +30,12 @@ endpoint and explicit HTTP allowed hosts as shown in the [README](../../README.m
    selections, malformed output and duplicate normalized URLs. Only selected
    returned URLs are considered; an unsafe selection stops the run rather than
    silently substituting another source.
-3. Application code validates HTTPS syntax and exact configured hosts, then
-   displays the normalized URLs and purposes. Review all of them. Type `approve`
-   once to authorize only that frozen set, one GET per URL. Any other response,
-   EOF or cancellation stops the operation. Approval is not stored or reusable.
+3. Application code validates HTTPS syntax and displays normalized URLs and purposes.
+   It checks the local approval file and lists previously unapproved exact hosts.
+   Type `approve` to persist permission for current and future research reads of
+   any HTTPS page on those hosts. Other responses, EOF or cancellation stop the
+   operation without saving new hosts or fetching pages. Saved hosts skip this
+   prompt. Subdomains are separate; access approval is not a factual trust rating.
 4. Each source gets independent shared `http_get` validation and a consumed
    concrete grant. Every DNS answer must be public. One validated address is
    connected directly, while TLS checks the original hostname. No redirects,
@@ -69,25 +75,26 @@ limitations. No source is declared universally trusted.
 | Boundary | Enforced value |
 | --- | --- |
 | Search | One approved SearXNG operation; existing 15-second request bound; at most five results |
-| Source set | One to three distinct normalized URLs; one approval response for that set |
-| Source access | HTTPS; implicit port or 443; exact configured hostname; all DNS answers public |
-| Source body | At most 32,768 UTF-8 bytes, hence at most 32,768 Unicode code points; never truncated |
-| Total source bodies | At most 98,304 UTF-8 bytes/code points through the three-source bound |
+| Source set | One to three distinct normalized URLs; one prompt for new exact hostnames |
+| Source access | HTTPS; implicit port or 443; persisted approved hostname; all DNS answers public |
+| Raw source body | At most 524,288 UTF-8 bytes; `Content-Length` is checked and streaming reads stop at the bound |
+| Model source text | At most 65,536 UTF-8 bytes/code points after HTML extraction; raw HTML is never sent |
+| Total raw source bodies | At most 1,572,864 UTF-8 bytes through the three-source bound |
 | Source attempt | 2-second connect limit; 15-second deadline including DNS, headers and complete body |
 | Aggregate attempts | At most three sequential 15-second deadlines, hence 45 seconds of retrieval waits; user/model/history time is separate |
 | Response metadata | At most 32 headers, 4096 characters per HTTP protocol line |
 | Content | Status 200; plain text, HTML, JSON or XML; strict UTF-8; nonblank; no unsafe control characters or compressed content |
 | Selection output | At most three entries; purpose 256 and reason 512 code points |
 | Answer output | At most eight claims, 1024 code points each; uncertainty at most 1024; one to three valid source references per claim |
-| Model operations | One selection and one page or search-only synthesis; existing local request/token/stream timeouts; no retries or tools |
+| Model operations | One selection and one page or search-only synthesis; existing local request/token/stream timeouts; no model retries or tools; transient HTTP retries are bounded to two |
 
 Malformed model output, unexpected tool calls, invalid citations, unsafe URLs,
 missing configuration, denial, cancellation, input failure, empty evidence,
 history failure or invalid/reused approval stop without a final answer. Recovery requires
-a new invocation and fresh approvals. Source-local network, HTTP status, DNS safety,
+a new invocation and search approval. Source-local network, HTTP status, DNS safety,
 redirect, content and size failures exclude that source and continue through the
 approved set. A partial answer reports successful/approved counts and cites only
-successful pages using their original approval numbers. Missing primary sources
+successful pages using their original displayed source numbers. Missing primary sources
 cannot satisfy the evidence-role guard; a single remaining secondary source is
 still insufficient for a FACT claim. If every source fails, search-only synthesis
 uses the already approved search data and rejects `FACT`; it never presents snippets
@@ -96,7 +103,8 @@ and fixed failure reason plus the successful retrieval count; it never prints ra
 page content, failure bodies or a failed URL.
 
 Bodies are bounded textual responses, not browser-rendered articles. HTML/script
-text is never executed, JSON/XML is not parsed for external entities, and links
+text is never executed; scripts, styles, navigation, footers and common
+advertisement/consent blocks are removed before evidence is sent to Ollama. JSON/XML is not parsed for external entities, and links
 are never followed. Extraction of article passages and richer evidence analysis
 are future work. Model prose cannot contain URLs or bracketed citations; the
 application supplies the source references.
@@ -145,6 +153,13 @@ Research suppresses existing payload debug tracing. The application-start trace
 redacts research arguments. Tool history receives only operation identifiers,
 tool names, decisions, outcomes and timestamps; it stores no query, URL, content,
 source reason or answer. Other commands retain their existing debug behavior.
+The separate research approval file persists only exact hostnames. It is bounded
+to 256 hosts and 64 KiB of strict UTF-8, uses locked atomic replacement and fails
+closed on invalid or unavailable storage. Deleting a line revokes that host;
+deleting the file resets approvals. It is checked at startup and before each
+page attempt; it cannot cancel an already running request. Local users able to
+edit this file can change research access authority. See the developer guide
+for the path override and storage recovery.
 The terminal displays exact URLs, purposes and the final answer. Shell history
 and the configured model/search services have their own retention behavior.
 
@@ -193,14 +208,16 @@ deadlines, late DNS completion after cancellation, URL normalization, grant/requ
 binding, compressed/oversized metadata rejection and non-public DNS denial. Existing
 HTTP contracts continue to test exact grants and malformed UTF-8.
 
-An optional live demonstration uses the README command after configuring actual
-publisher hosts. Review both approval prompts; redirects, non-UTF-8 pages,
-oversized pages exclude individual sources; disallowed candidate hosts before approval
-or model schema failures stop the run. The separate [live evaluation](verified-web-research-live-evaluation.md) records
+An optional live demonstration uses the README command. Review the search prompt
+and any new-host prompt; redirects, non-UTF-8 pages and oversized pages exclude
+individual sources. Invalid approval storage or model schema failures stop the run.
+The separate [live evaluation](verified-web-research-live-evaluation.md) records
 local-model/public-source runs and the quality and safety problems they exposed.
 The deterministic tests alone do not demonstrate public-source factual accuracy.
 
 ### Live follow-up: 2026-09-29
+
+The following results predate persistent host approvals.
 
 With local SearXNG at `127.0.0.1:8080`, `qwen3.5:4b`, thinking off and
 the default context settings, two runs of `latest stock market news` stopped
@@ -221,6 +238,20 @@ OPINION and called a market contrast CONTRADICTION. Neither freshness nor factua
 support was established. Rejecting the FACT label and displaying the fallback
 warning does not enforce semantic claim quality. The cause of the publisher's
 401 responses was not established by this run.
+
+### Persistent-host live check: 2026-09-29
+
+Two separate Gradle/Java processes used local SearXNG, `qwen3.5:4b`, thinking off,
+the same Reuters-scoped query and an isolated temporary approval file, with
+`KAOS_HTTP_ALLOWED_HOSTS` unset. The first process displayed `www.reuters.com`,
+accepted explicit approval, and saved only that hostname. It completed in 43 seconds.
+The second process received only search approval, displayed `Using saved publisher
+host approvals; no new page approval required.`, and completed in 26 seconds.
+Both runs received publisher 401 responses and produced labeled search-only output.
+This proves persisted host authorization across process restarts, not authenticated
+access or factual accuracy. Default user approvals were not modified by this test.
+Deterministic tests separately prove successful page reads after reload, changed
+paths on the same host, revocation, exact-host boundaries and storage failure handling.
 
 ## Roadmap and next slice
 

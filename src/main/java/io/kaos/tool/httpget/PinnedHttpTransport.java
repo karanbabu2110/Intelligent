@@ -25,11 +25,40 @@ final class PinnedHttpTransport {
 
     static HttpGetResult execute(HttpGetPermissionValidator validator, HttpGetTarget target,
             Duration timeout) {
-        return execute(validator::resolvePublicDestination, target, timeout);
+        return executeWithRetry(validator::resolvePublicDestination, target, timeout);
     }
 
     // Package-only seam for controlled loopback fixtures; no runtime configuration can select it.
     static HttpGetResult execute(java.util.function.Function<HttpGetTarget, InetAddress> resolver,
+            HttpGetTarget target, Duration timeout) {
+        return executeWithRetry(resolver, target, timeout);
+    }
+
+    private static HttpGetResult executeWithRetry(
+            java.util.function.Function<HttpGetTarget, InetAddress> resolver,
+            HttpGetTarget target, Duration timeout) {
+        HttpGetException last = null;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                return executeOnce(resolver, target, timeout);
+            } catch (HttpGetException exception) {
+                last = exception;
+                if (exception.reason() != HttpGetException.Reason.UNAVAILABLE
+                        && exception.reason() != HttpGetException.Reason.TIMEOUT) throw exception;
+                if (attempt < 2) {
+                    try { Thread.sleep(100L * (attempt + 1)); }
+                    catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw new HttpGetException(HttpGetException.Reason.INTERRUPTED);
+                    }
+                }
+            }
+        }
+        throw last;
+    }
+
+    private static HttpGetResult executeOnce(
+            java.util.function.Function<HttpGetTarget, InetAddress> resolver,
             HttpGetTarget target, Duration timeout) {
         var request = new HttpGet(target.uri());
         request.setHeader("Accept", "text/plain, text/html, application/json, application/xml");
@@ -101,7 +130,12 @@ final class PinnedHttpTransport {
             if (cause instanceof java.net.SocketTimeoutException) {
                 throw new HttpGetException(HttpGetException.Reason.TIMEOUT);
             }
-            throw new HttpGetException(HttpGetException.Reason.UNAVAILABLE);
+            String detail = cause instanceof java.net.UnknownHostException ? "DNS_FAILURE"
+                    : cause instanceof javax.net.ssl.SSLException ? "TLS_FAILURE"
+                    : cause instanceof java.net.ConnectException ? "CONNECTIVITY_FAILURE"
+                    : "NETWORK_FAILURE";
+            throw new HttpGetException(HttpGetException.Reason.UNAVAILABLE, 0, "", target.uri().toASCIIString(),
+                    java.util.Map.of(), detail);
         } finally {
             request.cancel();
             pending.cancel(true);

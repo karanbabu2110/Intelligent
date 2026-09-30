@@ -49,7 +49,7 @@ class HttpGetExecutorTest {
                         .execute(approved()));
         assertReason(HttpGetException.Reason.TOO_LARGE,
                 () -> executor(new StubHttpClient(200, "text/plain",
-                        new byte[HttpGetResult.MAX_CONTENT_UTF8_BYTES + 1]))
+                        new byte[HttpGetExecutor.MAX_RAW_RESPONSE_BYTES + 1]))
                         .execute(approved()));
         assertReason(HttpGetException.Reason.INVALID_UTF8,
                 () -> executor(new StubHttpClient(200, "text/plain",

@@ -230,7 +230,9 @@ final class ApplicationRuntime {
                     }
                 }, toolRegistry).withToolHistory(toolHistory);
         CommandRouter.ArgumentCommand researchCommand = question -> new ResearchCommand(context, modelConfigurationLoader,
-                toolRegistry, io.kaos.tool.httpget.HttpGetPermissionValidator::load,
+                () -> StandardTools.create(io.kaos.tool.readlocalfile.ReadLocalFilePermissionValidator::load,
+                        () -> ResearchHostApprovals.load().validator(), io.kaos.tool.websearch.SearxngClient::load),
+                ResearchHostApprovals::load,
                 (model, prompt, evidence, format) -> agentClient.get()
                         .submitWithResearchEvidence(model, prompt, evidence, format))
                 .withToolHistory(toolHistory).execute(question);

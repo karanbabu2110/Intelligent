@@ -41,17 +41,17 @@ final class ResearchCommand {
     private final CommandContext context;
     private final Supplier<OllamaModelConfiguration> modelLoader;
     private final Supplier<ToolRegistry> registryLoader;
-    private final Supplier<HttpGetPermissionValidator> validatorLoader;
+    private final Supplier<ResearchHostApprovals> approvalsLoader;
     private final Prompts prompts;
     private ToolHistoryRecorder history;
 
     ResearchCommand(CommandContext context, Supplier<OllamaModelConfiguration> modelLoader,
-            Supplier<ToolRegistry> registryLoader, Supplier<HttpGetPermissionValidator> validatorLoader,
+            Supplier<ToolRegistry> registryLoader, Supplier<ResearchHostApprovals> approvalsLoader,
             Prompts prompts) {
         this.context = context;
         this.modelLoader = modelLoader;
         this.registryLoader = registryLoader;
-        this.validatorLoader = validatorLoader;
+        this.approvalsLoader = approvalsLoader;
         this.prompts = prompts;
     }
 
@@ -77,7 +77,8 @@ final class ResearchCommand {
             var query = new WebSearchRequest(goal.objective());
             var model = modelLoader.get();
             var registry = registryLoader.get();
-            var validator = validatorLoader.get(); // Require explicit allowed-host configuration up front.
+            var approvals = approvalsLoader.get();
+            var savedHosts = approvals.read();
             var reader = new BufferedReader(new InputStreamReader(context.input(),
                     StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
                             .onUnmappableCharacter(CodingErrorAction.REPORT)));
@@ -110,15 +111,12 @@ final class ResearchCommand {
             var selections = new ArrayList<ToolSelection>();
             var unique = new HashSet<String>();
             for (var candidate : candidates) {
-                String url = validator.validate(new HttpGetRequest(
+                String url = HttpGetPermissionValidator.validateSyntax(new HttpGetRequest(
                         search.results().get(candidate.result() - 1).url())).uri().toASCIIString();
                 if (!unique.add(url)) throw new IllegalArgumentException();
                 urls.add(url);
                 selections.add(select(registry, "http_get", "url", url));
             }
-            // Freeze the exact set and prepare every concrete policy before asking for group approval.
-            var retrievals = selections.stream().map(ToolSelection::prepare).toList();
-            prepared.addAll(retrievals);
             selected = urls.size();
             context.output().println("Proposed sources (model judgments, not verification):");
             for (int i = 0; i < selected; i++) {
@@ -127,20 +125,36 @@ final class ResearchCommand {
                 context.output().println("Role: " + candidate.role() + "; purpose: " + candidate.purpose());
                 context.output().println("Suitability reason: " + candidate.reason());
             }
-            context.output().println("URL syntax and host configuration passed; public DNS and network safety "
+            context.output().println("URL syntax passed; public DNS and network safety "
                     + "will be checked independently at each connection. This does not establish evidence strength.");
-            context.output().println("Approve only this exact set: one GET per URL, at most 32768 bytes and "
+            context.output().println("Research limits: one GET per selected URL, at most 512 KiB raw and 64 KiB extracted text and "
                     + "15 seconds each; at most 98304 bytes and 45 seconds of retrieval in total. "
                     + "URL paths/queries reach these hosts. Responses go only to local Ollama for this answer. "
-                    + "No redirects, retries or further links. Type 'approve' or 'deny'.");
-            String response = ApprovalInput.readBounded(reader);
-            if (ToolPermissionDecision.parse(response) != ToolPermissionDecision.APPROVED) {
-                for (var permission : retrievals) {
-                    permission.decide(response);
-                    record(permission);
-                }
-                return stopped("SOURCES_NOT_APPROVED", 0, selected);
+                    + "No redirects, retries or further links.");
+            var newHosts = new java.util.TreeSet<String>();
+            for (String url : urls) {
+                String host = java.net.URI.create(url).getHost();
+                if (!savedHosts.contains(host)) newHosts.add(host);
             }
+            if (!newHosts.isEmpty()) {
+                context.output().println("New publisher hostnames: " + String.join(", ", newHosts));
+                context.output().println("Type 'approve' to remember these exact hosts for current and future "
+                        + "research reads of any HTTPS page on them, or 'deny' to cancel. Subdomains are separate. "
+                        + "This approves access, not factual trust.");
+                context.output().println("Approval file: " + approvals.path()
+                        + ". Remove a hostname from this file to revoke it.");
+                if (ToolPermissionDecision.parse(ApprovalInput.readBounded(reader)) != ToolPermissionDecision.APPROVED) {
+                    return stopped("SOURCES_NOT_APPROVED", 0, selected);
+                }
+                checkInterrupted();
+                approvals.remember(newHosts);
+                context.output().println("Publisher host approvals saved.");
+            } else {
+                context.output().println("Using saved publisher host approvals; no new page approval required.");
+            }
+            // Each persisted host decision authorizes a fresh, exact single-use request grant.
+            var retrievals = selections.stream().map(ToolSelection::prepare).toList();
+            prepared.addAll(retrievals);
             var pages = new ArrayList<ToolResult<?>>();
             var successfulCandidates = new ArrayList<ResearchFormat.Candidate>();
             var successfulUrls = new ArrayList<String>();
@@ -148,8 +162,11 @@ final class ResearchCommand {
             stage = "RETRIEVAL";
             for (int i = 0; i < selected; i++) {
                 checkInterrupted();
+                if (!approvals.read().contains(java.net.URI.create(urls.get(i)).getHost())) {
+                    return stopped("HOST_APPROVAL_REVOKED", retrieved, selected);
+                }
                 var permission = retrievals.get(i);
-                if (permission.decide(response) != ToolPermissionDecision.APPROVED) {
+                if (permission.decide("approve") != ToolPermissionDecision.APPROVED) {
                     record(permission);
                     return stopped("CANCELLED", retrieved, selected);
                 }
@@ -163,7 +180,12 @@ final class ResearchCommand {
                             || exception.reason() == HttpGetException.Reason.INVALID_CONFIGURATION) throw exception;
                     checkInterrupted();
                     context.errorOutput().println("ERROR: Source [" + (i + 1) + "] retrieval failed: "
-                            + exception.reason().name() + "; continuing with remaining approved sources.");
+                            + exception.status().name() + "; reason=" + exception.reason().name()
+                            + (exception.failureDetail().isBlank() ? "" : "; detail=" + exception.failureDetail())
+                            + "; httpStatus=" + exception.httpStatus()
+                            + "; contentType=" + (exception.contentType().isBlank() ? "unknown" : exception.contentType())
+                            + "; finalUrl=" + (exception.finalUrl().isBlank() ? "unknown" : exception.finalUrl())
+                            + "; continuing with remaining approved sources.");
                     continue;
                 }
                 record(permission);
@@ -242,6 +264,8 @@ final class ResearchCommand {
                 context.output().println("[" + sourceIds.get(i) + "] " + successfulUrls.get(i));
             }
             return KaosApplication.SUCCESS;
+        } catch (ResearchHostApprovals.Unavailable exception) {
+            return stopped("HOST_APPROVAL_STORE_UNAVAILABLE", retrieved, selected);
         } catch (ResearchFailure exception) {
             return stopped(exception.code, retrieved, selected);
         } catch (HttpGetException exception) {
@@ -298,7 +322,7 @@ final class ResearchCommand {
 
     private int stopped(String reason, int retrieved, int selected) {
         context.output().println("Research stopped: " + reason + "; retrieved " + retrieved + "/" + selected
-                + " sources. No final answer was produced. Start a new run for a new approval.");
+                + " sources. No final answer was produced. Start a new run with a new search approval.");
         return KaosApplication.APPLICATION_ERROR;
     }
 }

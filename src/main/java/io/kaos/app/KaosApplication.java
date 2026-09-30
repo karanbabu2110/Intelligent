@@ -181,7 +181,7 @@ public final class KaosApplication {
                   read-local-file  Ask the local model about one explicitly approved local file.
                   http-get       Ask the local model about one explicitly approved HTTPS resource.
                   web-search     Ask with one approved web search or local-file read.
-                  research       Search, approve up to three exact URLs, retrieve and attribute an answer.
+                  research       Search, remember publisher host approvals, retrieve up to three URLs and attribute an answer.
                   agent          Run one bounded goal with up to two independently approved tools.
                   ollama-status  Check connectivity to the local Ollama server.
                   ollama-model   Show the explicitly configured local Ollama model.

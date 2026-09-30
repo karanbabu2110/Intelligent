@@ -194,7 +194,7 @@ final class HttpGetCommand {
             case HTTP_RATE_LIMITED -> "The approved HTTP GET returned HTTP 429 Too Many Requests.";
             case REQUEST_FAILED -> "The approved HTTP GET did not return a successful response.";
             case UNSUPPORTED_MEDIA_TYPE -> "The response was not a supported textual media type.";
-            case TOO_LARGE -> "The response exceeded the 32768-byte HTTP GET limit.";
+            case TOO_LARGE -> "The response exceeded the 512 KiB raw HTTP GET limit or 64 KiB extracted text limit.";
             case INVALID_UTF8, INVALID_CONTENT -> "The response was not safe bounded UTF-8 text.";
             case UNAVAILABLE -> "The approved HTTP resource could not be reached.";
             case APPROVAL_REUSED -> "The single-use HTTP GET approval was already consumed.";
