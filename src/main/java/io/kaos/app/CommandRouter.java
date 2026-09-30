@@ -20,6 +20,7 @@ final class CommandRouter {
     private ArgumentCommand webSearchCommand = argument -> KaosApplication.USAGE_ERROR;
     private ArgumentCommand researchCommand = argument -> KaosApplication.USAGE_ERROR;
     private ArgumentCommand agentCommand = argument -> KaosApplication.USAGE_ERROR;
+    private ArgumentCommand browserInspectCommand = argument -> KaosApplication.USAGE_ERROR;
     private Command toolCatalogCommand = () -> KaosApplication.USAGE_ERROR;
     private Command toolHistoryCommand = () -> KaosApplication.USAGE_ERROR;
 
@@ -35,6 +36,11 @@ final class CommandRouter {
 
     CommandRouter withAgent(ArgumentCommand command) {
         agentCommand = Objects.requireNonNull(command);
+        return this;
+    }
+
+    CommandRouter withBrowserInspect(ArgumentCommand command) {
+        browserInspectCommand = Objects.requireNonNull(command);
         return this;
     }
 
@@ -295,6 +301,10 @@ final class CommandRouter {
         }
         if (arguments.length == 2 && "agent".equals(arguments[0])) {
             return agentCommand.execute(arguments[1]);
+        }
+        if (arguments.length == 3 && "browser".equals(arguments[0])
+                && "inspect".equals(arguments[1])) {
+            return browserInspectCommand.execute(arguments[2]);
         }
         if (isCommand(arguments, "ollama-status")) {
             return ollamaStatusCommand.execute();
