@@ -84,6 +84,36 @@ class BrowserSessionRuntimeTest {
     }
 
     @Test
+    void backAndForwardRemainBoundToTheirExplicitlySelectedOrigins() throws Exception {
+        AtomicInteger posts = new AtomicInteger();
+        try (LocalPage first = new LocalPage(posts);
+             LocalPage second = new LocalPage(posts)) {
+            SessionResult result = run(first,
+                    "inspect " + second.uri() + "\nback\nforward\nclose\n");
+
+            assertEquals(KaosApplication.SUCCESS, result.exitCode(), result.output());
+            assertTrue(result.output().contains("Browser inspection complete"), result.output());
+            assertEquals(4, occurrences(result.output(), "Browser inspection complete"));
+            assertEquals(0, posts.get());
+        }
+    }
+
+    @Test
+    void extractsOnlyBoundedVisibleTextFromALargeSessionPage() throws Exception {
+        AtomicInteger posts = new AtomicInteger();
+        String document = "<body>" + "x".repeat(12000) + "TAIL</body>";
+        try (LocalPage page = new LocalPage(posts, false, document)) {
+            SessionResult result = run(page, "close\n");
+
+            assertEquals(KaosApplication.SUCCESS, result.exitCode(), result.output());
+            assertTrue(result.output().contains("[Visible text truncated at the extraction limit.]"));
+            assertFalse(result.output().contains("TAIL"));
+            assertTrue(result.output().length() < 4500,
+                    Integer.toString(result.output().length()));
+        }
+    }
+
+    @Test
     void keepsOnlyTheLastTwentyRecordedSteps() throws Exception {
         AtomicInteger posts = new AtomicInteger();
         try (LocalPage page = new LocalPage(posts)) {
@@ -142,10 +172,15 @@ class BrowserSessionRuntimeTest {
         private final HttpServer server;
 
         private LocalPage(AtomicInteger posts) throws Exception {
-            this(posts, false);
+            this(posts, false, "<form method=post><input id=query type=search><button>Submit</button></form>");
         }
 
         private LocalPage(AtomicInteger posts, boolean failSecondGet) throws Exception {
+            this(posts, failSecondGet,
+                    "<form method=post><input id=query type=search><button>Submit</button></form>");
+        }
+
+        private LocalPage(AtomicInteger posts, boolean failSecondGet, String body) throws Exception {
             server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             AtomicInteger gets = new AtomicInteger();
             server.createContext("/", exchange -> {
@@ -158,11 +193,10 @@ class BrowserSessionRuntimeTest {
                     return;
                 }
                 if ("POST".equals(exchange.getRequestMethod())) posts.incrementAndGet();
-                byte[] body = "<form method=post><input id=query type=search><button>Submit</button></form>"
-                        .getBytes(StandardCharsets.UTF_8);
+                byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
                 exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
-                exchange.sendResponseHeaders(200, body.length);
-                exchange.getResponseBody().write(body);
+                exchange.sendResponseHeaders(200, bytes.length);
+                exchange.getResponseBody().write(bytes);
                 exchange.close();
             });
             server.start();

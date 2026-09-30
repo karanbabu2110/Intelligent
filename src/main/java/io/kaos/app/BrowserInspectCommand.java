@@ -5,7 +5,6 @@ import java.util.Objects;
 
 /** Inspects one user-selected loopback page without persistent browser state or page actions. */
 final class BrowserInspectCommand {
-    private static final int MAX_TEXT_CODE_POINTS = 4000;
     private final CommandContext context;
 
     BrowserInspectCommand(CommandContext context) {
@@ -29,16 +28,30 @@ final class BrowserInspectCommand {
         }
     }
 
-    static boolean allowRequest(String rawUrl, String method, String resourceType) {
+    static boolean allowRequest(
+            String rawUrl, String method, String resourceType, URI selectedNavigation) {
         try {
             URI request = URI.create(rawUrl);
             return "http".equalsIgnoreCase(request.getScheme())
                     && "127.0.0.1".equals(request.getHost())
                     && "GET".equals(method)
-                    && "document".equals(resourceType);
+                    && "document".equals(resourceType)
+                    && sameOrigin(request, selectedNavigation);
         } catch (IllegalArgumentException exception) {
             return false;
         }
+    }
+
+    private static boolean sameOrigin(URI first, URI second) {
+        if (second == null || second.getHost() == null || second.getUserInfo() != null) return false;
+        return "http".equalsIgnoreCase(first.getScheme())
+                && "http".equalsIgnoreCase(second.getScheme())
+                && first.getHost().equalsIgnoreCase(second.getHost())
+                && effectivePort(first) == effectivePort(second);
+    }
+
+    private static int effectivePort(URI uri) {
+        return uri.getPort() >= 0 ? uri.getPort() : 80;
     }
 
     static URI parse(String rawUrl) {
@@ -65,15 +78,6 @@ final class BrowserInspectCommand {
         } catch (java.net.URISyntaxException | IllegalArgumentException exception) {
             return "127.0.0.1";
         }
-    }
-
-    static String bound(String value) {
-        if (value == null) return "";
-        int count = value.codePointCount(0, value.length());
-        if (count <= MAX_TEXT_CODE_POINTS) return value;
-        int end = value.offsetByCodePoints(0, MAX_TEXT_CODE_POINTS);
-        return value.substring(0, end) + "\n[Visible text truncated at "
-                + MAX_TEXT_CODE_POINTS + " Unicode code points.]";
     }
 
 }

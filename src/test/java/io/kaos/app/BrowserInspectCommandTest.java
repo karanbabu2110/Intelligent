@@ -34,15 +34,19 @@ class BrowserInspectCommandTest {
 
     @Test
     void permitsOnlyLoopbackGetDocumentRequests() {
+        URI selectedNavigation = URI.create("http://127.0.0.1:8080/page");
         assertTrue(BrowserInspectCommand.allowRequest(
-                "http://127.0.0.1:8080/page", "GET", "document"));
+                "http://127.0.0.1:8080/page", "GET", "document", selectedNavigation));
         assertFalse(BrowserInspectCommand.allowRequest(
-                "http://example.com/page", "GET", "document"));
+                "http://example.com/page", "GET", "document", selectedNavigation));
         assertFalse(BrowserInspectCommand.allowRequest(
-                "http://127.0.0.1:8080/page", "POST", "document"));
+                "http://127.0.0.1:8080/page", "POST", "document", selectedNavigation));
         assertFalse(BrowserInspectCommand.allowRequest(
-                "http://127.0.0.1:8080/image.png", "GET", "image"));
-        assertFalse(BrowserInspectCommand.allowRequest("malformed", "GET", "document"));
+                "http://127.0.0.1:8080/image.png", "GET", "image", selectedNavigation));
+        assertFalse(BrowserInspectCommand.allowRequest(
+                "http://127.0.0.1:8081/page", "GET", "document", selectedNavigation));
+        assertFalse(BrowserInspectCommand.allowRequest(
+                "malformed", "GET", "document", selectedNavigation));
     }
 
     @Test
@@ -50,19 +54,6 @@ class BrowserInspectCommandTest {
         assertEquals("http://127.0.0.1:8080/private/page",
                 BrowserInspectCommand.withoutQueryAndFragment(
                         "http://127.0.0.1:8080/private/page?token=secret#section"));
-    }
-
-    @Test
-    void boundsVisibleTextByUnicodeCodePoints() {
-        String astralCharacter = "\uD83D\uDE00";
-        String value = "a".repeat(3999) + astralCharacter + "b";
-
-        String bounded = BrowserInspectCommand.bound(value);
-
-        assertTrue(bounded.startsWith("a".repeat(3999) + astralCharacter));
-        assertTrue(bounded.endsWith("[Visible text truncated at 4000 Unicode code points.]"));
-        int markerIndex = bounded.indexOf("\n[Visible text");
-        assertEquals(4000, bounded.substring(0, markerIndex).codePointCount(0, markerIndex));
     }
 
     @Test

@@ -40,6 +40,17 @@ All commands in this guide run from the repository root.
 
 ## Verify a new checkout
 
+Browser runtime tests launch the Chromium version pinned by Playwright Java.
+Install it once before the full verification command:
+
+```powershell
+./gradlew.bat installChromium
+```
+
+On Linux or macOS, use `./gradlew installChromium`. This explicit step is
+required on a clean checkout; `verifyLocal` does not download browser binaries
+automatically. It needs network access on first install.
+
 Windows PowerShell or Command Prompt:
 
 ```powershell
