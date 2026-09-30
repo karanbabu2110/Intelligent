@@ -7,10 +7,35 @@ import io.kaos.app.config.ApplicationConfiguration;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
 class BrowserSessionCommandTest {
+    @Test
+    void parsesSessionNavigationAndCurrentPageInspectionCommands() {
+        assertEquals(BrowserSessionCommand.SessionAction.BACK,
+                BrowserSessionCommand.parseInput("back").action());
+        assertEquals(BrowserSessionCommand.SessionAction.FORWARD,
+                BrowserSessionCommand.parseInput("forward").action());
+        assertEquals(BrowserSessionCommand.SessionAction.RELOAD,
+                BrowserSessionCommand.parseInput("reload").action());
+        assertEquals(BrowserSessionCommand.SessionAction.INSPECT_CURRENT,
+                BrowserSessionCommand.parseInput("inspect").action());
+        assertEquals(new BrowserSessionCommand.SessionInput(
+                        BrowserSessionCommand.SessionAction.INSPECT_URL,
+                        URI.create("http://127.0.0.1:8080/next")),
+                BrowserSessionCommand.parseInput("inspect http://127.0.0.1:8080/next"));
+    }
+
+    @Test
+    void rejectsExternalInteractiveInspectionAndUnknownCommands() {
+        assertEquals(BrowserSessionCommand.SessionAction.INVALID_URL,
+                BrowserSessionCommand.parseInput("inspect https://example.com").action());
+        assertEquals(BrowserSessionCommand.SessionAction.UNKNOWN,
+                BrowserSessionCommand.parseInput("click submit").action());
+    }
+
     @Test
     void rejectsNonLoopbackUrlBeforeStartingBrowser() {
         ByteArrayOutputStream error = new ByteArrayOutputStream();
