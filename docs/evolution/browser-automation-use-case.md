@@ -23,10 +23,11 @@ context close when the command ends.
 - Do not print query strings or fragments from the final URL.
 
 This slice is intended for inspecting a local application or development page.
-External websites, interactive page actions, approval prompts, saved sessions,
-screenshots, and workflow recording remain future features. A local page can
-still return data or perform server-side effects for HTTP GET requests; use a
-local service whose behavior you understand.
+External websites, clicks, submissions, approval prompts, saved profiles,
+screenshots, and workflow recording remain future features. Bounded text-field
+filling is documented below. A local page can still return data or perform
+server-side effects for HTTP GET requests; use a local service whose behavior
+you understand.
 
 ## Temporary session control (Feature 010.02), navigation (Feature 010.03)
 
@@ -42,7 +43,17 @@ End-of-input also closes the session. Navigation uses the same loopback-only
 GET-document policy as one-shot inspection. Session state exists only in the
 current process and is discarded on close; KAOS does not use or save a browser
 profile. History controls stay within that temporary session. The session is
-headless and does not offer page actions.
+headless.
+
+## Bounded text input (Feature 010.04)
+
+The session also accepts `fill <selector> <text>` for one visible, enabled,
+editable `<textarea>` or `<input>` of type `text`, `email`, `search`, `tel`, or
+`url`. The selector must match exactly one element and the value is limited to
+256 Unicode code points. Passwords, hidden or readonly fields, other input
+types, and ambiguous selectors are rejected. KAOS does not echo the value,
+click a control, or submit a form. JavaScript remains disabled and the filled
+value exists only in the temporary page context.
 
 ## Run
 
@@ -68,7 +79,8 @@ For a foreground session, run:
 ```
 
 Then enter `inspect http://127.0.0.1:8080/other`, `back`, `forward`, `reload`,
-`inspect`, `status`, or `close` at the `browser-session>` prompt.
+`fill #search example query`, `inspect`, `status`, or `close` at the
+`browser-session>` prompt.
 
 If the browser binary or local page is unavailable, the command exits with an
 actionable error and does not report a successful inspection.

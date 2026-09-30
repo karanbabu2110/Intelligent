@@ -3,6 +3,7 @@ package io.kaos.app;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.PlaywrightException;
@@ -35,7 +36,8 @@ final class BrowserSessionRuntime {
             Page page = browserContext.newPage();
             int exitCode = inspect(context, page, initialUri);
             context.output().println(
-                    "Browser session is open. Commands: inspect [loopback-url], back, forward, reload, status, close.");
+                    "Browser session is open. Commands: inspect [loopback-url], back, forward, reload, "
+                            + "fill <selector> <text>, status, close.");
             BufferedReader input = new BufferedReader(
                     new InputStreamReader(context.input(), StandardCharsets.UTF_8));
             while (true) {
@@ -67,6 +69,11 @@ final class BrowserSessionRuntime {
                         }
                         case INSPECT_CURRENT -> printPage(context, page);
                         case INSPECT_URL -> inspect(context, page, inputCommand.uri());
+                        case FILL -> {
+                            int fillExitCode = fill(context, page,
+                                    inputCommand.selector(), inputCommand.value());
+                            if (fillExitCode != KaosApplication.SUCCESS) exitCode = fillExitCode;
+                        }
                         case BACK -> historyNavigation(context, page, page.goBack(
                                 new Page.GoBackOptions().setTimeout(NAVIGATION_TIMEOUT_MILLIS)));
                         case FORWARD -> historyNavigation(context, page, page.goForward(
@@ -81,15 +88,21 @@ final class BrowserSessionRuntime {
                                     "Expected inspect followed by an HTTP URL on 127.0.0.1 with an explicit port.");
                             exitCode = KaosApplication.USAGE_ERROR;
                         }
+                        case INVALID_INPUT -> {
+                            context.errorOutput().println(
+                                    "Expected fill <single-token-selector> <text> with at most 256 Unicode code points.");
+                            exitCode = KaosApplication.USAGE_ERROR;
+                        }
                         case UNKNOWN -> {
                             context.errorOutput().println(
-                                    "Expected inspect [loopback-url], back, forward, reload, status, or close.");
+                                    "Expected inspect [loopback-url], back, forward, reload, "
+                                            + "fill <selector> <text>, status, or close.");
                             exitCode = KaosApplication.USAGE_ERROR;
                         }
                     }
                 } catch (PlaywrightException exception) {
                     context.errorOutput().println(
-                            "Browser navigation or inspection failed. Check Chromium and that the local page is reachable.");
+                            "Browser command failed. Check Chromium, the selector, and that the local page is reachable.");
                     exitCode = KaosApplication.APPLICATION_ERROR;
                 }
             }
@@ -124,6 +137,41 @@ final class BrowserSessionRuntime {
             return;
         }
         printPage(context, page);
+    }
+
+    private static int fill(CommandContext context, Page page, String selector, String value) {
+        Locator target = page.locator(selector);
+        if (target.count() != 1) {
+            context.errorOutput().println(
+                    "Fill rejected. The selector must match exactly one field.");
+            return KaosApplication.USAGE_ERROR;
+        }
+
+        String tagName = target.evaluate("element => element.tagName.toLowerCase()").toString();
+        String type = "input".equals(tagName) ? target.getAttribute("type") : null;
+        if (!BrowserSessionCommand.eligibleFillTarget(tagName, type,
+                target.isVisible(), target.isEnabled(), target.isEditable())) {
+            context.errorOutput().println(
+                    "Fill rejected. Target must be one visible, enabled, editable text input or textarea.");
+            return KaosApplication.USAGE_ERROR;
+        }
+
+        String maxLength = target.getAttribute("maxlength");
+        if (maxLength != null) {
+            try {
+                int maximum = Integer.parseInt(maxLength);
+                if (maximum >= 0 && value.length() > maximum) {
+                    context.errorOutput().println(
+                            "Fill rejected. The value exceeds this field's maximum length.");
+                    return KaosApplication.USAGE_ERROR;
+                }
+            } catch (NumberFormatException ignored) {
+                // Invalid maxlength attributes have no browser-enforced limit.
+            }
+        }
+        target.fill(value);
+        context.output().println("Filled one eligible text field. It was not submitted; value was not echoed.");
+        return KaosApplication.SUCCESS;
     }
 
     private static void allowLoopbackOnly(Route route) {

@@ -184,7 +184,7 @@ public final class KaosApplication {
                   research       Search, remember publisher host approvals, retrieve up to three URLs and attribute an answer.
                   agent          Run one bounded goal with up to two independently approved tools.
                   browser inspect  Read a local web page in a temporary isolated Chromium session.
-                  browser session  Inspect and navigate local pages in a temporary session.
+                  browser session  Inspect, navigate, or safely fill a local text field in a temporary session.
                   ollama-status  Check connectivity to the local Ollama server.
                   ollama-model   Show the explicitly configured local Ollama model.
                   ollama-prompt  Submit one quoted prompt and stream the answer.
