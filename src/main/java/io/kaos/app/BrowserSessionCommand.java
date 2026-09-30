@@ -29,7 +29,12 @@ final class BrowserSessionCommand {
     }
 
     static SessionInput parseInput(String rawInput) {
-        String input = rawInput == null ? "" : rawInput.strip();
+        String raw = rawInput == null ? "" : rawInput.stripLeading();
+        if ("fill".equals(raw)) {
+            return new SessionInput(SessionAction.INVALID_INPUT, null, null, null);
+        }
+        if (raw.startsWith("fill ")) return parseFill(raw.substring("fill ".length()));
+        String input = raw.stripTrailing();
         return switch (input) {
             case "close" -> new SessionInput(SessionAction.CLOSE, null);
             case "status" -> new SessionInput(SessionAction.STATUS, null);
@@ -51,6 +56,27 @@ final class BrowserSessionCommand {
                 : new SessionInput(SessionAction.INSPECT_URL, uri);
     }
 
+    private static SessionInput parseFill(String input) {
+        int separator = input.indexOf(' ');
+        if (separator < 1) return new SessionInput(SessionAction.INVALID_INPUT, null, null, null);
+        String selector = input.substring(0, separator);
+        String value = input.substring(separator + 1);
+        if (selector.codePointCount(0, selector.length()) > 256
+                || value.codePointCount(0, value.length()) > 256) {
+            return new SessionInput(SessionAction.INVALID_INPUT, null, null, null);
+        }
+        return new SessionInput(SessionAction.FILL, null, selector, value);
+    }
+
+    static boolean eligibleFillTarget(
+            String tagName, String inputType, boolean visible, boolean enabled, boolean editable) {
+        if (!visible || !enabled || !editable) return false;
+        if ("textarea".equals(tagName)) return true;
+        if (!"input".equals(tagName)) return false;
+        String type = inputType == null ? "text" : inputType.toLowerCase(java.util.Locale.ROOT);
+        return java.util.Set.of("text", "email", "search", "tel", "url").contains(type);
+    }
+
     enum SessionAction {
         CLOSE,
         STATUS,
@@ -59,10 +85,15 @@ final class BrowserSessionCommand {
         RELOAD,
         INSPECT_CURRENT,
         INSPECT_URL,
+        FILL,
+        INVALID_INPUT,
         INVALID_URL,
         UNKNOWN
     }
 
-    record SessionInput(SessionAction action, URI uri) {
+    record SessionInput(SessionAction action, URI uri, String selector, String value) {
+        SessionInput(SessionAction action, URI uri) {
+            this(action, uri, null, null);
+        }
     }
 }
