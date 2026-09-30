@@ -22,6 +22,7 @@ final class CommandRouter {
     private ArgumentCommand agentCommand = argument -> KaosApplication.USAGE_ERROR;
     private ArgumentCommand browserInspectCommand = argument -> KaosApplication.USAGE_ERROR;
     private ArgumentCommand browserSessionCommand = argument -> KaosApplication.USAGE_ERROR;
+    private Command browserDemoCommand = () -> KaosApplication.USAGE_ERROR;
     private Command toolCatalogCommand = () -> KaosApplication.USAGE_ERROR;
     private Command toolHistoryCommand = () -> KaosApplication.USAGE_ERROR;
 
@@ -47,6 +48,11 @@ final class CommandRouter {
 
     CommandRouter withBrowserSession(ArgumentCommand command) {
         browserSessionCommand = Objects.requireNonNull(command);
+        return this;
+    }
+
+    CommandRouter withBrowserDemo(Command command) {
+        browserDemoCommand = Objects.requireNonNull(command);
         return this;
     }
 
@@ -316,6 +322,9 @@ final class CommandRouter {
                 && "session".equals(arguments[1])) {
             return browserSessionCommand.execute(arguments[2]);
         }
+        if (isCommand(arguments, "browser", "demo")) {
+            return browserDemoCommand.execute();
+        }
         if (isCommand(arguments, "ollama-status")) {
             return ollamaStatusCommand.execute();
         }
@@ -406,6 +415,10 @@ final class CommandRouter {
 
     private static boolean isCommand(String[] arguments, String command) {
         return arguments.length == 1 && command.equals(arguments[0]);
+    }
+
+    private static boolean isCommand(String[] arguments, String first, String second) {
+        return arguments.length == 2 && first.equals(arguments[0]) && second.equals(arguments[1]);
     }
 
     private static String invalidArgumentsMessage(String[] arguments) {

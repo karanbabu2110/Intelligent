@@ -99,6 +99,7 @@ quotes.
 | `kaos agent "<goal>"` | One quoted goal up to 4,096 Unicode code points | One model-proposed validated plan of at most three sequential steps, up to two independently approved tools, then one synthesis/result |
 | `kaos browser inspect <loopback-url>` | One `http://127.0.0.1` URL with explicit port | Inspect one local page in an isolated temporary Chromium context and print its title and at most 4,000 code points of visible text |
 | `kaos browser session <loopback-url>` | One `http://127.0.0.1` URL with explicit port | Keep one temporary context open for local inspection, history navigation, and approval-gated bounded text-field filling; close with `close` or end of input |
+| `kaos browser demo` | None | Run a scripted end-to-end browser workflow against a temporary loopback fixture and verify no form submission occurred |
 | `kaos ollama-status` | None | Check the fixed local Ollama endpoint |
 | `kaos ollama-model` | None | Validate and display the configured chat model |
 | `kaos ollama-prompt "<prompt>"` | One quoted prompt | Generate one local Ollama answer |
@@ -516,6 +517,6 @@ Epic 009 is complete at the repository level. Its
 goal-to-result workflow above the unchanged Epic 008 tool runtime. The next
 evolutionary stage is
 [Epic 010 - Browser Automation](https://github.com/karanbabu2110/KAOS/issues/26),
-which most recently delivered Feature 010.07. Feature 010.01 delivered a loopback-only page inspection command, documented in [the use-case record](docs/evolution/browser-automation-use-case.md). Feature 010.02 added temporary in-process session lifecycle control. Feature 010.03 added local page history navigation and current-page inspection. Feature 010.04 added bounded text-field input without submission. Feature 010.05 requires explicit per-action approval before filling. Feature 010.06 restores the last successful local page after interactive navigation failures. Feature 010.07 adds opt-in, privacy-bounded recording of recent local navigation steps. Epic 009 did not include browser automation.
+which most recently delivered Feature 010.07. Feature 010.01 delivered a loopback-only page inspection command, documented in [the use-case record](docs/evolution/browser-automation-use-case.md). Feature 010.02 added temporary in-process session lifecycle control. Feature 010.03 added local page history navigation and current-page inspection. Feature 010.04 added bounded text-field input without submission. Feature 010.05 requires explicit per-action approval before filling. Feature 010.06 restores the last successful local page after interactive navigation failures. Feature 010.07 adds opt-in, privacy-bounded recording of recent local navigation steps. Feature 010.08 adds a repeatable local end-to-end browser demonstration with an explicit no-submission check. Epic 009 did not include browser automation.
 background work, replanning, parallel execution, or sub-agent behavior is
 implemented by Epic 009.

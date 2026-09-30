@@ -84,6 +84,28 @@ class CommandRouterTest {
     }
 
     @Test
+    void dispatchesBrowserDemoWithoutArguments() {
+        AtomicInteger calls = new AtomicInteger();
+        CommandRouter.Command command = () -> KaosApplication.SUCCESS;
+        CommandRouter router = new CommandRouter(
+                context(new ByteArrayOutputStream(), new ByteArrayOutputStream()),
+                argument -> KaosApplication.USAGE_ERROR,
+                command,
+                command,
+                argument -> KaosApplication.USAGE_ERROR,
+                command)
+                .withBrowserDemo(() -> {
+                    calls.incrementAndGet();
+                    return KaosApplication.SUCCESS;
+                });
+
+        assertEquals(KaosApplication.SUCCESS, router.route(new String[] {"browser", "demo"}));
+        assertEquals(KaosApplication.USAGE_ERROR,
+                router.route(new String[] {"browser", "demo", "extra"}));
+        assertEquals(1, calls.get());
+    }
+
+    @Test
     void dispatchesToolHistoryWithoutArguments() {
         AtomicInteger historyCalls = new AtomicInteger();
         CommandRouter.Command command = () -> KaosApplication.SUCCESS;
