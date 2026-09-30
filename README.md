@@ -516,6 +516,6 @@ Epic 009 is complete at the repository level. Its
 goal-to-result workflow above the unchanged Epic 008 tool runtime. The next
 evolutionary stage is
 [Epic 010 - Browser Automation](https://github.com/karanbabu2110/KAOS/issues/26),
-which is active with Feature 010.05. Feature 010.01 delivered a loopback-only page inspection command, documented in [the use-case record](docs/evolution/browser-automation-use-case.md). Feature 010.02 added temporary in-process session lifecycle control. Feature 010.03 added local page history navigation and current-page inspection. Feature 010.04 added bounded text-field input without submission. Feature 010.05 requires explicit per-action approval before filling. Epic 009 did not include browser automation.
+which most recently delivered Feature 010.05. Feature 010.01 delivered a loopback-only page inspection command, documented in [the use-case record](docs/evolution/browser-automation-use-case.md). Feature 010.02 added temporary in-process session lifecycle control. Feature 010.03 added local page history navigation and current-page inspection. Feature 010.04 added bounded text-field input without submission. Feature 010.05 requires explicit per-action approval before filling. Epic 009 did not include browser automation.
 background work, replanning, parallel execution, or sub-agent behavior is
 implemented by Epic 009.
