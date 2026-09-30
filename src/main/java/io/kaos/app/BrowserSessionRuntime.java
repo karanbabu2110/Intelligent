@@ -35,6 +35,7 @@ final class BrowserSessionRuntime {
             browserContext.route("**/*", BrowserSessionRuntime::allowLoopbackOnly);
             Page page = browserContext.newPage();
             int exitCode = inspect(context, page, initialUri);
+            URI lastKnownGoodUri = initialUri;
             context.output().println(
                     "Browser session is open. Commands: inspect [loopback-url], back, forward, reload, "
                             + "fill <selector> <text>, status, close.");
@@ -68,20 +69,35 @@ final class BrowserSessionRuntime {
                                     + BrowserInspectCommand.withoutQueryAndFragment(page.url()));
                         }
                         case INSPECT_CURRENT -> printPage(context, page);
-                        case INSPECT_URL -> inspect(context, page, inputCommand.uri());
+                        case INSPECT_URL -> {
+                            inspect(context, page, inputCommand.uri());
+                            lastKnownGoodUri = URI.create(page.url());
+                        }
                         case FILL -> {
                             int fillExitCode = fill(context, input, page,
                                     inputCommand.selector(), inputCommand.value());
                             if (fillExitCode != KaosApplication.SUCCESS) exitCode = fillExitCode;
                         }
-                        case BACK -> historyNavigation(context, page, page.goBack(
-                                new Page.GoBackOptions().setTimeout(NAVIGATION_TIMEOUT_MILLIS)));
-                        case FORWARD -> historyNavigation(context, page, page.goForward(
-                                new Page.GoForwardOptions().setTimeout(NAVIGATION_TIMEOUT_MILLIS)));
-                        case RELOAD -> {
-                            page.reload(new Page.ReloadOptions()
+                        case BACK -> {
+                            Response response = page.goBack(new Page.GoBackOptions()
                                     .setTimeout(NAVIGATION_TIMEOUT_MILLIS));
+                            ensureSuccessfulNavigation(response);
+                            historyNavigation(context, page, response);
+                            if (response != null) lastKnownGoodUri = URI.create(page.url());
+                        }
+                        case FORWARD -> {
+                            Response response = page.goForward(new Page.GoForwardOptions()
+                                    .setTimeout(NAVIGATION_TIMEOUT_MILLIS));
+                            ensureSuccessfulNavigation(response);
+                            historyNavigation(context, page, response);
+                            if (response != null) lastKnownGoodUri = URI.create(page.url());
+                        }
+                        case RELOAD -> {
+                            Response response = page.reload(new Page.ReloadOptions()
+                                    .setTimeout(NAVIGATION_TIMEOUT_MILLIS));
+                            ensureSuccessfulNavigation(response);
                             printPage(context, page);
+                            lastKnownGoodUri = URI.create(page.url());
                         }
                         case INVALID_URL -> {
                             context.errorOutput().println(
@@ -100,13 +116,25 @@ final class BrowserSessionRuntime {
                             exitCode = KaosApplication.USAGE_ERROR;
                         }
                     }
-                } catch (PlaywrightException exception) {
-                    context.errorOutput().println(
-                            "Browser command failed. Check Chromium, the selector, and that the local page is reachable.");
+                } catch (PlaywrightException | BrowserNavigationFailureException exception) {
+                    if (isNavigationAction(inputCommand.action())) {
+                        context.errorOutput().println(
+                                "Browser navigation failed. Check that the local page is available.");
+                        if (restoreLastKnownGoodPage(context, page, lastKnownGoodUri)) {
+                            context.output().println(
+                                    "Recovered the last successfully loaded page. The session remains open.");
+                        } else {
+                            context.errorOutput().println(
+                                    "Could not restore the last successfully loaded page. The session remains open.");
+                        }
+                    } else {
+                        context.errorOutput().println(
+                                "Browser command failed. Check Chromium, the selector, and that the local page is reachable.");
+                    }
                     exitCode = KaosApplication.APPLICATION_ERROR;
                 }
             }
-        } catch (PlaywrightException exception) {
+        } catch (PlaywrightException | BrowserNavigationFailureException exception) {
             context.errorOutput().println(
                     "Browser session failed to start or close. Check Chromium with the Gradle task "
                             + "'installChromium' and that the local page is reachable.");
@@ -115,8 +143,9 @@ final class BrowserSessionRuntime {
     }
 
     private static int inspect(CommandContext context, Page page, URI uri) {
-        page.navigate(uri.toASCIIString(), new Page.NavigateOptions()
+        Response response = page.navigate(uri.toASCIIString(), new Page.NavigateOptions()
                 .setTimeout(NAVIGATION_TIMEOUT_MILLIS));
+        ensureSuccessfulNavigation(response);
         printPage(context, page);
         return KaosApplication.SUCCESS;
     }
@@ -137,6 +166,36 @@ final class BrowserSessionRuntime {
             return;
         }
         printPage(context, page);
+    }
+
+    private static boolean restoreLastKnownGoodPage(
+            CommandContext context, Page page, URI lastKnownGoodUri) {
+        try {
+            Response response = page.navigate(lastKnownGoodUri.toASCIIString(),
+                    new Page.NavigateOptions().setTimeout(NAVIGATION_TIMEOUT_MILLIS));
+            ensureSuccessfulNavigation(response);
+            printPage(context, page);
+            return true;
+        } catch (PlaywrightException | BrowserNavigationFailureException exception) {
+            return false;
+        }
+    }
+
+    private static boolean isNavigationAction(BrowserSessionCommand.SessionAction action) {
+        return switch (action) {
+            case INSPECT_URL, BACK, FORWARD, RELOAD -> true;
+            default -> false;
+        };
+    }
+
+    private static void ensureSuccessfulNavigation(Response response) {
+        if (response != null && response.status() >= 400) {
+            throw new BrowserNavigationFailureException();
+        }
+    }
+
+    private static final class BrowserNavigationFailureException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
     }
 
     private static int fill(

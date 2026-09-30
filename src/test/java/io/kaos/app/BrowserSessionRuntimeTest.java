@@ -45,6 +45,22 @@ class BrowserSessionRuntimeTest {
         }
     }
 
+    @Test
+    void restoresTheLastSuccessfulPageAfterAnInteractiveNavigationFailure() throws Exception {
+        AtomicInteger posts = new AtomicInteger();
+        try (LocalPage page = new LocalPage(posts, true)) {
+            SessionResult result = run(page, "reload\ninspect\nclose\n");
+
+            assertEquals(KaosApplication.APPLICATION_ERROR, result.exitCode());
+            assertTrue(result.output().contains("Recovered the last successfully loaded page."),
+                    result.output());
+            assertTrue(result.output().contains("Browser session is open."));
+            assertTrue(result.output().contains("Browser session closed."));
+            assertTrue(result.output().split("Browser inspection complete", -1).length >= 3);
+            assertEquals(0, posts.get());
+        }
+    }
+
     private static SessionResult run(LocalPage page, String commands) {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         ByteArrayOutputStream error = new ByteArrayOutputStream();
@@ -64,8 +80,21 @@ class BrowserSessionRuntimeTest {
         private final HttpServer server;
 
         private LocalPage(AtomicInteger posts) throws Exception {
+            this(posts, false);
+        }
+
+        private LocalPage(AtomicInteger posts, boolean failSecondGet) throws Exception {
             server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+            AtomicInteger gets = new AtomicInteger();
             server.createContext("/", exchange -> {
+                if ("GET".equals(exchange.getRequestMethod())
+                        && failSecondGet && gets.incrementAndGet() == 2) {
+                    byte[] failure = "temporary failure".getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(503, failure.length);
+                    exchange.getResponseBody().write(failure);
+                    exchange.close();
+                    return;
+                }
                 if ("POST".equals(exchange.getRequestMethod())) posts.incrementAndGet();
                 byte[] body = "<form method=post><input id=query type=search><button>Submit</button></form>"
                         .getBytes(StandardCharsets.UTF_8);
