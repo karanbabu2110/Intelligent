@@ -1,4 +1,8 @@
-package io.kaos.app;
+package io.kaos.app.browser;
+
+import io.kaos.app.KaosApplication;
+
+import io.kaos.app.CommandContext;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -9,16 +13,18 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
+import io.kaos.app.CommandContext;
+import io.kaos.app.KaosApplication;
 
 /** Runs a repeatable browser workflow against a temporary loopback fixture. */
-final class BrowserDemoCommand {
+public final class BrowserDemoCommand {
     private final CommandContext context;
 
-    BrowserDemoCommand(CommandContext context) {
+    public BrowserDemoCommand(CommandContext context) {
         this.context = Objects.requireNonNull(context, "context");
     }
 
-    int execute() {
+    public int execute() {
         HttpServer fixture;
         try {
             fixture = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);

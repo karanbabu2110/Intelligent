@@ -1,4 +1,4 @@
-package io.kaos.app;
+package io.kaos.app.browser;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;

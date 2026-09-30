@@ -1,4 +1,8 @@
-package io.kaos.app;
+package io.kaos.app.browser;
+import io.kaos.app.KaosApplication;
+
+import io.kaos.app.CommandContext;
+import io.kaos.app.config.ApplicationConfiguration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -6,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import io.kaos.app.config.ApplicationConfiguration;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;

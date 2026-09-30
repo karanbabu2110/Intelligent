@@ -12,9 +12,9 @@ import java.util.function.Supplier;
  * The single process entry point for the evolving KAOS application.
  */
 public final class KaosApplication {
-    static final int SUCCESS = 0;
-    static final int APPLICATION_ERROR = 1;
-    static final int USAGE_ERROR = 2;
+    public static final int SUCCESS = 0;
+    public static final int APPLICATION_ERROR = 1;
+    public static final int USAGE_ERROR = 2;
 
     static final String INVALID_CONFIGURATION_CODE = "KAOS-CONFIG-001";
     static final String UNREADABLE_CONFIGURATION_CODE = "KAOS-CONFIG-002";

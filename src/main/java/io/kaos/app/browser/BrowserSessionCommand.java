@@ -1,17 +1,23 @@
-package io.kaos.app;
+package io.kaos.app.browser;
+
+import io.kaos.app.KaosApplication;
+
+import io.kaos.app.CommandContext;
 
 import java.net.URI;
 import java.util.Objects;
+import io.kaos.app.CommandContext;
+import io.kaos.app.KaosApplication;
 
 /** Controls one foreground, in-memory browser session. */
-final class BrowserSessionCommand {
+public final class BrowserSessionCommand {
     private final CommandContext context;
 
-    BrowserSessionCommand(CommandContext context) {
+    public BrowserSessionCommand(CommandContext context) {
         this.context = Objects.requireNonNull(context, "context");
     }
 
-    int execute(String rawUrl) {
+    public int execute(String rawUrl) {
         URI uri = BrowserInspectCommand.parse(rawUrl);
         if (uri == null) {
             context.errorOutput().println(
