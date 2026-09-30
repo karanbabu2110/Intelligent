@@ -27,4 +27,42 @@ final class BrowserSessionCommand {
             return KaosApplication.APPLICATION_ERROR;
         }
     }
+
+    static SessionInput parseInput(String rawInput) {
+        String input = rawInput == null ? "" : rawInput.strip();
+        return switch (input) {
+            case "close" -> new SessionInput(SessionAction.CLOSE, null);
+            case "status" -> new SessionInput(SessionAction.STATUS, null);
+            case "back" -> new SessionInput(SessionAction.BACK, null);
+            case "forward" -> new SessionInput(SessionAction.FORWARD, null);
+            case "reload" -> new SessionInput(SessionAction.RELOAD, null);
+            case "inspect" -> new SessionInput(SessionAction.INSPECT_CURRENT, null);
+            default -> parseInspection(input);
+        };
+    }
+
+    private static SessionInput parseInspection(String input) {
+        if (!input.startsWith("inspect ")) {
+            return new SessionInput(SessionAction.UNKNOWN, null);
+        }
+        URI uri = BrowserInspectCommand.parse(input.substring("inspect ".length()).strip());
+        return uri == null
+                ? new SessionInput(SessionAction.INVALID_URL, null)
+                : new SessionInput(SessionAction.INSPECT_URL, uri);
+    }
+
+    enum SessionAction {
+        CLOSE,
+        STATUS,
+        BACK,
+        FORWARD,
+        RELOAD,
+        INSPECT_CURRENT,
+        INSPECT_URL,
+        INVALID_URL,
+        UNKNOWN
+    }
+
+    record SessionInput(SessionAction action, URI uri) {
+    }
 }

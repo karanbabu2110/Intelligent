@@ -6,6 +6,7 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.PlaywrightException;
+import com.microsoft.playwright.Response;
 import com.microsoft.playwright.Route;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -34,7 +35,7 @@ final class BrowserSessionRuntime {
             Page page = browserContext.newPage();
             int exitCode = inspect(context, page, initialUri);
             context.output().println(
-                    "Browser session is open. Commands: inspect <loopback-url>, status, close.");
+                    "Browser session is open. Commands: inspect [loopback-url], back, forward, reload, status, close.");
             BufferedReader input = new BufferedReader(
                     new InputStreamReader(context.input(), StandardCharsets.UTF_8));
             while (true) {
@@ -51,38 +52,46 @@ final class BrowserSessionRuntime {
                     context.output().println("Browser session closed at end of input.");
                     return exitCode;
                 }
-                String command = line.strip();
-                if ("close".equals(command)) {
-                    context.output().println("Browser session closed.");
-                    return exitCode;
-                }
-                if ("status".equals(command)) {
-                    context.output().println("Browser session is open.");
-                    context.output().println("URL: "
-                            + BrowserInspectCommand.withoutQueryAndFragment(page.url()));
-                    continue;
-                }
-                if (command.startsWith("inspect ")) {
-                    URI uri = BrowserInspectCommand.parse(command.substring("inspect ".length()).strip());
-                    if (uri == null) {
-                        context.errorOutput().println(
-                                "Expected inspect followed by an HTTP URL on 127.0.0.1 with an explicit port.");
-                        exitCode = KaosApplication.USAGE_ERROR;
-                        continue;
+                BrowserSessionCommand.SessionInput inputCommand =
+                        BrowserSessionCommand.parseInput(line);
+                try {
+                    switch (inputCommand.action()) {
+                        case CLOSE -> {
+                            context.output().println("Browser session closed.");
+                            return exitCode;
+                        }
+                        case STATUS -> {
+                            context.output().println("Browser session is open.");
+                            context.output().println("URL: "
+                                    + BrowserInspectCommand.withoutQueryAndFragment(page.url()));
+                        }
+                        case INSPECT_CURRENT -> printPage(context, page);
+                        case INSPECT_URL -> inspect(context, page, inputCommand.uri());
+                        case BACK -> historyNavigation(context, page, page.goBack(
+                                new Page.GoBackOptions().setTimeout(NAVIGATION_TIMEOUT_MILLIS)));
+                        case FORWARD -> historyNavigation(context, page, page.goForward(
+                                new Page.GoForwardOptions().setTimeout(NAVIGATION_TIMEOUT_MILLIS)));
+                        case RELOAD -> {
+                            page.reload(new Page.ReloadOptions()
+                                    .setTimeout(NAVIGATION_TIMEOUT_MILLIS));
+                            printPage(context, page);
+                        }
+                        case INVALID_URL -> {
+                            context.errorOutput().println(
+                                    "Expected inspect followed by an HTTP URL on 127.0.0.1 with an explicit port.");
+                            exitCode = KaosApplication.USAGE_ERROR;
+                        }
+                        case UNKNOWN -> {
+                            context.errorOutput().println(
+                                    "Expected inspect [loopback-url], back, forward, reload, status, or close.");
+                            exitCode = KaosApplication.USAGE_ERROR;
+                        }
                     }
-                    try {
-                        int inspectionExitCode = inspect(context, page, uri);
-                        if (inspectionExitCode != KaosApplication.SUCCESS) exitCode = inspectionExitCode;
-                    } catch (PlaywrightException exception) {
-                        context.errorOutput().println(
-                                "Page inspection failed. Check Chromium and that the local page is reachable.");
-                        exitCode = KaosApplication.APPLICATION_ERROR;
-                    }
-                    continue;
+                } catch (PlaywrightException exception) {
+                    context.errorOutput().println(
+                            "Browser navigation or inspection failed. Check Chromium and that the local page is reachable.");
+                    exitCode = KaosApplication.APPLICATION_ERROR;
                 }
-                context.errorOutput().println(
-                        "Expected inspect <loopback-url>, status, or close.");
-                exitCode = KaosApplication.USAGE_ERROR;
             }
         } catch (PlaywrightException exception) {
             context.errorOutput().println(
@@ -95,6 +104,11 @@ final class BrowserSessionRuntime {
     private static int inspect(CommandContext context, Page page, URI uri) {
         page.navigate(uri.toASCIIString(), new Page.NavigateOptions()
                 .setTimeout(NAVIGATION_TIMEOUT_MILLIS));
+        printPage(context, page);
+        return KaosApplication.SUCCESS;
+    }
+
+    private static void printPage(CommandContext context, Page page) {
         String title = page.title();
         String text = page.locator("body").innerText();
         context.output().println("Browser inspection complete (temporary session).");
@@ -102,7 +116,14 @@ final class BrowserSessionRuntime {
         context.output().println("Title: " + prefix(oneLine(title), 256));
         context.output().println("Visible text:");
         context.output().println(BrowserInspectCommand.bound(text));
-        return KaosApplication.SUCCESS;
+    }
+
+    private static void historyNavigation(CommandContext context, Page page, Response response) {
+        if (response == null) {
+            context.output().println("No page is available in that direction in this session.");
+            return;
+        }
+        printPage(context, page);
     }
 
     private static void allowLoopbackOnly(Route route) {
