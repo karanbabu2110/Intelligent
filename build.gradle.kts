@@ -36,7 +36,7 @@ dependencies {
 
 tasks.register<JavaExec>("installChromium") {
     group = "application"
-    description = "Installs the Chromium binary required by local browser inspection."
+    description = "Installs the Chromium binary required by KAOS browser features and research rendering."
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("com.microsoft.playwright.CLI")
     args("install", "chromium")

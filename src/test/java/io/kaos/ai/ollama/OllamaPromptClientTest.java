@@ -15,6 +15,7 @@ import io.kaos.conversation.ConversationMessage;
 import io.kaos.conversation.ConversationRole;
 import io.kaos.tool.httpget.HttpGetRequest;
 import io.kaos.tool.httpget.HttpGetResult;
+import io.kaos.tool.browserrender.BrowserRenderedResult;
 import io.kaos.tool.httpget.HttpGetToolContract;
 import io.kaos.tool.readlocalfile.ReadLocalFileToolContract;
 import io.kaos.tool.readlocalfile.ReadLocalFileRequest;
@@ -277,6 +278,28 @@ class OllamaPromptClientTest {
                     encoded.get("messages").get(2).get("tool_name").textValue());
             assertTrue(encoded.get("messages").get(2).get("content")
                     .textValue().contains("untrusted text"));
+        }
+    }
+
+    @Test
+    void submitsBrowserRenderedResearchEvidenceWithoutAdvertisingTools() throws Exception {
+        HttpGetRequest request = new HttpGetRequest("https://example.com/reference");
+        try (LocalChatServer server = LocalChatServer.streaming(
+                jsonLine("{\"claims\":[]}", "", false), TERMINAL)) {
+            OllamaPromptClient.Result result = client(server.endpoint())
+                    .submitWithResearchEvidence(
+                            new OllamaModelConfiguration("qwen3"),
+                            new OllamaPrompt("Synthesize only the evidence."),
+                            List.of(new BrowserRenderedResult(request, "untrusted rendered text")),
+                            JSON.createObjectNode().put("type", "object"));
+
+            assertTrue(result.successful());
+            JsonNode encoded = JSON.readTree(server.requestBody());
+            assertFalse(encoded.has("tools"));
+            JsonNode evidence = encoded.get("messages").get(1);
+            assertEquals("research_browser_render", evidence.get("tool_name").textValue());
+            assertTrue(evidence.get("content").textValue().contains("browser_rendered"));
+            assertTrue(evidence.get("content").textValue().contains("untrusted rendered text"));
         }
     }
 

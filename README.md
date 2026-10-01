@@ -232,20 +232,39 @@ run and before each page attempt; it does not use `KAOS_HTTP_ALLOWED_HOSTS`.
 The default file is `%USERPROFILE%\.kaos\research-approved-hosts.txt`, one hostname
 per line. Remove a hostname to revoke approval, or delete the file to reset all.
 Search still asks for approval each run. Source retrieval
-failures are recorded without content; remaining approved URLs are attempted once.
+failures are recorded without content; remaining approved URLs are processed once.
+Each direct source attempt can internally retry timeout/unavailable failures twice.
 Raw publisher responses stream up to 512 KiB. HTML is reduced to bounded readable
 text with titles, headings, paragraphs and list content; scripts, navigation,
 footers and common advertisement/consent blocks are removed. Only extracted text
 up to 64 KiB reaches Ollama. Retrieval diagnostics classify size, HTTP, timeout,
 availability and unsupported-content failures.
+If direct HTTP receives a redirect, 401/403 response, invalid or non-UTF-8 content, or fewer
+than 200 code points of readable HTML, research can offer a separate one-use
+Chromium approval for that exact URL and host. Saved publisher-host approval does
+not approve rendering. An approved render uses a fresh profile-free context with
+JavaScript, but Chromium receives all page resources from a KAOS-owned,
+DNS-validated and address-pinned fetch path. The restrictive policy permits only
+the selected HTTPS origin and GET document, script and stylesheet resources. It
+blocks third-party origins, XHR/fetch/API traffic, images, fonts, media, WebSockets,
+popups, downloads, clicks, form submissions and later script-driven navigation.
+Each render allows 32 requests, three same-origin redirects, 512 KiB per response,
+1 MiB total response data, 10 seconds per resource, 20 seconds total, 20,000 text
+nodes and 64 KiB/code points of visible text. A denial or failure is not retried.
+Timeouts, unavailable or unsafe destinations, invalid URLs, oversized direct
+responses, rate limits, cancellation and interruption never enter the fallback.
 With successful page evidence, research prints claims with source references and
-uncertainty, explicitly reporting partial coverage. If all pages fail, it can
+uncertainty, explicitly reporting partial coverage and marking each source as
+`DIRECT-HTTP` or `BROWSER-RENDERED`. If all pages fail, it can
 produce a separately labeled search-only outcome from the selected titles and
 snippets; those claims cannot be `FACT` and are not verified page evidence.
 Each failure prints a content-free `ERROR` reason. Cancellation and approval/history failures still stop the run.
 Existing `agent` limits stay unchanged. Research disables
 payload debug tracing, including when `KAOS_DEBUG` is enabled. Source suitability
 and factual support remain model judgments; attribution checks do not prove truth.
+The fallback is research-only and does not widen `browser inspect`, `browser
+session`, `conversation` or `agent`. It starts no public browser-control or CDP
+endpoint.
 See [verified research](docs/evolution/verified-web-research.md) for limits,
 privacy, deterministic demonstrations and remaining work.
 

@@ -401,7 +401,8 @@ search, then review the source roles, purposes and exact normalized URLs before
 approving any new publisher hostnames. Approval permits future research reads of
 any HTTPS page on those exact hosts. Saved hosts skip the page prompt; search
 approval is still required each run. Each source retrieval failure is recorded
-without content, and remaining approved sources are attempted once. Synthesis
+without content, and remaining approved sources are processed once. A direct
+source attempt can internally retry timeout/unavailable failures twice. Synthesis
 uses only successful pages and reports partial coverage. If no page succeeds,
 the selected search titles/snippets may produce a clearly labeled search-only
 outcome with no `FACT` claims. Empty search-only claims still mean no answer.
@@ -413,6 +414,36 @@ scripts, navigation, footers and common advertisement/consent blocks are removed
 Only extracted text capped at 64 KiB is sent to Ollama. Transient unavailable and
 timeout failures receive at most two short-backoff retries. Diagnostics preserve
 HTTP status, content type, final URL and safe response headers.
+After eligible direct failures (redirect, 401, 403, invalid content or invalid UTF-8) or an HTML
+success with fewer than 200 readable code points, research displays the exact URL
+and host and explains that JavaScript will run. Type `approve` for that one browser
+operation or `deny` to skip it. The saved publisher-host file never supplies this
+approval. Denial and failure are not retried. Direct URL/configuration/DNS-policy
+failure, timeout, unavailability, size failure, rate limit, cancellation and
+interruption are ineligible.
+
+Chromium runs headless in the KAOS process with a fresh context and no profile,
+cookies, credentials, downloads or persisted storage. Every context request is
+aborted or fulfilled by KAOS; Chromium does not connect to publishers itself.
+The Java fetch path repeats public-address validation for every resource, rejects
+mixed public/private DNS answers, pins one validated address while retaining TLS
+hostname verification, disables proxy/cookies/auth/redirects/retries and manually
+validates redirects. Only GET documents, scripts and stylesheets on the exact
+approved HTTPS origin are eligible. XHR/fetch, images, fonts, media, WebSockets,
+third-party origins, popups, clicks, forms, downloads and later script navigation
+are blocked. Limits per render are 32 attempted requests, three same-origin
+redirects, 512 KiB per response, 1 MiB total response data, 10 seconds per
+resource, 20 seconds total, 20,000 inspected text nodes and 64 KiB/code points of
+model-facing visible text. Resources, page, context, browser and Playwright driver
+close through scoped cleanup on every terminal path. Chromium must already be
+installed with the pinned Playwright 1.63.0 `installChromium` task.
+
+Rendered evidence is labeled `BROWSER-RENDERED` in the answer sources and encoded
+for Ollama as untrusted browser-rendered page text. The page cannot add sources,
+approve operations or request another tool. The fallback is not registered as a
+general tool and is unavailable to browser inspection/session, conversations and
+agents. Playwright uses its private process pipe; KAOS exposes no CDP or browser
+control port.
 Retry requires a new run and search approval. Research suppresses payload debug tracing, and its startup
 arguments are redacted. See [verified web research](../evolution/verified-web-research.md)
 for deterministic fixture commands, safety boundaries and residual limitations.
