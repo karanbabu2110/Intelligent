@@ -15,6 +15,11 @@ adds user-requested persistent exact-host approval for research. This explicitly
 replaces research's original non-persistent exact-set approval contract; concrete
 HTTP request grants remain single-use. Standalone HTTP and search approvals are unchanged.
 
+Feature [019.11 / #1099](https://github.com/karanbabu2110/KAOS/issues/1099)
+adds the research-only, one-use Chromium fallback described here. It revises the
+epic's original JavaScript exclusion for this bounded evidence path; general public
+browser automation remains excluded.
+
 ## Actual behavior
 
 `kaos research "question"` uses the exact question as one approved SearXNG query.
@@ -42,14 +47,25 @@ endpoint as shown in the [README](../../README.md).
    alternate-address attempts, automatic retries, proxy, cookies or credentials
    are used. A source retrieval failure records its failed outcome in content-free
    history and prints its source number and fixed reason. Remaining approved sources
-   are attempted once, with no replacement URLs or retries.
-5. After retrieval, if at least one page succeeded, one structured local-model call
+   are processed once, with no replacement URLs. Timeout/unavailable transport
+   failures can retry twice with short backoff.
+5. A redirect, HTTP 401/403, invalid direct or UTF-8 response, or HTML result with fewer
+   than 200 readable code points can offer a separate browser operation. The prompt
+   displays the exact URL and host and states that JavaScript will run. Saved host
+   approval does not transfer. Denial skips that source without retry. Invalid or
+   unsafe URLs, public-address rejection, timeout, unavailability, oversized direct
+   data, rate limiting, cancellation and interruption do not offer the fallback.
+   Each approval creates a fresh non-persistent Chromium context. Only the exact
+   source origin's GET document, script and stylesheet resources can be fetched.
+   KAOS fetches and fulfills them through its own validated, pinned transport;
+   Chromium has no publisher network path.
+6. After retrieval, if at least one page succeeded, one structured local-model call
    receives the pages as untrusted tool-result messages. Search snippets are
    absent. It receives no tools. Returned source numbers must reference those
    pages; the application renders citations from the frozen URLs. Claims carry
    FACT, INFERENCE, OPINION, ANECDOTE or CONTRADICTION labels and an uncertainty
    statement. Empty claims mean insufficient evidence and no final answer.
-6. If no page succeeded, the same final model-call slot receives only the selected
+7. If no page succeeded, the same final model-call slot receives only the selected
    search titles, URLs and snippets. Output is labeled `Search-only outcome`, cannot
    contain `FACT`, and must say that pages were not retrieved. These citations point
    to discovery results, not page evidence. Empty claims still produce no answer.
@@ -79,14 +95,22 @@ limitations. No source is declared universally trusted.
 | Source access | HTTPS; implicit port or 443; persisted approved hostname; all DNS answers public |
 | Raw source body | At most 524,288 UTF-8 bytes; `Content-Length` is checked and streaming reads stop at the bound |
 | Model source text | At most 65,536 UTF-8 bytes/code points after HTML extraction; raw HTML is never sent |
-| Total raw source bodies | At most 1,572,864 UTF-8 bytes through the three-source bound |
+| Total direct network bodies | At most 4,718,592 bytes through three sources and at most three attempts per source; only successful extracted text enters the model |
 | Source attempt | 2-second connect limit; 15-second deadline including DNS, headers and complete body |
-| Aggregate attempts | At most three sequential 15-second deadlines, hence 45 seconds of retrieval waits; user/model/history time is separate |
+| Aggregate direct attempts | At most nine sequential 15-second deadlines, hence 135 seconds of direct retrieval waits; retries apply only to timeout/unavailable failures |
 | Response metadata | At most 32 headers, 4096 characters per HTTP protocol line |
 | Content | Status 200; plain text, HTML, JSON or XML; strict UTF-8; nonblank; no unsafe control characters or compressed content |
 | Selection output | At most three entries; purpose 256 and reason 512 code points |
 | Answer output | At most eight claims, 1024 code points each; uncertainty at most 1024; one to three valid source references per claim |
 | Model operations | One selection and one page or search-only synthesis; existing local request/token/stream timeouts; no model retries or tools; transient HTTP retries are bounded to two |
+| Browser eligibility | Direct redirect, HTTP 401/403, invalid or non-UTF-8 content, or successful HTML with fewer than 200 readable code points |
+| Browser approval | One explicit decision for one exact URL/host; never saved or inherited from direct HTTP approval |
+| Browser origin/resources | Selected HTTPS origin only; GET document, script and stylesheet; all other schemes, origins, methods and resource types blocked |
+| Browser requests/redirects | At most 32 attempted requests and three same-origin redirects per render |
+| Browser response data | At most 524,288 bytes per resource and 1,048,576 bytes across one render; compressed bodies rejected |
+| Browser timing | 2-second connect, 10 seconds per resource, 20 seconds total including launch/navigation/render/extraction checks |
+| Browser extraction | At most 20,000 text nodes and 65,536 UTF-8 bytes/code points of visible text |
+| Browser lifecycle | Fresh headless context per approved source; no profile, cookies, credentials, downloads, permissions, retained storage or public control endpoint |
 
 Malformed model output, unexpected tool calls, invalid citations, unsafe URLs,
 missing configuration, denial, cancellation, input failure, empty evidence,
@@ -98,16 +122,20 @@ successful pages using their original displayed source numbers. Missing primary 
 cannot satisfy the evidence-role guard; a single remaining secondary source is
 still insufficient for a FACT claim. If every source fails, search-only synthesis
 uses the already approved search data and rejects `FACT`; it never presents snippets
-as retrieved pages. Terminal output prints a content-free `ERROR` with source number
-and fixed failure reason plus the successful retrieval count; it never prints raw
-page content, failure bodies or a failed URL.
+as retrieved pages. Failure output prints a content-free `ERROR` with source number
+and fixed reason plus the successful retrieval count; it never prints raw page or
+failure-body content. Exact selected URLs remain visible in the proposal, browser
+approval prompt and successful source attribution.
 
-Bodies are bounded textual responses, not browser-rendered articles. HTML/script
-text is never executed; scripts, styles, navigation, footers and common
-advertisement/consent blocks are removed before evidence is sent to Ollama. JSON/XML is not parsed for external entities, and links
-are never followed. Extraction of article passages and richer evidence analysis
-are future work. Model prose cannot contain URLs or bracketed citations; the
-application supplies the source references.
+Direct bodies remain bounded textual responses; their HTML scripts are never
+executed. The separately approved fallback executes same-origin JavaScript in a
+fresh Chromium context and extracts bounded visible text. Browser-rendered evidence
+is encoded as `browser_rendered`, is called untrusted evidence in the synthesis
+instruction, and is printed as `BROWSER-RENDERED`; direct evidence is printed as
+`DIRECT-HTTP`. Scripts cannot change the frozen source set, grant authority, add a
+tool call or escape deterministic request limits. JSON/XML direct responses are not
+parsed for external entities. Model prose cannot contain URLs or bracketed
+citations; the application supplies source references.
 
 ## Architecture decision from current code
 
@@ -141,6 +169,25 @@ connection boundary. The application still owns URL validation, public-address
 policy, exact grants, content validation and deadlines. No module, framework,
 trust database, crawler or generalized workflow abstraction was added.
 
+### Browser deployment decision
+
+This slice keeps Playwright 1.63.0 and Chromium inside the single KAOS process.
+The existing dependency and explicit browser installation already support local
+Chromium lifecycle, while every publisher byte still crosses the application-owned
+Apache transport. Chromium context routes receive only fulfilled bounded bytes or
+an abort, so moving Chromium into Docker would not replace the URL, DNS, redirect,
+origin or byte policies. A new worker would also require a new authenticated control
+protocol and service lifecycle without current reuse or deployment evidence.
+
+No browser worker, Compose service, published port or CDP endpoint is added. If a
+later deployment requires operating-system isolation, the remaining step is a
+dedicated non-root worker on an internal service network, with no published control
+port, no host profile mounts, no privilege escalation and an image pinned to the
+repository's Playwright Java 1.63.0 version. That worker must retain the same
+application request policy; Docker is defense in depth rather than an SSRF or DNS
+rebinding boundary. The current in-process residual risk is that a Chromium exploit
+shares the KAOS user's operating-system authority.
+
 ## Privacy and security review
 
 The exact query reaches configured SearXNG only after approval. Its configured
@@ -148,6 +195,9 @@ upstream engines may receive the query. Each approved publisher sees the URL
 path/query and ordinary connection metadata. The selected search results and
 retrieved text reach configured local Ollama. Nothing in this command loads
 conversation history, explicit memory, browser profiles or credential stores.
+Each approved browser fallback creates and closes a new context. It grants no
+permissions, accepts no downloads, forwards no browser cookies or authorization
+headers, retains no `Set-Cookie` response, and exposes no remote-control endpoint.
 
 Research suppresses existing payload debug tracing. The application-start trace
 redacts research arguments. Tool history receives only operation identifiers,
@@ -172,8 +222,10 @@ cannot be inferred from a URL; review exact URLs and purposes before approval.
 The shared HTTP transport rejects raw IPs, private/local/multicast/unspecified
 addresses, reserved IPv4 ranges and nonordinary IPv6 space. Requiring every
 answer to pass blocks mixed public/private DNS responses. Only one checked
-address reaches the socket; redirect responses are aborted. Hostname verification
-and platform trust roots remain enabled. TLS does not prove factual correctness.
+address reaches the socket; direct HTTP redirect responses are aborted. The browser
+fallback instead validates and follows at most three same-origin redirects through
+the same pinned Java transport. Hostname verification and platform trust roots
+remain enabled. TLS does not prove factual correctness.
 
 On timeout/cancellation, the request and connection are aborted and the worker
 is interrupted. An OS resolver may finish an uninterruptible lookup later;
@@ -189,7 +241,7 @@ not semantic immunity or factual correctness.
 ## Repeatable local evidence
 
 ```powershell
-./gradlew.bat test --tests 'io.kaos.app.ResearchCommandTest' --tests 'io.kaos.tool.httpget.*' --tests 'io.kaos.app.HttpGetCommandIntegrationTest' --no-daemon --warning-mode=all
+./gradlew.bat test --tests 'io.kaos.app.ResearchCommandTest' --tests 'io.kaos.app.research.*' --tests 'io.kaos.tool.browserrender.*' --tests 'io.kaos.tool.httpget.*' --tests 'io.kaos.ai.ollama.OllamaPromptClientTest' --no-daemon --warning-mode=all
 ./gradlew.bat clean verifyLocal --no-daemon --warning-mode=all
 git diff --check
 ```
@@ -202,15 +254,26 @@ anecdotal labeling and content-free history/debug behavior. No installed Ollama
 or public internet is needed. The HTTP fixture mapping is test-only; production
 configuration cannot enable local/non-HTTPS source access.
 
+`ResearchBrowserRendererTest` launches the pinned local Chromium against fulfilled
+fixture responses. It proves JavaScript extraction, fresh storage, exact-origin
+script/style access, blocked third-party/API/image/WebSocket requests, redirects,
+size/text/time limits and cleanup after failure. `ResearchBrowserRequestPolicyTest`
+covers methods, navigation, form-style POST rejection, redirect and request counts.
+`PinnedBrowserResourceFetcherTest` uses only a loopback fixture to prove address
+pinning, no credential/proxy inheritance, byte/deadline enforcement and no implicit
+redirect or retry. Ollama serialization tests prove rendered evidence advertises no
+tools and retains its evidence type.
+
 `PinnedHttpTransportTest` exercises real response bodies, no-proxy behavior,
 single DNS binding, redirect/non-200 handling, media/size/empty rejection,
 deadlines, late DNS completion after cancellation, URL normalization, grant/request
 binding, compressed/oversized metadata rejection and non-public DNS denial. Existing
 HTTP contracts continue to test exact grants and malformed UTF-8.
 
-An optional live demonstration uses the README command. Review the search prompt
-and any new-host prompt; redirects, non-UTF-8 pages and oversized pages exclude
-individual sources. Invalid approval storage or model schema failures stop the run.
+An optional live demonstration uses the README command. Review the search prompt,
+any new-host prompt and each browser-render prompt. Redirects and non-UTF-8 direct
+responses may offer the bounded browser fallback; oversized pages remain excluded.
+Invalid approval storage or model schema failures stop the run.
 The separate [live evaluation](verified-web-research-live-evaluation.md) records
 local-model/public-source runs and the quality and safety problems they exposed.
 The deterministic tests alone do not demonstrate public-source factual accuracy.

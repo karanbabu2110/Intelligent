@@ -112,6 +112,11 @@ public final class HttpGetPermissionValidator {
         return addresses[0]; // One connection attempt, no multi-address fallback.
     }
 
+    /** Supplies one validated address to a transport that preserves the original TLS authority. */
+    public InetAddress resolvePublicDestinationForConnection(HttpGetTarget target) {
+        return resolvePublicDestination(target);
+    }
+
     private static String normalizeConfiguredHost(String host) {
         if (host.isBlank() || host.contains("*") || host.contains("/") || host.contains(":")) {
             throw new IllegalArgumentException("Invalid allowed host.");

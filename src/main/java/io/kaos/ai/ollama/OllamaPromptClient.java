@@ -127,7 +127,8 @@ public final class OllamaPromptClient {
         boolean search = bounded.size() == 1
                 && bounded.getFirst() instanceof io.kaos.tool.websearch.WebSearchResult;
         boolean pages = !bounded.isEmpty() && bounded.size() <= 3
-                && bounded.stream().allMatch(io.kaos.tool.httpget.HttpGetResult.class::isInstance);
+                && bounded.stream().allMatch(result -> result instanceof io.kaos.tool.httpget.HttpGetResult
+                        || result instanceof io.kaos.tool.browserrender.BrowserRenderedResult);
         if ((!search && !pages) || format == null || !format.isObject() || format.isEmpty()) {
             throw new IllegalArgumentException("Invalid bounded research evidence.");
         }
