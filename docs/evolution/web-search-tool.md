@@ -93,13 +93,42 @@ this normalization, and other controls (including bidirectional controls) remain
 rejected. Search results remain untrusted and result URLs are not fetched.
 
 ```json
-{"query":"latest stable Spring Boot release","results":[{"title":"Spring Boot","url":"https://spring.io/projects/spring-boot","snippet":"Release information"}]}
+{"query":"latest stable Spring Boot release","results":[{"title":"Spring Boot","url":"https://spring.io/projects/spring-boot","snippet":"Release information","provider":"SEARXNG"}]}
 ```
 
 Zero results is a successful empty list. URLs are data only. No page HTML,
 headers, raw provider JSON, engine details, or debugging metadata are supplied
 to Ollama. Search results are untrusted data. They are not tool instructions
 and do not receive execution authority.
+
+## Optional browser search on an empty result
+
+Feature [020.01](https://github.com/karanbabu2110/KAOS/issues/1101) adds an
+opt-in fallback for the existing `web-search` and tool-backed `conversation`
+path. Set `KAOS_WEB_SEARCH_BROWSER_FALLBACK_ENABLED=true`, or override it with
+JVM property `kaos.web-search.browser-fallback-enabled=true`. Any other value
+leaves the fallback disabled. Install the Playwright Chromium binary with
+`./gradlew.bat installChromium` before enabling it. SearXNG remains the first
+search attempt and requires its existing exact-query approval.
+
+When SearXNG returns zero results, KAOS reports `EMPTY_RESULTS` and asks for a
+second, separate approval to send the same query to Bing through an isolated
+Chromium context. Denial or missing input leaves the empty SearXNG result in
+place. A sufficient SearXNG result never launches Chromium. The browser uses
+the existing research renderer's pinned-DNS HTTP transport, same-origin
+request guard, fresh context, and 20-second total deadline. It loads a fixed
+public Bing search URL and extracts up to five result titles, HTTP(S) URLs and
+snippets from its rendered result cards. Result URLs are data only; KAOS does
+not navigate to them. Each result has `provider` set to `SEARXNG` or
+`BROWSER_BING`. Browser failure is reported with a fixed reason and leaves
+the primary empty result available to the calling workflow. A content-free
+browser audit line records the second decision and outcome.
+
+This first policy considers only zero primary results. It does not compare
+domain diversity, merge result sets, or support another browser search engine.
+Bing layout changes, CAPTCHA, access denial and unavailable Chromium may leave
+no browser results. KAOS makes no bypass attempt. Search snippets remain
+unverified leads rather than corroborated page evidence.
 
 ## Approval, audit, and failure
 

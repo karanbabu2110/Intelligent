@@ -69,6 +69,7 @@ over its environment variable.
 | `KAOS_TOOL_HISTORY_DATA_DIRECTORY` | Directory containing `tool-history.db`; defaults to the current user's `.kaos` directory | Tool execution recording, including agent tool steps, and `tool-history` |
 | `KAOS_TOOL_READ_ROOT` | Required absolute, non-filesystem-root directory; no default | `tools` status; file selection in `read-local-file`, `web-search`, `conversation`, or `agent` |
 | `KAOS_WEB_SEARCH_SEARXNG_URL` | Optional trusted HTTP(S) service origin, e.g. `http://127.0.0.1:8080`; no default. JVM override: `kaos.web-search.searxng-url` | `tools` status; search selection in `web-search`, `conversation`, or `agent` |
+| `KAOS_WEB_SEARCH_BROWSER_FALLBACK_ENABLED` | Optional `true` enables a separately approved Chromium search when SearXNG returns zero results; disabled by default. JVM override: `kaos.web-search.browser-fallback-enabled` | Search selection in `web-search` or `conversation` |
 | `KAOS_HTTP_ALLOWED_HOSTS` | Required comma-separated exact host names; no default | `tools` status and standalone `http-get` |
 | `KAOS_RESEARCH_APPROVED_HOSTS_FILE` | Optional approval file; defaults to `%USERPROFILE%\.kaos\research-approved-hosts.txt` | `research` remembers explicitly approved exact publisher hosts |
 

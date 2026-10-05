@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.kaos.tool.browserrender.BrowserRenderException;
 import io.kaos.tool.browserrender.BrowserResource;
+import io.kaos.tool.websearch.WebSearchRequest;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -15,6 +16,27 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
 class ResearchBrowserRendererTest {
+    @Test void extractsBoundedStructuredBrowserSearchResultsWithoutOpeningLinks() {
+        var requested = new CopyOnWriteArrayList<String>();
+        var renderer = new ResearchBrowserRenderer((uri, timeout, maxBytes) -> {
+            requested.add(uri.getPath());
+            assertEquals("www.bing.com", uri.getHost());
+            return resource(uri, 200, "text/html", "", """
+                    <html><body><ol id="b_results">
+                    <li class="b_algo"><h2><a href="https://example.com/one">First result</a></h2>
+                    <div class="b_caption"><p>Useful snippet</p></div></li>
+                    <li class="b_algo"><h2><a href="javascript:alert(1)">Bad link</a></h2></li>
+                    </ol></body></html>
+                    """);
+        });
+        var result = renderer.searchBing(new WebSearchRequest("bounded facts"));
+        assertEquals(1, result.results().size());
+        assertEquals("First result", result.results().getFirst().title());
+        assertEquals("https://example.com/one", result.results().getFirst().url());
+        assertEquals("Useful snippet", result.results().getFirst().snippet());
+        assertEquals("BROWSER_BING", result.results().getFirst().provider());
+        assertEquals(List.of("/search"), requested);
+    }
     @Test void rendersJavaScriptWithOnlyBoundedSameOriginDocumentScriptsAndStyles() {
         var requested = new CopyOnWriteArrayList<String>();
         var renderer = new ResearchBrowserRenderer((uri, timeout, maxBytes) -> {
