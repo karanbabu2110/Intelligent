@@ -101,19 +101,19 @@ headers, raw provider JSON, engine details, or debugging metadata are supplied
 to Ollama. Search results are untrusted data. They are not tool instructions
 and do not receive execution authority.
 
-## Optional browser search on an empty result
+## Optional browser search after insufficient results
 
 Feature [020.01](https://github.com/karanbabu2110/KAOS/issues/1101) adds an
 opt-in fallback for the existing `web-search` and tool-backed `conversation`
 path. Set `KAOS_WEB_SEARCH_BROWSER_FALLBACK_ENABLED=true`, or override it with
-JVM property `kaos.web-search.browser-fallback-enabled=true`. Any other value
-leaves the fallback disabled. Install the Playwright Chromium binary with
+JVM property `kaos.web-search.browser-fallback-enabled=true`. Unset or `false`
+disables the fallback; other values are invalid. Install the Playwright Chromium binary with
 `./gradlew.bat installChromium` before enabling it. SearXNG remains the first
 search attempt and requires its existing exact-query approval.
 
-When SearXNG returns zero results, KAOS reports `EMPTY_RESULTS` and asks for a
-second, separate approval to send the same query to Bing through an isolated
-Chromium context. Denial or missing input leaves the empty SearXNG result in
+With the default thresholds, when SearXNG returns zero results, KAOS reports
+`EMPTY_RESULTS` and asks for a second, separate approval to send the same query
+to Bing through an isolated Chromium context. Denial or missing input leaves the SearXNG result in
 place. A sufficient SearXNG result never launches Chromium. The browser uses
 the existing research renderer's pinned-DNS HTTP transport, same-origin
 request guard, fresh context, and 20-second total deadline. It loads a fixed
@@ -121,12 +121,37 @@ public Bing search URL and extracts up to five result titles, HTTP(S) URLs and
 snippets from its rendered result cards. Result URLs are data only; KAOS does
 not navigate to them. Each result has `provider` set to `SEARXNG` or
 `BROWSER_BING`. Browser failure is reported with a fixed reason and leaves
-the primary empty result available to the calling workflow. A content-free
+the primary result available to the calling workflow. A content-free
 browser audit line records the second decision and outcome.
 
-This first policy considers only zero primary results. It does not compare
-domain diversity, merge result sets, or support another browser search engine.
-Bing layout changes, CAPTCHA, access denial and unavailable Chromium may leave
+Feature [020.02](https://github.com/karanbabu2110/KAOS/issues/1102) adds
+configurable quality thresholds. With fallback enabled, set
+`KAOS_WEB_SEARCH_BROWSER_MIN_RESULTS` (1–5),
+`KAOS_WEB_SEARCH_BROWSER_MIN_DOMAINS` (1–5), and
+`KAOS_WEB_SEARCH_BROWSER_MIN_ENGINES` (1–32); each defaults to 1. JVM
+properties `kaos.web-search.browser-min-results`,
+`kaos.web-search.browser-min-domains`, and
+`kaos.web-search.browser-min-engines` override the respective environment
+variables. Invalid settings prevent browser launch and produce a fixed
+`INVALID_CONFIGURATION` decision while retaining the SearXNG result.
+
+The quality decision checks, in order: zero results, too few results, too few
+distinct normalized hosts, and too few contributing SearXNG engines. Host
+normalization folds case and one leading `www.`; it does not calculate
+registrable domains. Only the first five retained SearXNG results count.
+Contributing-engine counts come from their optional `engines` or `engine`
+fields; reported failure counts come from SearXNG's optional
+`unresponsive_engines` list in its [JSON response](https://github.com/searxng/searxng/blob/master/searx/webutils.py).
+If engine metadata is unavailable and the
+configured engine minimum exceeds 1, the decision is
+`ENGINE_METADATA_UNAVAILABLE` and browser search is offered. Missing metadata
+does not trigger the default policy. KAOS prints the fixed reason and bounded
+counts, using `unknown` when metadata is absent. It does not print raw engine
+names or failure messages. A sufficient result makes no browser call.
+
+The browser result currently replaces the primary result when fallback
+succeeds; result merging belongs to Feature 020.05. This policy does not
+support another browser search engine. Bing layout changes, CAPTCHA, access denial and unavailable Chromium may leave
 no browser results. KAOS makes no bypass attempt. Search snippets remain
 unverified leads rather than corroborated page evidence.
 

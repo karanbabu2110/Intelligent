@@ -20,7 +20,10 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -130,6 +133,7 @@ public final class SearxngClient {
             throw failure(WebSearchException.Reason.INVALID_RESPONSE);
         }
         var entries = new ArrayList<WebSearchResult.Entry>();
+        Set<String> contributingEngines = new HashSet<>();
         // SearXNG has no portable result-count parameter: retain the first five in provider order.
         for (JsonNode node : root.get("results")) {
             if (entries.size() == WebSearchResult.MAX_RESULTS) break;
@@ -141,13 +145,40 @@ public final class SearxngClient {
             try {
                 entries.add(new WebSearchResult.Entry(displayText(node.get("title").textValue(), 256),
                         node.get("url").textValue(), displayText(node.path("content").asText(""), 512)));
+                collectResultEngines(node, contributingEngines);
             } catch (WebSearchException exception) {
                 throw failure(WebSearchException.Reason.INVALID_RESPONSE);
             }
         }
-        var result = new WebSearchResult(request, entries);
+        var result = new WebSearchResult(request, entries,
+                new WebSearchResult.EngineSignals(contributingEngines.isEmpty() || contributingEngines.size() > 32
+                        ? -1 : contributingEngines.size(), failedEngineCount(root.path("unresponsive_engines"))));
         WebSearchToolContract.encodeResult(result); // Enforce total normalized payload boundary now.
         return result;
+    }
+    private static void collectResultEngines(JsonNode result, Set<String> names) {
+        JsonNode engines = result.path("engines");
+        if (engines.isArray() && !engines.isEmpty()) {
+            for (JsonNode name : engines) addEngineName(names, name);
+        } else {
+            addEngineName(names, result.path("engine"));
+        }
+    }
+    private static int failedEngineCount(JsonNode failures) {
+        if (!failures.isArray()) return -1;
+        Set<String> names = new HashSet<>();
+        for (JsonNode failure : failures) {
+            if (!failure.isArray() || failure.isEmpty()) return -1;
+            addEngineName(names, failure.get(0));
+            if (names.size() > 32) return -1;
+        }
+        return names.size() == failures.size() ? names.size() : -1;
+    }
+    private static void addEngineName(Set<String> names, JsonNode value) {
+        if (value.isTextual()) {
+            String name = value.textValue().strip().toLowerCase(Locale.ROOT);
+            if (!name.isEmpty() && name.length() <= 64) names.add(name);
+        }
     }
     private static String displayText(String value, int maximum) {
         // Bound the original field too: invisible padding must not bypass the contract.

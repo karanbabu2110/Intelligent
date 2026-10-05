@@ -7,7 +7,8 @@ import java.util.List;
 import java.util.Objects;
 
 /** Normalized foreground result; URLs are data and are never fetched. */
-public record WebSearchResult(WebSearchRequest request, List<Entry> results) implements ToolResult<WebSearchRequest> {
+public record WebSearchResult(WebSearchRequest request, List<Entry> results, EngineSignals engines)
+        implements ToolResult<WebSearchRequest> {
     @Override public String toolName() { return WebSearchToolContract.NAME; }
     @Override public JsonNode modelContent() {
         return WebSearchToolContract.encodeResult(this);
@@ -15,11 +16,24 @@ public record WebSearchResult(WebSearchRequest request, List<Entry> results) imp
 
     public static final int MAX_RESULTS = 5;
     public static final int MAX_PAYLOAD_BYTES = 16_384;
+    public WebSearchResult(WebSearchRequest request, List<Entry> results) {
+        this(request, results, EngineSignals.UNKNOWN);
+    }
     public WebSearchResult {
         Objects.requireNonNull(request, "request");
         results = List.copyOf(results);
+        Objects.requireNonNull(engines, "engines");
         if (results.size() > MAX_RESULTS) {
             throw new WebSearchException(WebSearchException.Reason.RESULT_TOO_LARGE);
+        }
+    }
+    /** Counts only; raw upstream engine names and failure messages never enter model content. */
+    public record EngineSignals(int contributing, int failed) {
+        public static final EngineSignals UNKNOWN = new EngineSignals(-1, -1);
+        public EngineSignals {
+            if (contributing < -1 || contributing > 32 || failed < -1 || failed > 32) {
+                throw new IllegalArgumentException("Engine counts must be bounded.");
+            }
         }
     }
     public record Entry(String title, String url, String snippet, String provider) {

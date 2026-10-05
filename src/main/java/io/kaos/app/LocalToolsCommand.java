@@ -162,40 +162,47 @@ final class LocalToolsCommand {
         if (!recordHistory(permission)) {
             return new Outcome(KaosApplication.APPLICATION_ERROR, "", false);
         }
-        if (result instanceof WebSearchResult primary && BrowserSearchFallback.shouldSearch(primary)) {
-            var browserApproval = new BrowserSearchApproval(primary.request());
-            String browserAttempt = UUID.randomUUID().toString();
-            context.output().println(browserApproval.prompt());
-            context.output().flush();
-            BrowserSearchApproval.Outcome browserDecision;
-            try {
-                browserDecision = browserApproval.decide(input.read());
-            } catch (IOException exception) {
-                browserDecision = browserApproval.decide(null);
+        if (result instanceof WebSearchResult primary) {
+            var quality = BrowserSearchFallback.evaluate(primary);
+            if (quality.reason() != BrowserSearchFallback.Reason.DISABLED) {
+                context.output().println("Search quality: reason=" + quality.reason().name()
+                        + " results=" + quality.results() + " unique_domains=" + quality.domains()
+                        + " contributing_engines=" + count(quality.contributingEngines())
+                        + " failed_engines=" + count(quality.failedEngines()) + ".");
             }
-            if (browserDecision.decision() == ToolPermissionDecision.APPROVED) {
+            if (quality.fallback()) {
+                var browserApproval = new BrowserSearchApproval(primary.request(), quality.reason());
+                String browserAttempt = UUID.randomUUID().toString();
+                context.output().println(browserApproval.prompt());
+                context.output().flush();
+                BrowserSearchApproval.Outcome browserDecision;
                 try {
-                    WebSearchResult rendered = browserSearch.apply(browserDecision.grant().orElseThrow().claim());
-                    if (!rendered.request().equals(primary.request())
-                            || rendered.results().stream().anyMatch(entry -> !"BROWSER_BING".equals(entry.provider()))) {
-                        throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
-                    }
-                    result = rendered;
-                    audit("browser_search", browserAttempt, "APPROVED", "SUCCEEDED");
-                    context.output().println("Browser search completed: " + rendered.results().size()
-                            + " results; provider=BROWSER_BING.");
-                } catch (BrowserRenderException exception) {
-                    audit("browser_search", browserAttempt, "APPROVED", "FAILED");
-                    context.output().println("Browser search failed: " + exception.reason().name()
-                            + ". SearXNG returned no results.");
-                } catch (WebSearchException exception) {
-                    audit("browser_search", browserAttempt, "APPROVED", "FAILED");
-                    context.output().println("Browser search failed: " + exception.reason().name()
-                            + ". SearXNG returned no results.");
+                    browserDecision = browserApproval.decide(input.read());
+                } catch (IOException exception) {
+                    browserDecision = browserApproval.decide(null);
                 }
-            } else {
-                audit("browser_search", browserAttempt, browserDecision.decision().name(), "NOT_EXECUTED");
-                context.output().println("Browser search skipped; SearXNG returned no results.");
+                if (browserDecision.decision() == ToolPermissionDecision.APPROVED) {
+                    try {
+                        WebSearchResult rendered = browserSearch.apply(browserDecision.grant().orElseThrow().claim());
+                        if (!rendered.request().equals(primary.request())
+                                || rendered.results().stream().anyMatch(entry -> !"BROWSER_BING".equals(entry.provider()))) {
+                            throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
+                        }
+                        result = rendered;
+                        audit("browser_search", browserAttempt, "APPROVED", "SUCCEEDED");
+                        context.output().println("Browser search completed: " + rendered.results().size()
+                                + " results; provider=BROWSER_BING.");
+                    } catch (BrowserRenderException | WebSearchException exception) {
+                        audit("browser_search", browserAttempt, "APPROVED", "FAILED");
+                        String reason = exception instanceof BrowserRenderException browser
+                                ? browser.reason().name() : ((WebSearchException) exception).reason().name();
+                        context.output().println("Browser search failed: " + reason
+                                + ". SearXNG results retained.");
+                    }
+                } else {
+                    audit("browser_search", browserAttempt, browserDecision.decision().name(), "NOT_EXECUTED");
+                    context.output().println("Browser search skipped; SearXNG results retained.");
+                }
             }
         }
         var completion = client.continueWithToolResult(model, prompt, initial, result);
@@ -205,6 +212,10 @@ final class LocalToolsCommand {
         }
         context.output().println(completion.response());
         return new Outcome(KaosApplication.SUCCESS, "", false);
+    }
+
+    private static String count(int value) {
+        return value < 0 ? "unknown" : Integer.toString(value);
     }
 
     private Outcome searchFailure(WebSearchException exception) {

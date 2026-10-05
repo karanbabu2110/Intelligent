@@ -8,14 +8,21 @@ import java.util.Optional;
 public final class BrowserSearchApproval {
     public record Outcome(ToolPermissionDecision decision, Optional<Grant> grant) { }
     private final WebSearchRequest request;
+    private final BrowserSearchFallback.Reason reason;
     private boolean decided;
 
-    public BrowserSearchApproval(WebSearchRequest request) {
+    public BrowserSearchApproval(WebSearchRequest request, BrowserSearchFallback.Reason reason) {
         this.request = Objects.requireNonNull(request);
+        this.reason = Objects.requireNonNull(reason);
+        if (reason == BrowserSearchFallback.Reason.DISABLED
+                || reason == BrowserSearchFallback.Reason.SUFFICIENT
+                || reason == BrowserSearchFallback.Reason.INVALID_CONFIGURATION) {
+            throw new IllegalArgumentException("Browser approval requires a fallback reason.");
+        }
     }
 
     public String prompt() {
-        return "SearXNG returned no results. Browser search fallback reason: EMPTY_RESULTS.\n"
+        return "Browser search fallback reason: " + reason.name() + ".\n"
                 + "KAOS can send this query to Bing in an isolated Chromium session:\n\""
                 + request.query() + "\"\nType 'approve' for one browser search attempt or 'deny' to skip.";
     }

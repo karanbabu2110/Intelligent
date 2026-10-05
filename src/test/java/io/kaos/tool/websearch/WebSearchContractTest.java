@@ -50,7 +50,7 @@ class WebSearchContractTest {
     }
     @Test void browserSearchRequiresAnIndependentSingleDecision() {
         var request = new WebSearchRequest("exact query");
-        var approval = new BrowserSearchApproval(request);
+        var approval = new BrowserSearchApproval(request, BrowserSearchFallback.Reason.EMPTY_RESULTS);
         assertTrue(approval.prompt().contains("Bing"));
         assertTrue(approval.prompt().contains(request.query()));
         var granted = approval.decide("approve");
@@ -59,9 +59,11 @@ class WebSearchContractTest {
         assertThrows(WebSearchException.class, granted.grant().orElseThrow()::claim);
         assertThrows(WebSearchException.class, () -> approval.decide("approve"));
         assertEquals(ToolPermissionDecision.DENIED,
-                new BrowserSearchApproval(request).decide("deny").decision());
+                new BrowserSearchApproval(request, BrowserSearchFallback.Reason.TOO_FEW_RESULTS)
+                        .decide("deny").decision());
         assertEquals(ToolPermissionDecision.END_OF_INPUT,
-                new BrowserSearchApproval(request).decide(null).decision());
+                new BrowserSearchApproval(request, BrowserSearchFallback.Reason.LOW_DOMAIN_DIVERSITY)
+                        .decide(null).decision());
     }
     @Test void resultFieldsAndTotalPayloadAreBounded() {
         for (String url : List.of("javascript:alert(1)", "file:///tmp/test", "relative",
