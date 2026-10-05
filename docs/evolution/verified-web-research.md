@@ -109,7 +109,7 @@ limitations. No source is declared universally trusted.
 | Browser approval | One explicit decision for one exact URL/host; never saved or inherited from direct HTTP approval |
 | Browser origin/resources | Selected HTTPS origin only; GET document, script and stylesheet; all other schemes, origins, methods and resource types blocked |
 | Browser requests/redirects | At most 32 attempted requests and three same-origin redirects per render |
-| Browser response data | At most 524,288 bytes per resource and 1,048,576 bytes across one render; compressed bodies rejected |
+| Browser response data | At most 1,048,576 bytes per resource and 2,097,152 bytes across one research render; compressed bodies rejected. Browser search retains its 524,288-byte per-resource and 1,048,576-byte total limits |
 | Browser timing | Public-DNS preflight at most three seconds, 2-second connect, 10 seconds per resource, 20 seconds total including preflight, launch/navigation/render/extraction checks |
 | Browser extraction | At most 20,000 text nodes and 65,536 UTF-8 bytes/code points of visible text; title 256 and meta description 512 code points |
 | Browser lifecycle | Fresh headless context per approved source; no profile, cookies, credentials, downloads, permissions, retained storage or public control endpoint |

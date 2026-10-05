@@ -35,6 +35,8 @@ public final class ResearchBrowserRenderer {
     static final Duration MAX_RESOURCE_TIME = Duration.ofSeconds(10);
     static final int MAX_RESOURCE_BYTES = 512 * 1024;
     static final int MAX_TOTAL_BYTES = 1024 * 1024;
+    static final int MAX_RENDER_RESOURCE_BYTES = 1024 * 1024;
+    static final int MAX_RENDER_TOTAL_BYTES = 2 * 1024 * 1024;
     private static final int MAX_TEXT_NODES = 20_000;
     private static final long SETTLE_MILLIS = 250;
     private static final String EXTRACT_VISIBLE_TEXT = """
@@ -142,6 +144,8 @@ public final class ResearchBrowserRenderer {
     }
 
     private <T> T withPage(URI selected, Function<Page, T> extract, boolean search, long deadline) {
+        int maxResourceBytes = search ? MAX_RESOURCE_BYTES : MAX_RENDER_RESOURCE_BYTES;
+        int maxTotalBytes = search ? MAX_TOTAL_BYTES : MAX_RENDER_TOTAL_BYTES;
         var failure = new AtomicReference<BrowserRenderException>();
         var pageRef = new AtomicReference<Page>();
         var policy = new ResearchBrowserRequestPolicy(selected);
@@ -177,7 +181,8 @@ public final class ResearchBrowserRenderer {
                     opened.close();
                 }
             });
-            context.route("**/*", route -> handle(route, policy, deadline, totalBytes, failure, search));
+            context.route("**/*", route -> handle(route, policy, deadline, totalBytes, failure,
+                    search, maxResourceBytes, maxTotalBytes));
             context.routeWebSocket("**/*", socket -> {
                 try {
                     policy.blockedRequest();
@@ -209,7 +214,8 @@ public final class ResearchBrowserRenderer {
     }
 
     private void handle(Route route, ResearchBrowserRequestPolicy policy, long deadline,
-            int[] totalBytes, AtomicReference<BrowserRenderException> failure, boolean search) {
+            int[] totalBytes, AtomicReference<BrowserRenderException> failure, boolean search,
+            int maxResourceBytes, int maxTotalBytes) {
         try {
             if (failure.get() != null) {
                 route.abort("blockedbyclient");
@@ -222,12 +228,12 @@ public final class ResearchBrowserRenderer {
             BrowserResource resource;
             byte[] responseBody;
             while (true) {
-                int remainingBytes = MAX_TOTAL_BYTES - totalBytes[0];
+                int remainingBytes = maxTotalBytes - totalBytes[0];
                 if (remainingBytes <= 0) {
                     throw new BrowserRenderException(BrowserRenderException.Reason.TOO_LARGE);
                 }
                 Duration remainingTime = Duration.ofMillis(remainingMillis(deadline).longValue());
-                int resourceLimit = Math.min(MAX_RESOURCE_BYTES, remainingBytes);
+                int resourceLimit = Math.min(maxResourceBytes, remainingBytes);
                 resource = fetcher.fetch(uri,
                         remainingTime.compareTo(MAX_RESOURCE_TIME) < 0 ? remainingTime : MAX_RESOURCE_TIME,
                         resourceLimit);
@@ -236,7 +242,7 @@ public final class ResearchBrowserRenderer {
                     throw new BrowserRenderException(BrowserRenderException.Reason.TOO_LARGE);
                 }
                 totalBytes[0] += responseBody.length;
-                if (totalBytes[0] > MAX_TOTAL_BYTES) {
+                if (totalBytes[0] > maxTotalBytes) {
                     throw new BrowserRenderException(BrowserRenderException.Reason.TOO_LARGE);
                 }
                 if (resource.status() < 300 || resource.status() >= 400) break;

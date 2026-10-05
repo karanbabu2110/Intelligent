@@ -11,6 +11,7 @@ import io.kaos.app.browsersearch.BrowserSearchProvider;
 import com.microsoft.playwright.Page;
 import io.kaos.tool.browserrender.BrowserResource;
 import io.kaos.tool.browserrender.BrowserRenderedResult;
+import io.kaos.tool.httpget.HttpGetExecutor;
 import io.kaos.tool.websearch.WebSearchRequest;
 import io.kaos.tool.websearch.WebSearchResult;
 import java.net.URI;
@@ -26,6 +27,7 @@ class ResearchBrowserRendererTest {
         var renderer = new ResearchBrowserRenderer((uri, timeout, maxBytes) -> {
             requested.add(uri.getPath());
             assertEquals("www.bing.com", uri.getHost());
+            assertTrue(maxBytes <= ResearchBrowserRenderer.MAX_RESOURCE_BYTES);
             return resource(uri, 200, "text/html", "", """
                     <html><body><ol id="b_results">
                     <li class="b_algo"><h2><a href="https://example.com/one">First result</a></h2>
@@ -104,7 +106,7 @@ class ResearchBrowserRendererTest {
         var renderer = new ResearchBrowserRenderer((uri, timeout, maxBytes) -> {
             requested.add(uri.getPath());
             assertTrue(timeout.compareTo(ResearchBrowserRenderer.MAX_RESOURCE_TIME) <= 0);
-            assertTrue(maxBytes <= ResearchBrowserRenderer.MAX_RESOURCE_BYTES);
+            assertTrue(maxBytes <= ResearchBrowserRenderer.MAX_RENDER_RESOURCE_BYTES);
             return switch (uri.getPath()) {
                 case "/page" -> resource(uri, 200, "text/html", "", """
                         <html><head><title>Rendered publisher title</title>
@@ -215,6 +217,17 @@ class ResearchBrowserRendererTest {
         int bytes = boundedText.render("https://one.example/page").content()
                 .getBytes(StandardCharsets.UTF_8).length;
         assertEquals(64 * 1024, bytes);
+    }
+
+    @Test void rendersAResourceAboveTheDirectHttpCapWithinTheBrowserCap() {
+        String html = "<html><body>" + "x".repeat(720 * 1024) + "</body></html>";
+        var renderer = new ResearchBrowserRenderer((uri, timeout, maxBytes) -> {
+            assertTrue(html.getBytes(StandardCharsets.UTF_8).length > HttpGetExecutor.MAX_RAW_RESPONSE_BYTES);
+            assertTrue(html.getBytes(StandardCharsets.UTF_8).length <= maxBytes);
+            return resource(uri, 200, "text/html", "", html);
+        });
+        assertEquals(64 * 1024, renderer.render("https://one.example/page").content()
+                .getBytes(StandardCharsets.UTF_8).length);
     }
 
     @Test void rejectsHttpErrorsAndUnsupportedDocumentContent() {

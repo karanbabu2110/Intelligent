@@ -255,8 +255,8 @@ blocks third-party origins, XHR/fetch/API traffic, images, fonts, media, WebSock
 popups, downloads, clicks, form submissions and later script-driven navigation.
 The selected destination is checked for a public address before Chromium navigation;
 each resource is independently checked again and pinned at connection time.
-Each render allows 32 requests, three same-origin redirects, 512 KiB per response,
-1 MiB total response data, 10 seconds per resource, 20 seconds total, 20,000 text
+Each research render allows 32 requests, three same-origin redirects, 1 MiB per
+response, 2 MiB total response data, 10 seconds per resource, 20 seconds total, 20,000 text
 nodes and 64 KiB/code points of visible text, plus bounded page title and meta
 description. A denial or failure is not retried. Direct timeouts, unsafe
 destinations, invalid URLs, rate limits, cancellation and interruption do not
