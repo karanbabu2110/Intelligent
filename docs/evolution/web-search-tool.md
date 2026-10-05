@@ -149,11 +149,22 @@ does not trigger the default policy. KAOS prints the fixed reason and bounded
 counts, using `unknown` when metadata is absent. It does not print raw engine
 names or failure messages. A sufficient result makes no browser call.
 
+Feature [020.03](https://github.com/karanbabu2110/KAOS/issues/1103) places
+engine URL selection and rendered-card extraction behind a browser search
+provider interface. Bing is the first supported provider. Provider output must
+match the approved query and carry its own bounded `BROWSER_` provenance.
+The shared Chromium renderer still applies pinned DNS, exact-origin requests,
+resource limits, a 20-second deadline, and fresh-context cleanup. HTTP 403 and
+429 responses report `ACCESS_DENIED` and `RATE_LIMITED`; a recognized CAPTCHA
+form reports `CAPTCHA`; missing or unusable Bing cards report
+`UNSUPPORTED_LAYOUT`. Timeouts report `TIMEOUT`. Failure leaves the SearXNG
+result available and does not retry or bypass the block.
+
 The browser result currently replaces the primary result when fallback
-succeeds; result merging belongs to Feature 020.05. This policy does not
-support another browser search engine. Bing layout changes, CAPTCHA, access denial and unavailable Chromium may leave
-no browser results. KAOS makes no bypass attempt. Search snippets remain
-unverified leads rather than corroborated page evidence.
+succeeds; result merging belongs to Feature 020.05. Only Bing is wired into
+the command. A changed challenge or results layout may yield an unsupported
+layout failure. Search snippets remain unverified leads rather than
+corroborated page evidence.
 
 ## Approval, audit, and failure
 

@@ -24,6 +24,8 @@ import io.kaos.tool.websearch.WebSearchResult;
 import io.kaos.tool.websearch.BrowserSearchApproval;
 import io.kaos.tool.websearch.BrowserSearchFallback;
 import io.kaos.tool.browserrender.BrowserRenderException;
+import io.kaos.app.browsersearch.BingBrowserSearchProvider;
+import io.kaos.app.browsersearch.BrowserSearchProvider;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -45,8 +47,9 @@ final class LocalToolsCommand {
     private final Supplier<OllamaModelConfiguration> modelLoader;
     private final Supplier<OllamaPromptClient> clientLoader;
     private final Supplier<ToolRegistry> registryLoader;
+    private final BrowserSearchProvider browserProvider = new BingBrowserSearchProvider();
     private Function<WebSearchRequest, WebSearchResult> browserSearch =
-            request -> new io.kaos.app.research.ResearchBrowserRenderer().searchBing(request);
+            request -> new io.kaos.app.research.ResearchBrowserRenderer().search(request, browserProvider);
     private ToolHistoryRecorder historyRecorder;
 
     LocalToolsCommand withToolHistory(Supplier<ToolExecutionHistory> historyLoader) {
@@ -185,13 +188,14 @@ final class LocalToolsCommand {
                     try {
                         WebSearchResult rendered = browserSearch.apply(browserDecision.grant().orElseThrow().claim());
                         if (!rendered.request().equals(primary.request())
-                                || rendered.results().stream().anyMatch(entry -> !"BROWSER_BING".equals(entry.provider()))) {
+                                || rendered.results().stream().anyMatch(entry ->
+                                        !browserProvider.provenance().equals(entry.provider()))) {
                             throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
                         }
                         result = rendered;
                         audit("browser_search", browserAttempt, "APPROVED", "SUCCEEDED");
                         context.output().println("Browser search completed: " + rendered.results().size()
-                                + " results; provider=BROWSER_BING.");
+                                + " results; provider=" + browserProvider.provenance() + ".");
                     } catch (BrowserRenderException | WebSearchException exception) {
                         audit("browser_search", browserAttempt, "APPROVED", "FAILED");
                         String reason = exception instanceof BrowserRenderException browser
