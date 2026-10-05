@@ -39,7 +39,7 @@ public final class WebSearchToolContract {
         var entries = encoded.putArray("results");
         for (var entry : result.results()) {
             entries.addObject().put("title", entry.title()).put("url", entry.url())
-                    .put("snippet", entry.snippet());
+                    .put("snippet", entry.snippet()).put("provider", entry.provider());
         }
         if (encoded.toString().getBytes(StandardCharsets.UTF_8).length
                 > WebSearchResult.MAX_PAYLOAD_BYTES) {

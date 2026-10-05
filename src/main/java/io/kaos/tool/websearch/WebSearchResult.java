@@ -22,11 +22,15 @@ public record WebSearchResult(WebSearchRequest request, List<Entry> results) imp
             throw new WebSearchException(WebSearchException.Reason.RESULT_TOO_LARGE);
         }
     }
-    public record Entry(String title, String url, String snippet) {
+    public record Entry(String title, String url, String snippet, String provider) {
+        public Entry(String title, String url, String snippet) {
+            this(title, url, snippet, "SEARXNG");
+        }
         public Entry {
             TextBounds.check(title, 256);
             TextBounds.check(url, 2048);
             TextBounds.check(snippet, 512);
+            if (!"SEARXNG".equals(provider) && !"BROWSER_BING".equals(provider)) throw invalid();
             if (title.isBlank() || url.isBlank()) throw invalid();
             try {
                 URI uri = URI.create(url);

@@ -17,14 +17,17 @@ import io.kaos.tool.browserrender.PinnedBrowserResourceFetcher;
 import io.kaos.tool.httpget.HttpGetPermissionValidator;
 import io.kaos.tool.httpget.HttpGetRequest;
 import io.kaos.tool.httpget.HttpGetResult;
+import io.kaos.tool.websearch.WebSearchRequest;
+import io.kaos.tool.websearch.WebSearchResult;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
-/** Fresh-context Chromium renderer used only by the approved research fallback. */
+/** Fresh-context Chromium renderer shared by approved research and browser search. */
 public final class ResearchBrowserRenderer {
     static final Duration MAX_TOTAL_RUNTIME = Duration.ofSeconds(20);
     static final Duration MAX_RESOURCE_TIME = Duration.ofSeconds(10);
@@ -92,6 +95,53 @@ public final class ResearchBrowserRenderer {
         } catch (RuntimeException exception) {
             throw new BrowserRenderException(BrowserRenderException.Reason.INVALID_REQUEST);
         }
+        return withPage(selected, page -> {
+            if (page.locator("body").count() != 1) {
+                throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
+            }
+            Object extracted = page.locator("body").evaluate(EXTRACT_VISIBLE_TEXT);
+            String text = extracted == null ? "" : boundedText(extracted.toString());
+            if (text.isBlank()) throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
+            return new BrowserRenderedResult(new HttpGetRequest(selected.toASCIIString()), text);
+        });
+    }
+
+    /** Searches one fixed public engine using the same pinned, isolated Chromium path as research. */
+    public WebSearchResult searchBing(WebSearchRequest request) {
+        URI selected = URI.create("https://www.bing.com/search?q="
+                + java.net.URLEncoder.encode(request.query(), StandardCharsets.UTF_8));
+        return withPage(selected, page -> {
+            var entries = new java.util.ArrayList<WebSearchResult.Entry>();
+            var cards = page.locator("li.b_algo");
+            int count = Math.min(cards.count(), WebSearchResult.MAX_RESULTS);
+            for (int index = 0; index < count; index++) {
+                var card = cards.nth(index);
+                var links = card.locator("h2 a");
+                if (links.count() != 1) continue;
+                String url = links.first().getAttribute("href");
+                String title = boundedField(links.first().innerText(), 256);
+                var snippets = card.locator(".b_caption p");
+                String snippet = snippets.count() == 0 ? "" : boundedField(snippets.first().innerText(), 512);
+                try {
+                    entries.add(new WebSearchResult.Entry(title, url, snippet, "BROWSER_BING"));
+                } catch (RuntimeException ignored) {
+                    // A malformed result link is untrusted data, not a navigation target.
+                }
+            }
+            if (entries.isEmpty()) throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
+            var result = new WebSearchResult(request, entries);
+            io.kaos.tool.websearch.WebSearchToolContract.encodeResult(result);
+            return result;
+        });
+    }
+
+    private static String boundedField(String raw, int limit) {
+        if (raw == null) return "";
+        String value = raw.replaceAll("[\\r\\n\\t]+", " ").strip();
+        return value.codePointCount(0, value.length()) <= limit ? value : "";
+    }
+
+    private <T> T withPage(URI selected, Function<Page, T> extract) {
         long deadline = System.nanoTime() + MAX_TOTAL_RUNTIME.toNanos();
         var failure = new AtomicReference<BrowserRenderException>();
         var pageRef = new AtomicReference<Page>();
@@ -145,13 +195,7 @@ public final class ResearchBrowserRenderer {
             throwFailure(failure);
             page.waitForTimeout(Math.min(SETTLE_MILLIS, remainingMillis(deadline)));
             throwFailure(failure);
-            if (page.locator("body").count() != 1) {
-                throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
-            }
-            Object extracted = page.locator("body").evaluate(EXTRACT_VISIBLE_TEXT);
-            String text = extracted == null ? "" : boundedText(extracted.toString());
-            if (text.isBlank()) throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
-            return new BrowserRenderedResult(new HttpGetRequest(selected.toASCIIString()), text);
+            return extract.apply(page);
         } catch (BrowserRenderException exception) {
             throw exception;
         } catch (PlaywrightException | LinkageError exception) {

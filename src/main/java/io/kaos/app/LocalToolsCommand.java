@@ -19,6 +19,11 @@ import io.kaos.tool.readlocalfile.ReadLocalFileToolContract;
 import io.kaos.tool.websearch.WebSearchToolContract;
 import io.kaos.tool.websearch.SearxngClient;
 import io.kaos.tool.websearch.WebSearchException;
+import io.kaos.tool.websearch.WebSearchRequest;
+import io.kaos.tool.websearch.WebSearchResult;
+import io.kaos.tool.websearch.BrowserSearchApproval;
+import io.kaos.tool.websearch.BrowserSearchFallback;
+import io.kaos.tool.browserrender.BrowserRenderException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -27,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.function.Function;
 
 /** Registry-resolved tool execution for one explicitly scoped turn; there is no execution loop. */
 final class LocalToolsCommand {
@@ -39,6 +45,8 @@ final class LocalToolsCommand {
     private final Supplier<OllamaModelConfiguration> modelLoader;
     private final Supplier<OllamaPromptClient> clientLoader;
     private final Supplier<ToolRegistry> registryLoader;
+    private Function<WebSearchRequest, WebSearchResult> browserSearch =
+            request -> new io.kaos.app.research.ResearchBrowserRenderer().searchBing(request);
     private ToolHistoryRecorder historyRecorder;
 
     LocalToolsCommand withToolHistory(Supplier<ToolExecutionHistory> historyLoader) {
@@ -64,6 +72,11 @@ final class LocalToolsCommand {
         this.modelLoader = Objects.requireNonNull(modelLoader);
         this.clientLoader = Objects.requireNonNull(clientLoader);
         this.registryLoader = Objects.requireNonNull(registryLoader);
+    }
+
+    LocalToolsCommand withBrowserSearch(Function<WebSearchRequest, WebSearchResult> search) {
+        browserSearch = Objects.requireNonNull(search);
+        return this;
     }
 
     int execute(String question) {
@@ -148,6 +161,42 @@ final class LocalToolsCommand {
         audit(permission);
         if (!recordHistory(permission)) {
             return new Outcome(KaosApplication.APPLICATION_ERROR, "", false);
+        }
+        if (result instanceof WebSearchResult primary && BrowserSearchFallback.shouldSearch(primary)) {
+            var browserApproval = new BrowserSearchApproval(primary.request());
+            String browserAttempt = UUID.randomUUID().toString();
+            context.output().println(browserApproval.prompt());
+            context.output().flush();
+            BrowserSearchApproval.Outcome browserDecision;
+            try {
+                browserDecision = browserApproval.decide(input.read());
+            } catch (IOException exception) {
+                browserDecision = browserApproval.decide(null);
+            }
+            if (browserDecision.decision() == ToolPermissionDecision.APPROVED) {
+                try {
+                    WebSearchResult rendered = browserSearch.apply(browserDecision.grant().orElseThrow().claim());
+                    if (!rendered.request().equals(primary.request())
+                            || rendered.results().stream().anyMatch(entry -> !"BROWSER_BING".equals(entry.provider()))) {
+                        throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
+                    }
+                    result = rendered;
+                    audit("browser_search", browserAttempt, "APPROVED", "SUCCEEDED");
+                    context.output().println("Browser search completed: " + rendered.results().size()
+                            + " results; provider=BROWSER_BING.");
+                } catch (BrowserRenderException exception) {
+                    audit("browser_search", browserAttempt, "APPROVED", "FAILED");
+                    context.output().println("Browser search failed: " + exception.reason().name()
+                            + ". SearXNG returned no results.");
+                } catch (WebSearchException exception) {
+                    audit("browser_search", browserAttempt, "APPROVED", "FAILED");
+                    context.output().println("Browser search failed: " + exception.reason().name()
+                            + ". SearXNG returned no results.");
+                }
+            } else {
+                audit("browser_search", browserAttempt, browserDecision.decision().name(), "NOT_EXECUTED");
+                context.output().println("Browser search skipped; SearXNG returned no results.");
+            }
         }
         var completion = client.continueWithToolResult(model, prompt, initial, result);
         if (!completion.successful()) return modelFailure(completion);
