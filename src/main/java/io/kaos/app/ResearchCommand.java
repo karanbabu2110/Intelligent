@@ -395,7 +395,8 @@ final class ResearchCommand {
 
     private static boolean browserEligible(HttpGetException exception) {
         return switch (exception.reason()) {
-            case HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, REDIRECTED, INVALID_UTF8, INVALID_CONTENT -> true;
+            case HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, REDIRECTED, INVALID_UTF8, INVALID_CONTENT,
+                    UNAVAILABLE, TOO_LARGE -> true;
             default -> false;
         };
     }

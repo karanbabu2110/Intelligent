@@ -35,6 +35,34 @@ public final class PinnedBrowserResourceFetcher {
 
     private PinnedBrowserResourceFetcher() { }
 
+    /** Preflights a public destination before a publisher page is navigated. Each fetch validates again. */
+    public static void validateDestination(URI uri, Duration timeout) {
+        try {
+            HttpGetPermissionValidator validator = new HttpGetPermissionValidator(Set.of(uri.getHost()));
+            HttpGetTarget target = validator.validate(new HttpGetRequest(uri.toASCIIString()));
+            long millis = Math.min(3_000, timeout.toMillis());
+            if (millis < 1) throw new BrowserRenderException(BrowserRenderException.Reason.TIMEOUT);
+            var worker = Executors.newVirtualThreadPerTaskExecutor();
+            var pending = worker.submit(() -> validator.validateResolvedDestination(target));
+            try {
+                pending.get(millis, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException exception) {
+                throw new BrowserRenderException(BrowserRenderException.Reason.TIMEOUT);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new BrowserRenderException(BrowserRenderException.Reason.INTERRUPTED);
+            } catch (ExecutionException exception) {
+                if (exception.getCause() instanceof HttpGetException failure) throw map(failure);
+                throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
+            } finally {
+                pending.cancel(true);
+                worker.shutdownNow();
+            }
+        } catch (HttpGetException exception) {
+            throw map(exception);
+        }
+    }
+
     public static BrowserResource fetch(URI uri, Duration timeout, int maxBytes) {
         HttpGetPermissionValidator validator = new HttpGetPermissionValidator(Set.of(uri.getHost()));
         HttpGetTarget target;

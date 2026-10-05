@@ -141,6 +141,7 @@ class ResearchCommandTest {
             }
             assertEquals(1, rig.searchCalls.get());
             assertEquals(3, rig.sources.calls.get());
+            assertEquals(0, rig.browserCalls.get());
             assertEquals(2, rig.modelCalls.get());
             assertEquals(5, ((WebSearchResult) rig.inputs.getFirst().getFirst()).results().size());
             assertEquals(3, rig.inputs.getLast().size());
@@ -298,8 +299,7 @@ class ResearchCommandTest {
 
     @Test void timeoutAndUnsafeDestinationRemainExcludedWhileLaterSourcesRun() throws Exception {
         for (var reason : List.of(io.kaos.tool.httpget.HttpGetException.Reason.TIMEOUT,
-                io.kaos.tool.httpget.HttpGetException.Reason.NON_PUBLIC_DESTINATION,
-                io.kaos.tool.httpget.HttpGetException.Reason.TOO_LARGE)) {
+                io.kaos.tool.httpget.HttpGetException.Reason.NON_PUBLIC_DESTINATION)) {
             try (var rig = new Rig()) {
                 rig.proposal = proposal(1,2,3);
                 rig.sources.failures.put("/second", reason);
@@ -342,13 +342,33 @@ class ResearchCommandTest {
         }
         for (var reason : List.of(io.kaos.tool.httpget.HttpGetException.Reason.TIMEOUT,
                 io.kaos.tool.httpget.HttpGetException.Reason.NON_PUBLIC_DESTINATION,
-                io.kaos.tool.httpget.HttpGetException.Reason.TOO_LARGE,
                 io.kaos.tool.httpget.HttpGetException.Reason.HTTP_RATE_LIMITED)) {
             try (var rig = new Rig()) {
                 rig.sources.failures.put("/a b", reason);
                 assertNotEquals(0, rig.run("approve\napprove\n"));
                 assertEquals(0, rig.browserCalls.get());
                 assertFalse(rig.output().contains("Browser fallback requested"));
+            }
+        }
+    }
+
+    @Test void unavailableOversizedAndInvalidDirectPagesCanUseApprovedBrowserEvidence() throws Exception {
+        for (var reason : List.of(io.kaos.tool.httpget.HttpGetException.Reason.UNAVAILABLE,
+                io.kaos.tool.httpget.HttpGetException.Reason.TOO_LARGE,
+                io.kaos.tool.httpget.HttpGetException.Reason.INVALID_CONTENT)) {
+            try (var rig = new Rig()) {
+                rig.sources.failures.put("/a b", reason);
+                rig.browserRenderer = url -> {
+                    rig.browserCalls.incrementAndGet();
+                    return new BrowserRenderedResult(new io.kaos.tool.httpget.HttpGetRequest(url),
+                            "Bounded rendered publisher evidence after the direct retrieval failed.",
+                            "Publisher title", "Publisher description");
+                };
+                assertEquals(0, rig.run("approve\napprove\napprove\n"), rig::output);
+                assertEquals(1, rig.browserCalls.get());
+                assertInstanceOf(BrowserRenderedResult.class, rig.inputs.get(1).getFirst());
+                assertTrue(rig.output().contains("reason=" + reason.name()));
+                assertTrue(rig.output().contains("BROWSER-RENDERED"));
             }
         }
     }
