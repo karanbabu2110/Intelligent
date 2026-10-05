@@ -6,8 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.kaos.tool.browserrender.BrowserRenderException;
+import io.kaos.app.browsersearch.BingBrowserSearchProvider;
+import io.kaos.app.browsersearch.BrowserSearchProvider;
+import com.microsoft.playwright.Page;
 import io.kaos.tool.browserrender.BrowserResource;
 import io.kaos.tool.websearch.WebSearchRequest;
+import io.kaos.tool.websearch.WebSearchResult;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -29,13 +33,70 @@ class ResearchBrowserRendererTest {
                     </ol></body></html>
                     """);
         });
-        var result = renderer.searchBing(new WebSearchRequest("bounded facts"));
+        var result = renderer.search(new WebSearchRequest("bounded facts"), new BingBrowserSearchProvider());
         assertEquals(1, result.results().size());
         assertEquals("First result", result.results().getFirst().title());
         assertEquals("https://example.com/one", result.results().getFirst().url());
         assertEquals("Useful snippet", result.results().getFirst().snippet());
         assertEquals("BROWSER_BING", result.results().getFirst().provider());
         assertEquals(List.of("/search"), requested);
+    }
+
+    @Test void classifiesBrowserSearchFailuresAndReleasesContextAfterFailure() {
+        var provider = new BingBrowserSearchProvider();
+        var request = new WebSearchRequest("bounded facts");
+        assertTrue(provider.searchUri(request).getRawQuery().contains("bounded+facts"));
+        var captcha = new ResearchBrowserRenderer((uri, timeout, maxBytes) ->
+                resource(uri, 200, "text/html", "", "<body><form action='/captcha'></form></body>"));
+        assertEquals(BrowserRenderException.Reason.CAPTCHA,
+                assertThrows(BrowserRenderException.class, () -> captcha.search(request, provider)).reason());
+
+        var layout = new ResearchBrowserRenderer((uri, timeout, maxBytes) ->
+                resource(uri, 200, "text/html", "", "<body>Changed results layout</body>"));
+        assertEquals(BrowserRenderException.Reason.UNSUPPORTED_LAYOUT,
+                assertThrows(BrowserRenderException.class, () -> layout.search(request, provider)).reason());
+
+        var denied = new ResearchBrowserRenderer((uri, timeout, maxBytes) ->
+                resource(uri, 403, "text/html", "", "denied"));
+        assertEquals(BrowserRenderException.Reason.ACCESS_DENIED,
+                assertThrows(BrowserRenderException.class, () -> denied.search(request, provider)).reason());
+        var limited = new ResearchBrowserRenderer((uri, timeout, maxBytes) ->
+                resource(uri, 429, "text/html", "", "slow down"));
+        assertEquals(BrowserRenderException.Reason.RATE_LIMITED,
+                assertThrows(BrowserRenderException.class, () -> limited.search(request, provider)).reason());
+        var timeout = new ResearchBrowserRenderer((uri, boundedTime, maxBytes) -> {
+            throw new BrowserRenderException(BrowserRenderException.Reason.TIMEOUT);
+        });
+        assertEquals(BrowserRenderException.Reason.TIMEOUT,
+                assertThrows(BrowserRenderException.class, () -> timeout.search(request, provider)).reason());
+
+        AtomicBoolean first = new AtomicBoolean(true);
+        var reusable = new ResearchBrowserRenderer((uri, boundedTime, maxBytes) ->
+                resource(uri, 200, "text/html", "", first.getAndSet(false)
+                        ? "<body>Unexpected layout</body>"
+                        : "<body><li class='b_algo'><h2><a href='https://example.com/ok'>OK</a></h2></li></body>"));
+        assertEquals(BrowserRenderException.Reason.UNSUPPORTED_LAYOUT,
+                assertThrows(BrowserRenderException.class, () -> reusable.search(request, provider)).reason());
+        assertEquals("OK", reusable.search(request, provider).results().getFirst().title());
+    }
+
+    @Test void supportsAnotherProviderWithoutChangingTheChromiumRunner() {
+        var provider = new BrowserSearchProvider() {
+            @Override public String provenance() { return "BROWSER_FIXTURE"; }
+            @Override public URI searchUri(WebSearchRequest request) {
+                return URI.create("https://search.example/results?q=fixture");
+            }
+            @Override public WebSearchResult extract(Page page, WebSearchRequest request) {
+                return new WebSearchResult(request, List.of(new WebSearchResult.Entry(
+                        page.locator("h2").innerText(), "https://example.com/fact", "fixture snippet", provenance())));
+            }
+        };
+        var renderer = new ResearchBrowserRenderer((uri, timeout, maxBytes) -> {
+            assertEquals("search.example", uri.getHost());
+            return resource(uri, 200, "text/html", "", "<body><h2>Fixture fact</h2></body>");
+        });
+        assertEquals("BROWSER_FIXTURE", renderer.search(new WebSearchRequest("fixture"), provider)
+                .results().getFirst().provider());
     }
     @Test void rendersJavaScriptWithOnlyBoundedSameOriginDocumentScriptsAndStyles() {
         var requested = new CopyOnWriteArrayList<String>();

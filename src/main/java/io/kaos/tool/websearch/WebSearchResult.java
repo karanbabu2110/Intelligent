@@ -44,7 +44,8 @@ public record WebSearchResult(WebSearchRequest request, List<Entry> results, Eng
             TextBounds.check(title, 256);
             TextBounds.check(url, 2048);
             TextBounds.check(snippet, 512);
-            if (!"SEARXNG".equals(provider) && !"BROWSER_BING".equals(provider)) throw invalid();
+            if (!"SEARXNG".equals(provider)
+                    && (provider == null || !provider.matches("BROWSER_[A-Z][A-Z0-9_]{0,31}"))) throw invalid();
             if (title.isBlank() || url.isBlank()) throw invalid();
             try {
                 URI uri = URI.create(url);

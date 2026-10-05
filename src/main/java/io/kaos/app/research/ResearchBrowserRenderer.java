@@ -19,6 +19,8 @@ import io.kaos.tool.httpget.HttpGetRequest;
 import io.kaos.tool.httpget.HttpGetResult;
 import io.kaos.tool.websearch.WebSearchRequest;
 import io.kaos.tool.websearch.WebSearchResult;
+import io.kaos.tool.websearch.WebSearchToolContract;
+import io.kaos.app.browsersearch.BrowserSearchProvider;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -103,45 +105,26 @@ public final class ResearchBrowserRenderer {
             String text = extracted == null ? "" : boundedText(extracted.toString());
             if (text.isBlank()) throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
             return new BrowserRenderedResult(new HttpGetRequest(selected.toASCIIString()), text);
-        });
+        }, false);
     }
 
-    /** Searches one fixed public engine using the same pinned, isolated Chromium path as research. */
-    public WebSearchResult searchBing(WebSearchRequest request) {
-        URI selected = URI.create("https://www.bing.com/search?q="
-                + java.net.URLEncoder.encode(request.query(), StandardCharsets.UTF_8));
-        return withPage(selected, page -> {
-            var entries = new java.util.ArrayList<WebSearchResult.Entry>();
-            var cards = page.locator("li.b_algo");
-            int count = Math.min(cards.count(), WebSearchResult.MAX_RESULTS);
-            for (int index = 0; index < count; index++) {
-                var card = cards.nth(index);
-                var links = card.locator("h2 a");
-                if (links.count() != 1) continue;
-                String url = links.first().getAttribute("href");
-                String title = boundedField(links.first().innerText(), 256);
-                var snippets = card.locator(".b_caption p");
-                String snippet = snippets.count() == 0 ? "" : boundedField(snippets.first().innerText(), 512);
-                try {
-                    entries.add(new WebSearchResult.Entry(title, url, snippet, "BROWSER_BING"));
-                } catch (RuntimeException ignored) {
-                    // A malformed result link is untrusted data, not a navigation target.
-                }
+    /** Runs a provider inside the same pinned, isolated Chromium path as research. */
+    public WebSearchResult search(WebSearchRequest request, BrowserSearchProvider provider) {
+        java.util.Objects.requireNonNull(request, "request");
+        java.util.Objects.requireNonNull(provider, "provider");
+        return withPage(provider.searchUri(request), page -> {
+            WebSearchResult result = provider.extract(page, request);
+            if (!request.equals(result.request()) || result.results().isEmpty()
+                    || result.results().stream().anyMatch(entry ->
+                            !provider.provenance().equals(entry.provider()))) {
+                throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
             }
-            if (entries.isEmpty()) throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
-            var result = new WebSearchResult(request, entries);
-            io.kaos.tool.websearch.WebSearchToolContract.encodeResult(result);
+            WebSearchToolContract.encodeResult(result);
             return result;
-        });
+        }, true);
     }
 
-    private static String boundedField(String raw, int limit) {
-        if (raw == null) return "";
-        String value = raw.replaceAll("[\\r\\n\\t]+", " ").strip();
-        return value.codePointCount(0, value.length()) <= limit ? value : "";
-    }
-
-    private <T> T withPage(URI selected, Function<Page, T> extract) {
+    private <T> T withPage(URI selected, Function<Page, T> extract, boolean search) {
         long deadline = System.nanoTime() + MAX_TOTAL_RUNTIME.toNanos();
         var failure = new AtomicReference<BrowserRenderException>();
         var pageRef = new AtomicReference<Page>();
@@ -178,7 +161,7 @@ public final class ResearchBrowserRenderer {
                     opened.close();
                 }
             });
-            context.route("**/*", route -> handle(route, policy, deadline, totalBytes, failure));
+            context.route("**/*", route -> handle(route, policy, deadline, totalBytes, failure, search));
             context.routeWebSocket("**/*", socket -> {
                 try {
                     policy.blockedRequest();
@@ -210,7 +193,7 @@ public final class ResearchBrowserRenderer {
     }
 
     private void handle(Route route, ResearchBrowserRequestPolicy policy, long deadline,
-            int[] totalBytes, AtomicReference<BrowserRenderException> failure) {
+            int[] totalBytes, AtomicReference<BrowserRenderException> failure, boolean search) {
         try {
             if (failure.get() != null) {
                 route.abort("blockedbyclient");
@@ -243,7 +226,7 @@ public final class ResearchBrowserRenderer {
                 if (resource.status() < 300 || resource.status() >= 400) break;
                 uri = policy.followRedirect(uri, resource.location());
             }
-            validateResponse(request.resourceType(), uri, resource);
+            validateResponse(request.resourceType(), uri, resource, search);
             var options = new Route.FulfillOptions().setStatus(resource.status())
                     .setBodyBytes(responseBody);
             var headers = new java.util.HashMap<String, String>();
@@ -265,11 +248,14 @@ public final class ResearchBrowserRenderer {
         }
     }
 
-    private static void validateResponse(String resourceType, URI uri, BrowserResource resource) {
+    private static void validateResponse(String resourceType, URI uri, BrowserResource resource,
+            boolean search) {
         if (!resource.url().equals(uri)) {
             throw new BrowserRenderException(BrowserRenderException.Reason.REQUEST_BLOCKED);
         }
         int status = resource.status();
+        if (search && status == 403) throw new BrowserRenderException(BrowserRenderException.Reason.ACCESS_DENIED);
+        if (search && status == 429) throw new BrowserRenderException(BrowserRenderException.Reason.RATE_LIMITED);
         if (status < 200 || status >= 300) {
             throw new BrowserRenderException(BrowserRenderException.Reason.HTTP_ERROR);
         }
