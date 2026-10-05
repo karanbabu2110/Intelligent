@@ -76,6 +76,20 @@ class SearxngClientTest {
     @Test void emptyResultsAreSuccess() throws Exception {
         assertEquals(0, response(200, "{\"results\":[]}").results().size());
     }
+    @Test void countsOnlyBoundedEngineSignalsWithoutExposingNamesOrFailureReasons() throws Exception {
+        String first = ENTRY.replace("\"engine\":\"private\"",
+                "\"engines\":[\"bing\",\"brave\"]");
+        String second = ENTRY.replace("\"engine\":\"private\"", "\"engine\":\"bing\"");
+        var result = response(200, "{\"results\":[" + first + "," + second
+                + "],\"unresponsive_engines\":[[\"google\",\"CAPTCHA\"]]}");
+        assertEquals(2, result.engines().contributing());
+        assertEquals(1, result.engines().failed());
+        String model = WebSearchToolContract.encodeResult(result).toString();
+        assertFalse(model.contains("brave"));
+        assertFalse(model.contains("CAPTCHA"));
+        assertEquals(-1, response(200, "{\"results\":["
+                + ENTRY.replace(",\"engine\":\"private\"", "") + "]}").engines().contributing());
+    }
     @Test void rejectsMalformedMissingOversizedOrUnsafeFields() {
         for (String body : List.of("not json", "{}", "{\"results\":null}", "{\"results\":[{}]}",
                 "{\"results\":[]} trailing", "{\"results\":[],\"results\":[]}",
