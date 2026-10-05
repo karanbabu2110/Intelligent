@@ -243,8 +243,9 @@ text with titles, headings, paragraphs and list content; scripts, navigation,
 footers and common advertisement/consent blocks are removed. Only extracted text
 up to 64 KiB reaches Ollama. Retrieval diagnostics classify size, HTTP, timeout,
 availability and unsupported-content failures.
-If direct HTTP receives a redirect, 401/403 response, invalid or non-UTF-8 content, or fewer
-than 200 code points of readable HTML, research can offer a separate one-use
+If direct HTTP receives a redirect, 401/403 response, unavailable or oversized
+response, invalid or non-UTF-8 content, or fewer than 200 code points of readable
+HTML, research can offer a separate one-use
 Chromium approval for that exact URL and host. Saved publisher-host approval does
 not approve rendering. An approved render uses a fresh profile-free context with
 JavaScript, but Chromium receives all page resources from a KAOS-owned,
@@ -252,11 +253,14 @@ DNS-validated and address-pinned fetch path. The restrictive policy permits only
 the selected HTTPS origin and GET document, script and stylesheet resources. It
 blocks third-party origins, XHR/fetch/API traffic, images, fonts, media, WebSockets,
 popups, downloads, clicks, form submissions and later script-driven navigation.
+The selected destination is checked for a public address before Chromium navigation;
+each resource is independently checked again and pinned at connection time.
 Each render allows 32 requests, three same-origin redirects, 512 KiB per response,
 1 MiB total response data, 10 seconds per resource, 20 seconds total, 20,000 text
-nodes and 64 KiB/code points of visible text. A denial or failure is not retried.
-Timeouts, unavailable or unsafe destinations, invalid URLs, oversized direct
-responses, rate limits, cancellation and interruption never enter the fallback.
+nodes and 64 KiB/code points of visible text, plus bounded page title and meta
+description. A denial or failure is not retried. Direct timeouts, unsafe
+destinations, invalid URLs, rate limits, cancellation and interruption do not
+offer the fallback.
 With successful page evidence, research prints claims with source references and
 uncertainty, explicitly reporting partial coverage and marking each source as
 `DIRECT-HTTP` or `BROWSER-RENDERED`. If all pages fail, it can

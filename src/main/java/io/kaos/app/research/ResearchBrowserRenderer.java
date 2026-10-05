@@ -78,12 +78,20 @@ public final class ResearchBrowserRenderer {
     @FunctionalInterface
     interface ResourceFetcher {
         BrowserResource fetch(URI uri, Duration timeout, int maxBytes);
+        default void validateDestination(URI uri, Duration timeout) { }
     }
 
     private final ResourceFetcher fetcher;
 
     public ResearchBrowserRenderer() {
-        this(PinnedBrowserResourceFetcher::fetch);
+        this(new ResourceFetcher() {
+            @Override public BrowserResource fetch(URI uri, Duration timeout, int maxBytes) {
+                return PinnedBrowserResourceFetcher.fetch(uri, timeout, maxBytes);
+            }
+            @Override public void validateDestination(URI uri, Duration timeout) {
+                PinnedBrowserResourceFetcher.validateDestination(uri, timeout);
+            }
+        });
     }
 
     ResearchBrowserRenderer(ResourceFetcher fetcher) {
@@ -97,6 +105,8 @@ public final class ResearchBrowserRenderer {
         } catch (RuntimeException exception) {
             throw new BrowserRenderException(BrowserRenderException.Reason.INVALID_REQUEST);
         }
+        long deadline = System.nanoTime() + MAX_TOTAL_RUNTIME.toNanos();
+        fetcher.validateDestination(selected, Duration.ofMillis(remainingMillis(deadline).longValue()));
         return withPage(selected, page -> {
             if (page.locator("body").count() != 1) {
                 throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
@@ -104,14 +114,21 @@ public final class ResearchBrowserRenderer {
             Object extracted = page.locator("body").evaluate(EXTRACT_VISIBLE_TEXT);
             String text = extracted == null ? "" : boundedText(extracted.toString());
             if (text.isBlank()) throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
-            return new BrowserRenderedResult(new HttpGetRequest(selected.toASCIIString()), text);
-        }, false);
+            String title = boundedMetadata(page.title(), BrowserRenderedResult.MAX_TITLE_CODE_POINTS);
+            var descriptions = page.locator("meta[name='description']");
+            String description = descriptions.count() == 0 ? "" : boundedMetadata(
+                    descriptions.first().getAttribute("content"),
+                    BrowserRenderedResult.MAX_DESCRIPTION_CODE_POINTS);
+            return new BrowserRenderedResult(new HttpGetRequest(selected.toASCIIString()), text,
+                    title, description);
+        }, false, deadline);
     }
 
     /** Runs a provider inside the same pinned, isolated Chromium path as research. */
     public WebSearchResult search(WebSearchRequest request, BrowserSearchProvider provider) {
         java.util.Objects.requireNonNull(request, "request");
         java.util.Objects.requireNonNull(provider, "provider");
+        long deadline = System.nanoTime() + MAX_TOTAL_RUNTIME.toNanos();
         return withPage(provider.searchUri(request), page -> {
             WebSearchResult result = provider.extract(page, request);
             if (!request.equals(result.request()) || result.results().isEmpty()
@@ -121,11 +138,10 @@ public final class ResearchBrowserRenderer {
             }
             WebSearchToolContract.encodeResult(result);
             return result;
-        }, true);
+        }, true, deadline);
     }
 
-    private <T> T withPage(URI selected, Function<Page, T> extract, boolean search) {
-        long deadline = System.nanoTime() + MAX_TOTAL_RUNTIME.toNanos();
+    private <T> T withPage(URI selected, Function<Page, T> extract, boolean search, long deadline) {
         var failure = new AtomicReference<BrowserRenderException>();
         var pageRef = new AtomicReference<Page>();
         var policy = new ResearchBrowserRequestPolicy(selected);
@@ -298,5 +314,11 @@ public final class ResearchBrowserRenderer {
             points++;
         }
         return output.toString().strip();
+    }
+
+    private static String boundedMetadata(String raw, int maxPoints) {
+        if (raw == null) return "";
+        String normalized = raw.replaceAll("[\\p{Cntrl}\\p{Z}]+", " ").strip();
+        return normalized.codePointCount(0, normalized.length()) <= maxPoints ? normalized : "";
     }
 }

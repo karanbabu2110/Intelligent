@@ -49,15 +49,17 @@ endpoint as shown in the [README](../../README.md).
    history and prints its source number and fixed reason. Remaining approved sources
    are processed once, with no replacement URLs. Timeout/unavailable transport
    failures can retry twice with short backoff.
-5. A redirect, HTTP 401/403, invalid direct or UTF-8 response, or HTML result with fewer
+5. A redirect, HTTP 401/403, unavailable or oversized direct response, invalid direct or UTF-8 response, or HTML result with fewer
    than 200 readable code points can offer a separate browser operation. The prompt
    displays the exact URL and host and states that JavaScript will run. Saved host
    approval does not transfer. Denial skips that source without retry. Invalid or
-   unsafe URLs, public-address rejection, timeout, unavailability, oversized direct
-   data, rate limiting, cancellation and interruption do not offer the fallback.
+   unsafe URLs, public-address rejection, timeout, rate limiting, cancellation
+   and interruption do not offer the fallback.
    Each approval creates a fresh non-persistent Chromium context. Only the exact
    source origin's GET document, script and stylesheet resources can be fetched.
-   KAOS fetches and fulfills them through its own validated, pinned transport;
+   KAOS checks the selected page's public DNS destination before navigation,
+   then fetches and fulfills resources through its own independently validated,
+   pinned transport;
    Chromium has no publisher network path.
 6. After retrieval, if at least one page succeeded, one structured local-model call
    receives the pages as untrusted tool-result messages. Search snippets are
@@ -103,13 +105,13 @@ limitations. No source is declared universally trusted.
 | Selection output | At most three entries; purpose 256 and reason 512 code points |
 | Answer output | At most eight claims, 1024 code points each; uncertainty at most 1024; one to three valid source references per claim |
 | Model operations | One selection and one page or search-only synthesis; existing local request/token/stream timeouts; no model retries or tools; transient HTTP retries are bounded to two |
-| Browser eligibility | Direct redirect, HTTP 401/403, invalid or non-UTF-8 content, or successful HTML with fewer than 200 readable code points |
+| Browser eligibility | Direct redirect, HTTP 401/403, unavailability, oversized, invalid or non-UTF-8 content, or successful HTML with fewer than 200 readable code points |
 | Browser approval | One explicit decision for one exact URL/host; never saved or inherited from direct HTTP approval |
 | Browser origin/resources | Selected HTTPS origin only; GET document, script and stylesheet; all other schemes, origins, methods and resource types blocked |
 | Browser requests/redirects | At most 32 attempted requests and three same-origin redirects per render |
 | Browser response data | At most 524,288 bytes per resource and 1,048,576 bytes across one render; compressed bodies rejected |
-| Browser timing | 2-second connect, 10 seconds per resource, 20 seconds total including launch/navigation/render/extraction checks |
-| Browser extraction | At most 20,000 text nodes and 65,536 UTF-8 bytes/code points of visible text |
+| Browser timing | Public-DNS preflight at most three seconds, 2-second connect, 10 seconds per resource, 20 seconds total including preflight, launch/navigation/render/extraction checks |
+| Browser extraction | At most 20,000 text nodes and 65,536 UTF-8 bytes/code points of visible text; title 256 and meta description 512 code points |
 | Browser lifecycle | Fresh headless context per approved source; no profile, cookies, credentials, downloads, permissions, retained storage or public control endpoint |
 
 Malformed model output, unexpected tool calls, invalid citations, unsafe URLs,
@@ -129,7 +131,8 @@ approval prompt and successful source attribution.
 
 Direct bodies remain bounded textual responses; their HTML scripts are never
 executed. The separately approved fallback executes same-origin JavaScript in a
-fresh Chromium context and extracts bounded visible text. Browser-rendered evidence
+fresh Chromium context and extracts bounded visible text, page title and meta
+description. Browser-rendered evidence
 is encoded as `browser_rendered`, is called untrusted evidence in the synthesis
 instruction, and is printed as `BROWSER-RENDERED`; direct evidence is printed as
 `DIRECT-HTTP`. Scripts cannot change the frozen source set, grant authority, add a
@@ -272,7 +275,7 @@ HTTP contracts continue to test exact grants and malformed UTF-8.
 
 An optional live demonstration uses the README command. Review the search prompt,
 any new-host prompt and each browser-render prompt. Redirects and non-UTF-8 direct
-responses may offer the bounded browser fallback; oversized pages remain excluded.
+responses and oversized pages may offer the bounded browser fallback.
 Invalid approval storage or model schema failures stop the run.
 The separate [live evaluation](verified-web-research-live-evaluation.md) records
 local-model/public-source runs and the quality and safety problems they exposed.

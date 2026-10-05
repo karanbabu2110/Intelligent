@@ -10,6 +10,7 @@ import io.kaos.app.browsersearch.BingBrowserSearchProvider;
 import io.kaos.app.browsersearch.BrowserSearchProvider;
 import com.microsoft.playwright.Page;
 import io.kaos.tool.browserrender.BrowserResource;
+import io.kaos.tool.browserrender.BrowserRenderedResult;
 import io.kaos.tool.websearch.WebSearchRequest;
 import io.kaos.tool.websearch.WebSearchResult;
 import java.net.URI;
@@ -106,7 +107,9 @@ class ResearchBrowserRendererTest {
             assertTrue(maxBytes <= ResearchBrowserRenderer.MAX_RESOURCE_BYTES);
             return switch (uri.getPath()) {
                 case "/page" -> resource(uri, 200, "text/html", "", """
-                        <html><head><link rel="stylesheet" href="/site.css"></head><body>
+                        <html><head><title>Rendered publisher title</title>
+                        <meta name="description" content="Publisher summary">
+                        <link rel="stylesheet" href="/site.css"></head><body>
                         <p>initial</p><img src="/image.png"><iframe src="https://other.example/frame"></iframe>
                         <script>fetch('/api'); const i=new Image(); i.src='/tracking';
                         try { new WebSocket('wss://other.example/socket'); } catch (ignored) {}
@@ -121,10 +124,14 @@ class ResearchBrowserRendererTest {
             };
         });
 
-        String first = renderer.render("https://one.example/page").content();
+        BrowserRenderedResult firstResult = renderer.render("https://one.example/page");
+        String first = firstResult.content();
         String second = renderer.render("https://one.example/page").content();
 
         assertTrue(first.contains("rendered storage=1"), first);
+        assertEquals("Rendered publisher title", firstResult.title());
+        assertEquals("Publisher summary", firstResult.description());
+        assertEquals("Publisher summary", firstResult.modelContent().path("description").asText());
         assertTrue(second.contains("rendered storage=1"), second);
         assertEquals(2, requested.stream().filter("/page"::equals).count());
         assertEquals(2, requested.stream().filter("/app.js"::equals).count());
@@ -132,6 +139,31 @@ class ResearchBrowserRendererTest {
         assertFalse(requested.contains("/api"));
         assertFalse(requested.contains("/image.png"));
         assertFalse(requested.contains("/tracking"));
+    }
+
+    @Test void validatesDestinationBeforeOpeningChromiumAndBoundsMetadata() {
+        AtomicBoolean fetched = new AtomicBoolean();
+        var renderer = new ResearchBrowserRenderer(new ResearchBrowserRenderer.ResourceFetcher() {
+            @Override public BrowserResource fetch(URI uri, java.time.Duration timeout, int maxBytes) {
+                fetched.set(true);
+                throw new AssertionError("Unsafe destination was fetched");
+            }
+            @Override public void validateDestination(URI uri, java.time.Duration timeout) {
+                assertEquals("one.example", uri.getHost());
+                assertTrue(timeout.compareTo(ResearchBrowserRenderer.MAX_TOTAL_RUNTIME) <= 0);
+                throw new BrowserRenderException(BrowserRenderException.Reason.NON_PUBLIC_DESTINATION);
+            }
+        });
+        assertEquals(BrowserRenderException.Reason.NON_PUBLIC_DESTINATION,
+                assertThrows(BrowserRenderException.class,
+                        () -> renderer.render("https://one.example/page")).reason());
+        assertFalse(fetched.get());
+
+        var request = new io.kaos.tool.httpget.HttpGetRequest("https://one.example/page");
+        assertThrows(IllegalArgumentException.class, () -> new BrowserRenderedResult(request,
+                "content", "x".repeat(BrowserRenderedResult.MAX_TITLE_CODE_POINTS + 1), ""));
+        assertThrows(IllegalArgumentException.class, () -> new BrowserRenderedResult(request,
+                "content", "title", "x".repeat(BrowserRenderedResult.MAX_DESCRIPTION_CODE_POINTS + 1)));
     }
 
     @Test void followsBoundedSameOriginRedirectButRejectsCrossOriginRedirect() {
@@ -169,10 +201,12 @@ class ResearchBrowserRendererTest {
 
         AtomicBoolean fail = new AtomicBoolean(true);
         var reusable = new ResearchBrowserRenderer((uri, boundedTime, maxBytes) -> {
-            if (fail.getAndSet(false)) throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
+            if (fail.getAndSet(false)) throw new BrowserRenderException(BrowserRenderException.Reason.TIMEOUT);
             return resource(uri, 200, "text/html", "", "<body>clean second context</body>");
         });
-        assertThrows(BrowserRenderException.class, () -> reusable.render("https://one.example/page"));
+        assertEquals(BrowserRenderException.Reason.TIMEOUT,
+                assertThrows(BrowserRenderException.class,
+                        () -> reusable.render("https://one.example/page")).reason());
         assertTrue(reusable.render("https://one.example/page").content().contains("clean second context"));
 
         String largeText = "x".repeat(ResearchBrowserRenderer.MAX_RESOURCE_BYTES - 128);
