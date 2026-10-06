@@ -20,6 +20,9 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -75,6 +78,49 @@ class WebSearchIntegrationTest {
             assertEquals(0, f.resultPageCalls.get());
             assertEquals(ToolExecutionOutcome.SUCCEEDED,
                     f.history.records().getFirst().outcome());
+        }
+    }
+    @Test void yesterdayRequiresTheResolvedLocalDateBeforeSearchApproval() throws Exception {
+        Clock clock = Clock.fixed(Instant.parse("2026-10-06T06:00:00Z"), ZoneId.of("Asia/Kolkata"));
+        String question = "What happened yesterday in the Chennai Tambaram local train accident?";
+        try (Fixture f = new Fixture(tool("web_search",
+                "{\"query\":\"Chennai Tambaram Local Train Accident today September 2024\"}"))) {
+            assertEquals(1, f.command("approve\n").withClock(clock).execute(question));
+            assertEquals(0, f.searchCalls.get());
+            assertEquals(1, f.messages.size());
+            assertTrue(f.messages.getFirst().path("messages").get(0).path("content")
+                    .asText().contains("2026-10-05"));
+            assertTrue(f.errors().contains("KAOS-WEB-SEARCH-DATE-MISMATCH"));
+            assertFalse(f.output().contains("Search query:"));
+        }
+        try (Fixture f = new Fixture(tool("web_search",
+                "{\"query\":\"Chennai Tambaram Metro Corporation accident 2026-10-05\"}"))) {
+            assertEquals(1, f.command("approve\n").withClock(clock).execute(question));
+            assertEquals(0, f.searchCalls.get());
+            assertTrue(f.errors().contains("KAOS-WEB-SEARCH-DATE-MISMATCH"));
+        }
+        try (Fixture f = new Fixture(tool("web_search",
+                "{\"query\":\"Chennai Tambaram train accident 2026-10-05\"}"))) {
+            assertEquals(0, f.command("approve\n").withClock(clock).execute(question), f.errors());
+            assertEquals(1, f.searchCalls.get());
+            assertTrue(f.searchQueries.getFirst().contains("2026-10-05"));
+            assertEquals(1, f.messages.size());
+            assertTrue(f.output().contains("Search-only results"));
+            assertTrue(f.output().contains(f.searchUrl() + "/result"));
+        }
+        try (Fixture f = new Fixture(tool("web_search",
+                "{\"query\":\"Chennai Tambaram train accident 2026-10-05\"}"))) {
+            f.completion = answer("No accident happened");
+            assertEquals(0, f.command("approve\n").withClock(clock).execute(question), f.errors());
+            assertTrue(f.output().contains("Search-only results"));
+            assertTrue(f.output().contains(f.searchUrl() + "/result"));
+            assertFalse(f.output().contains("No accident happened"));
+        }
+        try (Fixture f = new Fixture(answer("No accident happened"))) {
+            assertEquals(1, f.command("").withClock(clock).execute(question));
+            assertEquals(0, f.searchCalls.get());
+            assertFalse(f.output().contains("No accident happened"));
+            assertTrue(f.errors().contains("KAOS-WEB-SEARCH-REQUIRED"));
         }
     }
     @Test void emptySearxngUsesSeparatelyApprovedBrowserFallback() throws Exception {
@@ -137,9 +183,9 @@ class WebSearchIntegrationTest {
                             new WebSearchResult.Provenance("BROWSER_BING", "BING"),
                             new WebSearchResult.Provenance("SEARXNG", "BING"))))));
             assertEquals(0, command.execute("Find facts"), f.errors());
-            JsonNode result = JSON.readTree(f.messages.getLast().path("messages").get(3).path("content").asText());
-            assertEquals(1, result.path("results").size());
-            assertEquals("SEARXNG", result.path("results").get(0).path("provider").asText());
+            assertEquals(1, f.messages.size());
+            assertTrue(f.output().contains("Search-only results"));
+            assertTrue(f.output().contains("https://example.com/1"));
             assertTrue(f.output().contains("Browser search failed: UNAVAILABLE"));
         }
     }
@@ -157,11 +203,10 @@ class WebSearchIntegrationTest {
                 });
                 assertEquals(0, command.execute("Find facts"), f.errors());
                 assertEquals(1, browserCalls.get());
-                JsonNode result = JSON.readTree(f.messages.getLast().path("messages").get(3)
-                        .path("content").asText());
-                assertEquals(1, result.path("results").size());
-                assertEquals("SEARXNG", result.path("results").get(0).path("provider").asText());
-                assertFalse(f.messages.getLast().has("tools"));
+                assertEquals(1, f.messages.size());
+                assertTrue(f.output().contains("Search-only results"));
+                assertTrue(f.output().contains("https://example.com/1"));
+                assertFalse(f.output().contains("Final answer"));
                 assertTrue(f.output().contains("Browser search failed: "
                         + (unexpected ? "UNAVAILABLE" : "CONSENT_INTERSTITIAL")));
                 assertFalse(f.output().contains("PRIVATE_BROWSER_SESSION"));

@@ -27,11 +27,13 @@ import io.kaos.tool.websearch.BrowserSearchFallback;
 import io.kaos.tool.browserrender.BrowserRenderException;
 import io.kaos.app.browsersearch.BingBrowserSearchProvider;
 import io.kaos.app.browsersearch.BrowserSearchProvider;
+import io.kaos.app.websearch.RelativeSearchDate;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -51,6 +53,7 @@ final class LocalToolsCommand {
     private final BrowserSearchProvider browserProvider = new BingBrowserSearchProvider();
     private Function<WebSearchRequest, WebSearchResult> browserSearch =
             request -> new io.kaos.app.research.ResearchBrowserRenderer().search(request, browserProvider);
+    private Clock clock = Clock.systemDefaultZone();
     private ToolHistoryRecorder historyRecorder;
 
     LocalToolsCommand withToolHistory(Supplier<ToolExecutionHistory> historyLoader) {
@@ -83,12 +86,17 @@ final class LocalToolsCommand {
         return this;
     }
 
+    LocalToolsCommand withClock(Clock value) {
+        clock = Objects.requireNonNull(value);
+        return this;
+    }
+
     int execute(String question) {
         BufferedReader reader = new BufferedReader(new InputStreamReader(context.input(),
                 StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
                         .onUnmappableCharacter(CodingErrorAction.REPORT)));
         return submit(question, ConversationHistory.empty(),
-                () -> ApprovalInput.readBounded(reader)).exitCode();
+                () -> ApprovalInput.readBounded(reader), true).exitCode();
     }
 
     record Outcome(int exitCode, String response, boolean persistable) {
@@ -96,9 +104,16 @@ final class LocalToolsCommand {
     }
 
     Outcome submit(String question, ConversationHistory history, ApprovalInput input) {
+        return submit(question, history, input, false);
+    }
+
+    private Outcome submit(String question, ConversationHistory history, ApprovalInput input,
+            boolean explicitWebSearchCommand) {
         OllamaPrompt prompt;
+        Clock turnClock = Clock.fixed(clock.instant(), clock.getZone());
+        var relativeDate = RelativeSearchDate.from(question, turnClock);
         try {
-            prompt = new OllamaPrompt(question, INSTRUCTION);
+            prompt = new OllamaPrompt(question, INSTRUCTION + relativeDate.instruction(turnClock));
         } catch (IllegalArgumentException exception) {
             context.errorOutput().println("Expected one valid question. Run 'kaos help' for usage.");
             return new Outcome(KaosApplication.USAGE_ERROR, "", false);
@@ -113,12 +128,23 @@ final class LocalToolsCommand {
         var initial = client.submitWithTools(model, history, prompt, registryLoader.get(), StandardTools.LOCAL);
         if (!initial.successful()) return modelFailure(initial);
         if (!initial.toolRequested()) {
+            if (explicitWebSearchCommand && !relativeDate.required().isEmpty()) {
+                return error("KAOS-WEB-SEARCH-REQUIRED",
+                        "A dated public question requires an approved search. Make a new request.");
+            }
             context.output().println(initial.response());
             return new Outcome(KaosApplication.SUCCESS, initial.response(), true);
         }
         var selection = initial.selection().orElseThrow();
         if (!StandardTools.LOCAL.contains(selection.name())) {
             return error("KAOS-TOOL-DISALLOWED-TOOL", "The selected tool is not allowed in this operation.");
+        }
+        if (WebSearchToolContract.NAME.equals(selection.name())
+                && !relativeDate.matches(question, selection.arguments().path("query").asText(""))) {
+            audit(selection.name(), UUID.randomUUID().toString(), "NOT_REQUESTED", "NOT_EXECUTED");
+            return error("KAOS-WEB-SEARCH-DATE-MISMATCH",
+                    "The proposed search changed the resolved date or added unrequested terms. "
+                            + "Expected date " + relativeDate.required() + ". Make a new request with an explicit ISO date.");
         }
         ToolPermissionPolicy<? extends ToolResult<?>> permission;
         try {
@@ -168,6 +194,7 @@ final class LocalToolsCommand {
         }
         if (result instanceof WebSearchResult primary) {
             var quality = BrowserSearchFallback.evaluate(primary);
+            boolean searchOnly = quality.fallback();
             if (quality.reason() != BrowserSearchFallback.Reason.DISABLED) {
                 context.output().println("Search quality: reason=" + quality.reason().name()
                         + " results=" + quality.results() + " unique_domains=" + quality.domains()
@@ -196,6 +223,7 @@ final class LocalToolsCommand {
                             throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
                         }
                         result = WebSearchResultMerger.merge(primary, rendered);
+                        searchOnly = false;
                         audit("browser_search", browserAttempt, "APPROVED", "SUCCEEDED");
                         context.output().println("Browser search completed: " + rendered.results().size()
                                 + " results; merged=" + ((WebSearchResult) result).results().size()
@@ -215,6 +243,13 @@ final class LocalToolsCommand {
                     context.output().println("Browser search skipped; SearXNG results retained.");
                 }
             }
+            if (!relativeDate.required().isEmpty()) {
+                return searchOnly((WebSearchResult) result,
+                        "date-sensitive events require publisher text for a factual answer");
+            }
+            if (searchOnly) {
+                return searchOnly(primary, "browser coverage was unavailable or skipped");
+            }
         }
         var completion = client.continueWithToolResult(model, prompt, initial, result);
         if (!completion.successful()) return modelFailure(completion);
@@ -222,6 +257,19 @@ final class LocalToolsCommand {
             return error("KAOS-TOOL-INVALID-STATE", "A second tool request is not permitted.");
         }
         context.output().println(completion.response());
+        return new Outcome(KaosApplication.SUCCESS, "", false);
+    }
+
+    private Outcome searchOnly(WebSearchResult result, String reason) {
+        context.output().println("Search-only results: " + reason + ". Titles and snippets are unverified; "
+                + "no factual answer was generated.");
+        for (int index = 0; index < result.results().size(); index++) {
+            var entry = result.results().get(index);
+            context.output().println("[" + (index + 1) + "] " + entry.title() + " - " + entry.url());
+            if (!entry.snippet().isBlank()) context.output().println(entry.snippet());
+        }
+        if (result.results().isEmpty()) context.output().println("No search results were returned.");
+        context.output().println("For publisher-text analysis, use research with an explicit ISO date.");
         return new Outcome(KaosApplication.SUCCESS, "", false);
     }
 
