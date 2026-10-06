@@ -38,8 +38,12 @@ public final class WebSearchToolContract {
         ObjectNode encoded = JSON.objectNode().put("query", result.request().query());
         var entries = encoded.putArray("results");
         for (var entry : result.results()) {
-            entries.addObject().put("title", entry.title()).put("url", entry.url())
+            var item = entries.addObject().put("title", entry.title()).put("url", entry.url())
                     .put("snippet", entry.snippet()).put("provider", entry.provider());
+            var sources = item.putArray("provenance");
+            for (var source : entry.provenance()) {
+                sources.addObject().put("provider", source.provider()).put("engine", source.engine());
+            }
         }
         if (encoded.toString().getBytes(StandardCharsets.UTF_8).length
                 > WebSearchResult.MAX_PAYLOAD_BYTES) {

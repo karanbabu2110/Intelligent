@@ -41,7 +41,7 @@ class SearxngClientTest {
             assertEquals(5, result.results().size());
             assertEquals("Spring Boot", result.results().getFirst().title());
             String encoded = WebSearchToolContract.encodeResult(result).toString();
-            assertFalse(encoded.contains("engine"));
+            assertTrue(encoded.contains("\"engine\":\"PRIVATE\""));
             assertFalse(encoded.contains("metadata"));
             assertThrows(WebSearchException.class, () -> client.execute(approval));
             assertEquals(1, calls.get());
@@ -76,7 +76,7 @@ class SearxngClientTest {
     @Test void emptyResultsAreSuccess() throws Exception {
         assertEquals(0, response(200, "{\"results\":[]}").results().size());
     }
-    @Test void countsOnlyBoundedEngineSignalsWithoutExposingNamesOrFailureReasons() throws Exception {
+    @Test void retainsBoundedPerResultEngineProvenanceWithoutFailureReasons() throws Exception {
         String first = ENTRY.replace("\"engine\":\"private\"",
                 "\"engines\":[\"bing\",\"brave\"]");
         String second = ENTRY.replace("\"engine\":\"private\"", "\"engine\":\"bing\"");
@@ -84,11 +84,17 @@ class SearxngClientTest {
                 + "],\"unresponsive_engines\":[[\"google\",\"CAPTCHA\"]]}");
         assertEquals(2, result.engines().contributing());
         assertEquals(1, result.engines().failed());
+        assertEquals(List.of(new WebSearchResult.Provenance("SEARXNG", "BING"),
+                new WebSearchResult.Provenance("SEARXNG", "BRAVE")),
+                result.results().getFirst().provenance());
         String model = WebSearchToolContract.encodeResult(result).toString();
-        assertFalse(model.contains("brave"));
+        assertTrue(model.contains("\"engine\":\"BRAVE\""));
         assertFalse(model.contains("CAPTCHA"));
         assertEquals(-1, response(200, "{\"results\":["
                 + ENTRY.replace(",\"engine\":\"private\"", "") + "]}").engines().contributing());
+        assertEquals("UNKNOWN", response(200, "{\"results\":["
+                + ENTRY.replace(",\"engine\":\"private\"", "") + "]}")
+                .results().getFirst().provenance().getFirst().engine());
     }
     @Test void rejectsMalformedMissingOversizedOrUnsafeFields() {
         for (String body : List.of("not json", "{}", "{\"results\":null}", "{\"results\":[{}]}",

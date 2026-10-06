@@ -364,6 +364,10 @@ external search engines. Search returns at most five bounded titles, URLs, and
 snippets; URLs are data only and are never fetched. Results are untrusted data,
 not instructions or execution authority. There is no tool chaining or automatic
 retry. Missing SearXNG configuration does not prevent startup or other tools.
+When separately approved browser search runs, KAOS merges its results with the
+SearXNG results in primary-first order, collapses matching URLs after removing
+fragments and common tracking parameters, and retains bounded provider and
+engine provenance for each result. Distinct pages keep separate entries.
 See [separate SearXNG setup](docs/development/searxng-setup.md) and the
 [search contract and limits](docs/evolution/web-search-tool.md).
 

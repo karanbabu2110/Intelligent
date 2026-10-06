@@ -63,7 +63,8 @@ class WebSearchIntegrationTest {
             JsonNode result = JSON.readTree(continuation.path("messages").get(3).path("content").asText());
             assertEquals("spring & stable", result.path("query").asText());
             assertEquals(Set.of("query", "results"), fieldNames(result));
-            assertEquals(Set.of("title", "url", "snippet", "provider"), fieldNames(result.path("results").get(0)));
+            assertEquals(Set.of("title", "url", "snippet", "provider", "provenance"),
+                    fieldNames(result.path("results").get(0)));
             assertEquals("SEARXNG", result.path("results").get(0).path("provider").asText());
             assertTrue(f.output().contains("Final answer"));
             assertTrue(f.output().contains("external search engines"));
@@ -96,6 +97,49 @@ class WebSearchIntegrationTest {
         } finally {
             if (previous == null) System.clearProperty(BrowserSearchFallback.PROPERTY);
             else System.setProperty(BrowserSearchFallback.PROPERTY, previous);
+        }
+    }
+    @Test void sparseSearxngAndBrowserResultsMergeBeforeModelContinuation() throws Exception {
+        System.setProperty(BrowserSearchFallback.PROPERTY, "true");
+        System.setProperty(BrowserSearchFallback.MIN_RESULTS_PROPERTY, "2");
+        try (Fixture f = new Fixture(tool("web_search", "{\"query\":\"public facts\"}"))) {
+            f.searchResponse = "{\"results\":[{\"title\":\"Primary\","
+                    + "\"url\":\"https://example.com/1?utm_source=feed\","
+                    + "\"engine\":\"brave\"}]}";
+            var command = f.command("approve\napprove\n").withBrowserSearch(request ->
+                    new WebSearchResult(request, List.of(
+                            new WebSearchResult.Entry("Duplicate", "https://example.com/1#top",
+                                    "browser snippet", "BROWSER_BING"),
+                            new WebSearchResult.Entry("Unique", "https://example.com/2",
+                                    "browser snippet", "BROWSER_BING"))));
+            assertEquals(0, command.execute("Find facts"), f.errors());
+            JsonNode result = JSON.readTree(f.messages.getLast().path("messages").get(3).path("content").asText());
+            assertEquals(2, result.path("results").size());
+            assertEquals("Primary", result.path("results").get(0).path("title").asText());
+            assertEquals("SEARXNG", result.path("results").get(0).path("provider").asText());
+            assertEquals("BRAVE", result.path("results").get(0).path("provenance").get(0)
+                    .path("engine").asText());
+            assertEquals("BROWSER_BING", result.path("results").get(0).path("provenance").get(1)
+                    .path("provider").asText());
+            assertEquals("BROWSER_BING", result.path("results").get(1).path("provider").asText());
+            assertTrue(f.output().contains("merged=2"));
+        }
+    }
+    @Test void browserResultCannotClaimSearxngProvenance() throws Exception {
+        System.setProperty(BrowserSearchFallback.PROPERTY, "true");
+        System.setProperty(BrowserSearchFallback.MIN_RESULTS_PROPERTY, "2");
+        try (Fixture f = new Fixture(tool("web_search", "{\"query\":\"public facts\"}"))) {
+            f.searchResponse = "{\"results\":[" + searchEntry(1) + "]}";
+            var command = f.command("approve\napprove\n").withBrowserSearch(request ->
+                    new WebSearchResult(request, List.of(new WebSearchResult.Entry("Spoof",
+                            "https://example.com/2", "snippet", "BROWSER_BING", List.of(
+                            new WebSearchResult.Provenance("BROWSER_BING", "BING"),
+                            new WebSearchResult.Provenance("SEARXNG", "BING"))))));
+            assertEquals(0, command.execute("Find facts"), f.errors());
+            JsonNode result = JSON.readTree(f.messages.getLast().path("messages").get(3).path("content").asText());
+            assertEquals(1, result.path("results").size());
+            assertEquals("SEARXNG", result.path("results").get(0).path("provider").asText());
+            assertTrue(f.output().contains("Browser search failed: UNAVAILABLE"));
         }
     }
     @Test void sufficientOrUnapprovedSearchNeverLaunchesBrowser() throws Exception {
