@@ -21,6 +21,7 @@ import io.kaos.tool.websearch.SearxngClient;
 import io.kaos.tool.websearch.WebSearchException;
 import io.kaos.tool.websearch.WebSearchRequest;
 import io.kaos.tool.websearch.WebSearchResult;
+import io.kaos.tool.websearch.WebSearchResultMerger;
 import io.kaos.tool.websearch.BrowserSearchApproval;
 import io.kaos.tool.websearch.BrowserSearchFallback;
 import io.kaos.tool.browserrender.BrowserRenderException;
@@ -189,13 +190,16 @@ final class LocalToolsCommand {
                         WebSearchResult rendered = browserSearch.apply(browserDecision.grant().orElseThrow().claim());
                         if (!rendered.request().equals(primary.request())
                                 || rendered.results().stream().anyMatch(entry ->
-                                        !browserProvider.provenance().equals(entry.provider()))) {
+                                        !browserProvider.provenance().equals(entry.provider())
+                                        || entry.provenance().stream().anyMatch(source ->
+                                                !browserProvider.provenance().equals(source.provider())))) {
                             throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
                         }
-                        result = rendered;
+                        result = WebSearchResultMerger.merge(primary, rendered);
                         audit("browser_search", browserAttempt, "APPROVED", "SUCCEEDED");
                         context.output().println("Browser search completed: " + rendered.results().size()
-                                + " results; provider=" + browserProvider.provenance() + ".");
+                                + " results; merged=" + ((WebSearchResult) result).results().size()
+                                + "; provider=" + browserProvider.provenance() + ".");
                     } catch (BrowserRenderException | WebSearchException exception) {
                         audit("browser_search", browserAttempt, "APPROVED", "FAILED");
                         String reason = exception instanceof BrowserRenderException browser

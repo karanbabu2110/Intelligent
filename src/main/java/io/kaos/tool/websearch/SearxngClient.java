@@ -144,7 +144,8 @@ public final class SearxngClient {
             }
             try {
                 entries.add(new WebSearchResult.Entry(displayText(node.get("title").textValue(), 256),
-                        node.get("url").textValue(), displayText(node.path("content").asText(""), 512)));
+                        node.get("url").textValue(), displayText(node.path("content").asText(""), 512),
+                        "SEARXNG", entryProvenance(node)));
                 collectResultEngines(node, contributingEngines);
             } catch (WebSearchException exception) {
                 throw failure(WebSearchException.Reason.INVALID_RESPONSE);
@@ -163,6 +164,24 @@ public final class SearxngClient {
         } else {
             addEngineName(names, result.path("engine"));
         }
+    }
+    private static List<WebSearchResult.Provenance> entryProvenance(JsonNode result) {
+        var engines = new java.util.LinkedHashSet<String>();
+        JsonNode values = result.path("engines");
+        if (values.isArray() && !values.isEmpty()) {
+            for (JsonNode value : values) addEntryEngine(engines, value);
+        } else {
+            addEntryEngine(engines, result.path("engine"));
+        }
+        if (engines.isEmpty()) engines.add("UNKNOWN");
+        if (engines.size() > 16) throw failure(WebSearchException.Reason.INVALID_RESPONSE);
+        return engines.stream().map(engine -> new WebSearchResult.Provenance("SEARXNG", engine)).toList();
+    }
+    private static void addEntryEngine(Set<String> engines, JsonNode value) {
+        if (!value.isTextual()) return;
+        String normalized = value.textValue().strip().toUpperCase(Locale.ROOT)
+                .replace(' ', '_').replace('-', '_');
+        if (normalized.matches("[A-Z][A-Z0-9_]{0,31}")) engines.add(normalized);
     }
     private static int failedEngineCount(JsonNode failures) {
         if (!failures.isArray()) return -1;

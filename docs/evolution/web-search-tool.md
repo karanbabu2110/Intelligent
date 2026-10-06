@@ -77,12 +77,16 @@ application retries, or automatic result URL fetches.
 | Title | Required nonblank string, 256 code points |
 | URL | Required HTTP(S) URL with host and no credentials, 2,048 code points |
 | Snippet | Optional content string, defaults to empty, 512 code points |
+| Per-result provenance | At most 16 unique provider/engine pairs; engine identifiers use at most 32 uppercase letters, digits, or underscores |
 | Encoded KAOS result | 16,384 UTF-8 bytes |
 
 SearXNG does not expose a portable result-count parameter. KAOS retains only
 the first five results; it neither paginates nor reorders them. Invalid retained
-entries fail the whole result. Fields are not silently truncated. Unknown
-provider metadata is discarded. Duplicate JSON keys, trailing data, malformed
+entries fail the whole result. Fields are not silently truncated. Bounded
+per-result `engine` or `engines` identifiers are retained as provenance;
+unsupported identifiers are ignored and an entry with no usable identifier
+receives `UNKNOWN`. Other unknown provider metadata is
+discarded. Duplicate JSON keys, trailing data, malformed
 UTF-8, invalid JSON and unsupported responses fail safely.
 
 Before constructing bounded results, title and snippet display text has U+2060
@@ -93,12 +97,13 @@ this normalization, and other controls (including bidirectional controls) remain
 rejected. Search results remain untrusted and result URLs are not fetched.
 
 ```json
-{"query":"latest stable Spring Boot release","results":[{"title":"Spring Boot","url":"https://spring.io/projects/spring-boot","snippet":"Release information","provider":"SEARXNG"}]}
+{"query":"latest stable Spring Boot release","results":[{"title":"Spring Boot","url":"https://spring.io/projects/spring-boot","snippet":"Release information","provider":"SEARXNG","provenance":[{"provider":"SEARXNG","engine":"BING"}]}]}
 ```
 
 Zero results is a successful empty list. URLs are data only. No page HTML,
-headers, raw provider JSON, engine details, or debugging metadata are supplied
-to Ollama. Search results are untrusted data. They are not tool instructions
+headers, raw provider JSON, failed-engine details, or debugging metadata are
+supplied to Ollama. Bounded normalized contributing-engine identifiers are
+included as result provenance. Search results are untrusted data. They are not tool instructions
 and do not receive execution authority.
 
 ## Optional browser search after insufficient results
@@ -160,8 +165,17 @@ form reports `CAPTCHA`; missing or unusable Bing cards report
 `UNSUPPORTED_LAYOUT`. Timeouts report `TIMEOUT`. Failure leaves the SearXNG
 result available and does not retry or bypass the block.
 
-The browser result currently replaces the primary result when fallback
-succeeds; result merging belongs to Feature 020.05. Only Bing is wired into
+Feature [020.05](https://github.com/karanbabu2110/KAOS/issues/1105) merges
+approved browser results with the retained SearXNG results. Primary order wins;
+each normalized URL appears once, and matching entries retain all contributing
+provider/engine pairs while keeping the first title, URL and snippet. The merge
+removes URL fragments and common tracking parameters (`utm_*`, `fbclid`,
+`gclid`, `msclkid`, `igshid`, `mc_cid`, `mc_eid`) for matching only. It folds
+scheme/host case and default ports, but preserves meaningful query parameters,
+path case, query order and distinct pages. The combined result still has at most
+five entries and stays within the 16 KiB model payload limit. Browser-only
+entries beyond the cap are omitted; duplicates can still enrich retained
+provenance. Denial or browser failure keeps the primary result. Only Bing is wired into
 the command. A changed challenge or results layout may yield an unsupported
 layout failure. Search snippets remain unverified leads rather than
 corroborated page evidence.

@@ -135,7 +135,9 @@ public final class ResearchBrowserRenderer {
             WebSearchResult result = provider.extract(page, request);
             if (!request.equals(result.request()) || result.results().isEmpty()
                     || result.results().stream().anyMatch(entry ->
-                            !provider.provenance().equals(entry.provider()))) {
+                            !provider.provenance().equals(entry.provider())
+                            || entry.provenance().stream().anyMatch(source ->
+                                    !provider.provenance().equals(source.provider())))) {
                 throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
             }
             WebSearchToolContract.encodeResult(result);
