@@ -22,6 +22,7 @@ public final class BrowserRenderException extends RuntimeException {
         REQUEST_BLOCKED,
         REDIRECT_BLOCKED,
         REQUEST_LIMIT,
+        CONCURRENCY_LIMIT,
         REDIRECT_LIMIT,
         TOO_LARGE,
         TIMEOUT,

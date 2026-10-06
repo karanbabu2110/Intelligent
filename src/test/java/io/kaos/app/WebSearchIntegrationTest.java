@@ -139,6 +139,7 @@ class WebSearchIntegrationTest {
             assertEquals(1, browserCalls.get());
             assertTrue(f.output().contains("fallback reason: EMPTY_RESULTS"));
             assertTrue(f.output().contains("AUDIT [browser_search]"));
+            assertTrue(f.output().contains("duration_ms="));
             JsonNode result = JSON.readTree(f.messages.getLast().path("messages").get(3).path("content").asText());
             assertEquals("BROWSER_BING", result.path("results").get(0).path("provider").asText());
         } finally {

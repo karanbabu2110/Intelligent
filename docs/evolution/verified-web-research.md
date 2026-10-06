@@ -112,7 +112,7 @@ limitations. No source is declared universally trusted.
 | Browser response data | At most 1,048,576 bytes per resource and 2,097,152 bytes across one research render; compressed bodies rejected. Browser search retains its 524,288-byte per-resource and 1,048,576-byte total limits |
 | Browser timing | Public-DNS preflight at most three seconds, 2-second connect, 10 seconds per resource, 20 seconds total including preflight, launch/navigation/render/extraction checks |
 | Browser extraction | At most 20,000 text nodes and 65,536 UTF-8 bytes/code points of visible text; title 256 and meta description 512 code points |
-| Browser lifecycle | Fresh headless context per approved source; no profile, cookies, credentials, downloads, permissions, retained storage or public control endpoint |
+| Browser concurrency/lifecycle | One active search or retrieval session across KAOS; a second attempt fails with `CONCURRENCY_LIMIT`. Each operation uses a fresh headless context and releases its slot after scoped resource cleanup; no profile, cookies, credentials, downloads, permissions, retained storage or public control endpoint |
 
 Malformed model output, unexpected tool calls, invalid citations, unsafe URLs,
 missing configuration, denial, cancellation, input failure, empty evidence,

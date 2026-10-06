@@ -432,10 +432,15 @@ validates redirects. Only GET documents, scripts and stylesheets on the exact
 approved HTTPS origin are eligible. XHR/fetch, images, fonts, media, WebSockets,
 third-party origins, popups, clicks, forms, downloads and later script navigation
 are blocked. Limits per render are 32 attempted requests, three same-origin
-redirects, 512 KiB per response, 1 MiB total response data, 10 seconds per
+redirects, 1 MiB per response, 2 MiB total response data, 10 seconds per
 resource, 20 seconds total, 20,000 inspected text nodes and 64 KiB/code points of
 model-facing visible text. Resources, page, context, browser and Playwright driver
-close through scoped cleanup on every terminal path. Chromium must already be
+close through scoped cleanup on every terminal path. Browser search retains its
+512 KiB per response and 1 MiB total limits. Search and retrieval share one
+active Chromium session slot; concurrent attempts fail with `CONCURRENCY_LIMIT`
+without launching a second browser. Browser attempts report elapsed time, and an
+opt-in content-free browser operation trace records the fixed mode, outcome,
+duration and slot release. Chromium must already be
 installed with the pinned Playwright 1.63.0 `installChromium` task.
 
 Rendered evidence is labeled `BROWSER-RENDERED` in the answer sources and encoded

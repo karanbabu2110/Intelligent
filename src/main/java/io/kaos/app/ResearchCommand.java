@@ -378,14 +378,23 @@ final class ResearchCommand {
             return null;
         }
         checkInterrupted();
+        long browserStarted = System.nanoTime();
         try {
-            return browserRenderer.render(url);
+            ToolResult<?> rendered = browserRenderer.render(url);
+            context.output().println("Browser rendering completed for source [" + source + "] in "
+                    + elapsedMillis(browserStarted) + " ms.");
+            return rendered;
         } catch (BrowserRenderException exception) {
             if (exception.reason() == BrowserRenderException.Reason.INTERRUPTED) throw exception;
             context.errorOutput().println("ERROR: Source [" + source + "] browser rendering failed: "
-                    + exception.reason().name() + "; continuing with remaining approved sources.");
+                    + exception.reason().name() + "; duration_ms=" + elapsedMillis(browserStarted)
+                    + "; continuing with remaining approved sources.");
             return null;
         }
+    }
+
+    private static long elapsedMillis(long started) {
+        return Math.max(0, java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started));
     }
 
     private static boolean insufficientHtml(HttpGetResult result) {

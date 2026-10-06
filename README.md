@@ -370,7 +370,10 @@ fragments and common tracking parameters, and retains bounded provider and
 engine provenance for each result. Distinct pages keep separate entries.
 Browser search checks the public destination before opening Chromium and reports
 bounded reasons for CAPTCHA, consent pages, access denial, rate limits, unsafe
-destinations and timeouts. A failed browser attempt keeps the SearXNG results.
+destinations and timeouts. Browser search and rendered retrieval share one active
+Chromium session slot; a concurrent attempt reports `CONCURRENCY_LIMIT` without
+opening another browser. Browser attempts report elapsed time, and a failed
+search attempt keeps the SearXNG results.
 See [separate SearXNG setup](docs/development/searxng-setup.md) and the
 [search contract and limits](docs/evolution/web-search-tool.md).
 
