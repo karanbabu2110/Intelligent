@@ -24,6 +24,10 @@ public final class BingBrowserSearchProvider implements BrowserSearchProvider {
         if (page.locator("#b_captcha, form[action*='captcha'], input[name*='captcha']").count() > 0) {
             throw new BrowserRenderException(BrowserRenderException.Reason.CAPTCHA);
         }
+        if (page.locator("#bnp_ttc_div:visible, #consent-page:visible, "
+                + "form[action*='consent']:visible, form[action*='privacy']:visible").count() > 0) {
+            throw new BrowserRenderException(BrowserRenderException.Reason.CONSENT_INTERSTITIAL);
+        }
         var cards = page.locator("li.b_algo");
         if (cards.count() == 0) {
             throw new BrowserRenderException(BrowserRenderException.Reason.UNSUPPORTED_LAYOUT);

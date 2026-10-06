@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class ResearchBrowserRendererTest {
@@ -54,19 +55,33 @@ class ResearchBrowserRendererTest {
         assertEquals(BrowserRenderException.Reason.CAPTCHA,
                 assertThrows(BrowserRenderException.class, () -> captcha.search(request, provider)).reason());
 
+        var consent = new ResearchBrowserRenderer((uri, timeout, maxBytes) ->
+                resource(uri, 200, "text/html", "", "<body><div id='consent-page'>"
+                        + "Please accept</div><li class='b_algo'><h2>Hidden result</h2></li></body>"));
+        assertEquals(BrowserRenderException.Reason.CONSENT_INTERSTITIAL,
+                assertThrows(BrowserRenderException.class, () -> consent.search(request, provider)).reason());
+
         var layout = new ResearchBrowserRenderer((uri, timeout, maxBytes) ->
                 resource(uri, 200, "text/html", "", "<body>Changed results layout</body>"));
         assertEquals(BrowserRenderException.Reason.UNSUPPORTED_LAYOUT,
                 assertThrows(BrowserRenderException.class, () -> layout.search(request, provider)).reason());
 
-        var denied = new ResearchBrowserRenderer((uri, timeout, maxBytes) ->
-                resource(uri, 403, "text/html", "", "denied"));
+        var deniedCalls = new AtomicInteger();
+        var denied = new ResearchBrowserRenderer((uri, timeout, maxBytes) -> {
+            deniedCalls.incrementAndGet();
+            return resource(uri, 403, "text/html", "", "denied");
+        });
         assertEquals(BrowserRenderException.Reason.ACCESS_DENIED,
                 assertThrows(BrowserRenderException.class, () -> denied.search(request, provider)).reason());
-        var limited = new ResearchBrowserRenderer((uri, timeout, maxBytes) ->
-                resource(uri, 429, "text/html", "", "slow down"));
+        assertEquals(1, deniedCalls.get());
+        var limitedCalls = new AtomicInteger();
+        var limited = new ResearchBrowserRenderer((uri, timeout, maxBytes) -> {
+            limitedCalls.incrementAndGet();
+            return resource(uri, 429, "text/html", "", "slow down");
+        });
         assertEquals(BrowserRenderException.Reason.RATE_LIMITED,
                 assertThrows(BrowserRenderException.class, () -> limited.search(request, provider)).reason());
+        assertEquals(1, limitedCalls.get());
         var timeout = new ResearchBrowserRenderer((uri, boundedTime, maxBytes) -> {
             throw new BrowserRenderException(BrowserRenderException.Reason.TIMEOUT);
         });
@@ -81,6 +96,73 @@ class ResearchBrowserRendererTest {
         assertEquals(BrowserRenderException.Reason.UNSUPPORTED_LAYOUT,
                 assertThrows(BrowserRenderException.class, () -> reusable.search(request, provider)).reason());
         assertEquals("OK", reusable.search(request, provider).results().getFirst().title());
+    }
+
+    @Test void rejectsUnsafeSearchDestinationsBeforeChromiumAndBoundsUnknownFailures() {
+        var request = new WebSearchRequest("bounded facts");
+        AtomicBoolean fetched = new AtomicBoolean();
+        var unsafe = new ResearchBrowserRenderer(new ResearchBrowserRenderer.ResourceFetcher() {
+            @Override public BrowserResource fetch(URI uri, java.time.Duration timeout, int maxBytes) {
+                fetched.set(true);
+                throw new AssertionError("Unsafe destination was fetched");
+            }
+            @Override public void validateDestination(URI uri, java.time.Duration timeout) {
+                assertEquals("www.bing.com", uri.getHost());
+                assertTrue(timeout.compareTo(ResearchBrowserRenderer.MAX_TOTAL_RUNTIME) <= 0);
+                throw new BrowserRenderException(BrowserRenderException.Reason.NON_PUBLIC_DESTINATION);
+            }
+        });
+        assertEquals(BrowserRenderException.Reason.NON_PUBLIC_DESTINATION,
+                assertThrows(BrowserRenderException.class,
+                        () -> unsafe.search(request, new BingBrowserSearchProvider())).reason());
+        assertFalse(fetched.get());
+
+        var invalidProvider = new BrowserSearchProvider() {
+            @Override public String provenance() { return "BROWSER_FIXTURE"; }
+            @Override public URI searchUri(WebSearchRequest query) {
+                return URI.create("http://127.0.0.1/search?q=private");
+            }
+            @Override public WebSearchResult extract(Page page, WebSearchRequest query) {
+                throw new AssertionError("Invalid search URL reached extraction");
+            }
+        };
+        assertEquals(BrowserRenderException.Reason.INVALID_REQUEST,
+                assertThrows(BrowserRenderException.class,
+                        () -> unsafe.search(request, invalidProvider)).reason());
+        assertFalse(fetched.get());
+
+        var unavailable = new ResearchBrowserRenderer(new ResearchBrowserRenderer.ResourceFetcher() {
+            @Override public BrowserResource fetch(URI uri, java.time.Duration timeout, int maxBytes) {
+                fetched.set(true);
+                throw new AssertionError("Unavailable destination was fetched");
+            }
+            @Override public void validateDestination(URI uri, java.time.Duration timeout) {
+                throw new IllegalStateException("PRIVATE_DNS_DETAIL");
+            }
+        });
+        var failure = assertThrows(BrowserRenderException.class,
+                () -> unavailable.search(request, new BingBrowserSearchProvider()));
+        assertEquals(BrowserRenderException.Reason.UNAVAILABLE, failure.reason());
+        assertFalse(failure.toString().contains("PRIVATE_DNS_DETAIL"));
+        assertFalse(fetched.get());
+    }
+
+    @Test void unexpectedProviderExtractionFailureDoesNotExposePageContent() {
+        var request = new WebSearchRequest("bounded facts");
+        var provider = new BrowserSearchProvider() {
+            @Override public String provenance() { return "BROWSER_FIXTURE"; }
+            @Override public URI searchUri(WebSearchRequest query) {
+                return URI.create("https://search.example/results?q=fixture");
+            }
+            @Override public WebSearchResult extract(Page page, WebSearchRequest query) {
+                throw new IllegalStateException("PRIVATE_PAGE_CONTENT");
+            }
+        };
+        var renderer = new ResearchBrowserRenderer((uri, timeout, maxBytes) ->
+                resource(uri, 200, "text/html", "", "<body>PRIVATE_PAGE_CONTENT</body>"));
+        var failure = assertThrows(BrowserRenderException.class, () -> renderer.search(request, provider));
+        assertEquals(BrowserRenderException.Reason.UNAVAILABLE, failure.reason());
+        assertFalse(failure.toString().contains("PRIVATE_PAGE_CONTENT"));
     }
 
     @Test void supportsAnotherProviderWithoutChangingTheChromiumRunner() {

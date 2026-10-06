@@ -368,6 +368,9 @@ When separately approved browser search runs, KAOS merges its results with the
 SearXNG results in primary-first order, collapses matching URLs after removing
 fragments and common tracking parameters, and retains bounded provider and
 engine provenance for each result. Distinct pages keep separate entries.
+Browser search checks the public destination before opening Chromium and reports
+bounded reasons for CAPTCHA, consent pages, access denial, rate limits, unsafe
+destinations and timeouts. A failed browser attempt keeps the SearXNG results.
 See [separate SearXNG setup](docs/development/searxng-setup.md) and the
 [search contract and limits](docs/evolution/web-search-tool.md).
 

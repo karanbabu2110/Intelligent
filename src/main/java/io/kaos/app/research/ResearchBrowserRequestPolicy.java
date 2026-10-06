@@ -7,7 +7,7 @@ import java.net.URI;
 import java.util.Locale;
 import java.util.Objects;
 
-/** Exact-origin request policy for one approved research render. */
+/** Exact-origin request policy for one approved research render or browser search. */
 final class ResearchBrowserRequestPolicy {
     static final int MAX_REQUESTS = 32;
     static final int MAX_REDIRECTS = 3;
