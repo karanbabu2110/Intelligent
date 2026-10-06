@@ -213,6 +213,7 @@ final class LocalToolsCommand {
                     browserDecision = browserApproval.decide(null);
                 }
                 if (browserDecision.decision() == ToolPermissionDecision.APPROVED) {
+                    long browserStarted = System.nanoTime();
                     try {
                         WebSearchResult rendered = browserSearch.apply(browserDecision.grant().orElseThrow().claim());
                         if (!rendered.request().equals(primary.request())
@@ -227,16 +228,19 @@ final class LocalToolsCommand {
                         audit("browser_search", browserAttempt, "APPROVED", "SUCCEEDED");
                         context.output().println("Browser search completed: " + rendered.results().size()
                                 + " results; merged=" + ((WebSearchResult) result).results().size()
-                                + "; provider=" + browserProvider.provenance() + ".");
+                                + "; provider=" + browserProvider.provenance()
+                                + "; duration_ms=" + elapsedMillis(browserStarted) + ".");
                     } catch (BrowserRenderException | WebSearchException exception) {
                         audit("browser_search", browserAttempt, "APPROVED", "FAILED");
                         String reason = exception instanceof BrowserRenderException browser
                                 ? browser.reason().name() : ((WebSearchException) exception).reason().name();
                         context.output().println("Browser search failed: " + reason
+                                + "; duration_ms=" + elapsedMillis(browserStarted)
                                 + ". SearXNG results retained.");
                     } catch (RuntimeException exception) {
                         audit("browser_search", browserAttempt, "APPROVED", "FAILED");
-                        context.output().println("Browser search failed: UNAVAILABLE. SearXNG results retained.");
+                        context.output().println("Browser search failed: UNAVAILABLE; duration_ms="
+                                + elapsedMillis(browserStarted) + ". SearXNG results retained.");
                     }
                 } else {
                     audit("browser_search", browserAttempt, browserDecision.decision().name(), "NOT_EXECUTED");
@@ -275,6 +279,10 @@ final class LocalToolsCommand {
 
     private static String count(int value) {
         return value < 0 ? "unknown" : Integer.toString(value);
+    }
+
+    private static long elapsedMillis(long started) {
+        return Math.max(0, java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started));
     }
 
     private Outcome searchFailure(WebSearchException exception) {

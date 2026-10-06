@@ -22,16 +22,21 @@ import io.kaos.tool.websearch.WebSearchResult;
 import io.kaos.tool.websearch.WebSearchToolContract;
 import io.kaos.tool.websearch.WebSearchException;
 import io.kaos.app.browsersearch.BrowserSearchProvider;
+import io.kaos.diagnostics.DebugTrace;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** Fresh-context Chromium renderer shared by approved research and browser search. */
 public final class ResearchBrowserRenderer {
+    static final int MAX_CONCURRENT_SESSIONS = 1;
+    private static final Semaphore SESSION_SLOTS = new Semaphore(MAX_CONCURRENT_SESSIONS, true);
     static final Duration MAX_TOTAL_RUNTIME = Duration.ofSeconds(20);
     static final Duration MAX_RESOURCE_TIME = Duration.ofSeconds(10);
     static final int MAX_RESOURCE_BYTES = 512 * 1024;
@@ -109,22 +114,24 @@ public final class ResearchBrowserRenderer {
             throw new BrowserRenderException(BrowserRenderException.Reason.INVALID_REQUEST);
         }
         long deadline = System.nanoTime() + MAX_TOTAL_RUNTIME.toNanos();
-        preflight(selected, deadline);
-        return withPage(selected, page -> {
-            if (page.locator("body").count() != 1) {
-                throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
-            }
-            Object extracted = page.locator("body").evaluate(EXTRACT_VISIBLE_TEXT);
-            String text = extracted == null ? "" : boundedText(extracted.toString());
-            if (text.isBlank()) throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
-            String title = boundedMetadata(page.title(), BrowserRenderedResult.MAX_TITLE_CODE_POINTS);
-            var descriptions = page.locator("meta[name='description']");
-            String description = descriptions.count() == 0 ? "" : boundedMetadata(
-                    descriptions.first().getAttribute("content"),
-                    BrowserRenderedResult.MAX_DESCRIPTION_CODE_POINTS);
-            return new BrowserRenderedResult(new HttpGetRequest(selected.toASCIIString()), text,
-                    title, description);
-        }, false, deadline);
+        return runSession("RETRIEVAL", () -> {
+            preflight(selected, deadline);
+            return withPage(selected, page -> {
+                if (page.locator("body").count() != 1) {
+                    throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
+                }
+                Object extracted = page.locator("body").evaluate(EXTRACT_VISIBLE_TEXT);
+                String text = extracted == null ? "" : boundedText(extracted.toString());
+                if (text.isBlank()) throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
+                String title = boundedMetadata(page.title(), BrowserRenderedResult.MAX_TITLE_CODE_POINTS);
+                var descriptions = page.locator("meta[name='description']");
+                String description = descriptions.count() == 0 ? "" : boundedMetadata(
+                        descriptions.first().getAttribute("content"),
+                        BrowserRenderedResult.MAX_DESCRIPTION_CODE_POINTS);
+                return new BrowserRenderedResult(new HttpGetRequest(selected.toASCIIString()), text,
+                        title, description);
+            }, false, deadline);
+        });
     }
 
     /** Runs a provider inside the same pinned, isolated Chromium path as research. */
@@ -139,19 +146,53 @@ public final class ResearchBrowserRenderer {
             throw new BrowserRenderException(BrowserRenderException.Reason.INVALID_REQUEST);
         }
         long deadline = System.nanoTime() + MAX_TOTAL_RUNTIME.toNanos();
-        preflight(selected, deadline);
-        return withPage(selected, page -> {
-            WebSearchResult result = provider.extract(page, request);
-            if (!request.equals(result.request()) || result.results().isEmpty()
-                    || result.results().stream().anyMatch(entry ->
-                            !provider.provenance().equals(entry.provider())
-                            || entry.provenance().stream().anyMatch(source ->
-                                    !provider.provenance().equals(source.provider())))) {
-                throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
-            }
-            WebSearchToolContract.encodeResult(result);
+        return runSession("SEARCH", () -> {
+            preflight(selected, deadline);
+            return withPage(selected, page -> {
+                WebSearchResult result = provider.extract(page, request);
+                if (!request.equals(result.request()) || result.results().isEmpty()
+                        || result.results().stream().anyMatch(entry ->
+                                !provider.provenance().equals(entry.provider())
+                                || entry.provenance().stream().anyMatch(source ->
+                                        !provider.provenance().equals(source.provider())))) {
+                    throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
+                }
+                WebSearchToolContract.encodeResult(result);
+                return result;
+            }, true, deadline);
+        });
+    }
+
+    private <T> T runSession(String mode, Supplier<T> operation) {
+        long started = System.nanoTime();
+        if (Thread.currentThread().isInterrupted()) {
+            throw new BrowserRenderException(BrowserRenderException.Reason.INTERRUPTED);
+        }
+        if (!SESSION_SLOTS.tryAcquire()) {
+            DebugTrace.event("browser.operation", () -> Map.of("mode", mode,
+                    "outcome", BrowserRenderException.Reason.CONCURRENCY_LIMIT.name(),
+                    "durationMs", elapsedMillis(started), "sessionSlotReleased", false));
+            throw new BrowserRenderException(BrowserRenderException.Reason.CONCURRENCY_LIMIT);
+        }
+        String outcome = "FAILED";
+        try {
+            T result = operation.get();
+            outcome = "SUCCEEDED";
             return result;
-        }, true, deadline);
+        } catch (BrowserRenderException exception) {
+            outcome = exception.reason().name();
+            throw exception;
+        } finally {
+            SESSION_SLOTS.release();
+            String terminal = outcome;
+            DebugTrace.event("browser.operation", () -> Map.of("mode", mode,
+                    "outcome", terminal, "durationMs", elapsedMillis(started),
+                    "sessionSlotReleased", true));
+        }
+    }
+
+    private static long elapsedMillis(long started) {
+        return Math.max(0, Duration.ofNanos(System.nanoTime() - started).toMillis());
     }
 
     private void preflight(URI selected, long deadline) {

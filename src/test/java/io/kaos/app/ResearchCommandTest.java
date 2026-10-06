@@ -369,6 +369,7 @@ class ResearchCommandTest {
                 assertInstanceOf(BrowserRenderedResult.class, rig.inputs.get(1).getFirst());
                 assertTrue(rig.output().contains("reason=" + reason.name()));
                 assertTrue(rig.output().contains("BROWSER-RENDERED"));
+                assertTrue(rig.output().contains("Browser rendering completed for source [1] in "));
             }
         }
     }
@@ -386,6 +387,7 @@ class ResearchCommandTest {
 
             assertEquals(1, rig.browserCalls.get());
             assertTrue(rig.output().contains("browser rendering failed: REQUEST_LIMIT"));
+            assertTrue(rig.output().contains("duration_ms="));
             assertTrue(rig.output().contains("retrieved 1/2"));
             assertFalse(rig.output().contains("PAGE_SECRET"));
         }

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.kaos.tool.browserrender.BrowserRenderException;
+import io.kaos.diagnostics.DebugTrace;
 import io.kaos.app.browsersearch.BingBrowserSearchProvider;
 import io.kaos.app.browsersearch.BrowserSearchProvider;
 import com.microsoft.playwright.Page;
@@ -15,14 +16,129 @@ import io.kaos.tool.httpget.HttpGetExecutor;
 import io.kaos.tool.websearch.WebSearchRequest;
 import io.kaos.tool.websearch.WebSearchResult;
 import java.net.URI;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class ResearchBrowserRendererTest {
+    @Test void boundsConcurrentSearchAndRetrievalAndReleasesSlotAfterCompletion() throws Exception {
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var preflights = new AtomicInteger();
+        var renderer = new ResearchBrowserRenderer(new ResearchBrowserRenderer.ResourceFetcher() {
+            @Override public BrowserResource fetch(URI uri, java.time.Duration timeout, int maxBytes) {
+                return resource(uri, 200, "text/html", "", "<body>bounded result</body>");
+            }
+            @Override public void validateDestination(URI uri, java.time.Duration timeout) {
+                if (preflights.incrementAndGet() != 1) return;
+                entered.countDown();
+                try {
+                    if (!release.await(5, TimeUnit.SECONDS)) {
+                        throw new BrowserRenderException(BrowserRenderException.Reason.TIMEOUT);
+                    }
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new BrowserRenderException(BrowserRenderException.Reason.INTERRUPTED);
+                }
+            }
+        });
+        var contenderPreflights = new AtomicInteger();
+        var contender = new ResearchBrowserRenderer(new ResearchBrowserRenderer.ResourceFetcher() {
+            @Override public BrowserResource fetch(URI uri, java.time.Duration timeout, int maxBytes) {
+                return resource(uri, 200, "text/html", "", "<body>contender result</body>");
+            }
+            @Override public void validateDestination(URI uri, java.time.Duration timeout) {
+                contenderPreflights.incrementAndGet();
+            }
+        });
+        try (var workers = Executors.newVirtualThreadPerTaskExecutor()) {
+            var first = workers.submit(() -> renderer.render("https://one.example/page"));
+            try {
+                assertTrue(entered.await(5, TimeUnit.SECONDS));
+                assertEquals(BrowserRenderException.Reason.CONCURRENCY_LIMIT,
+                        assertThrows(BrowserRenderException.class,
+                                () -> contender.search(new WebSearchRequest("other"),
+                                        new BingBrowserSearchProvider())).reason());
+                assertEquals(1, preflights.get());
+                assertEquals(0, contenderPreflights.get());
+            } finally {
+                release.countDown();
+            }
+            assertTrue(first.get(25, TimeUnit.SECONDS).content().contains("bounded result"));
+        }
+        assertTrue(contender.render("https://one.example/page").content().contains("contender result"));
+        assertEquals(1, contenderPreflights.get());
+    }
+
+    @Test void lifecycleTraceIsContentFreeAfterTimeoutAndSuccessfulReuse() {
+        var fail = new AtomicBoolean(true);
+        var renderer = new ResearchBrowserRenderer((uri, timeout, maxBytes) -> {
+            if (fail.getAndSet(false)) throw new BrowserRenderException(BrowserRenderException.Reason.TIMEOUT);
+            return resource(uri, 200, "text/html", "", "<body>PRIVATE_PAGE_CONTENT</body>");
+        });
+        var bytes = new ByteArrayOutputStream();
+        try (var trace = DebugTrace.open(true, new PrintStream(bytes, true, StandardCharsets.UTF_8))) {
+            assertEquals(BrowserRenderException.Reason.TIMEOUT,
+                    assertThrows(BrowserRenderException.class,
+                            () -> renderer.render("https://one.example/private")).reason());
+            assertTrue(renderer.render("https://one.example/private").content()
+                    .contains("PRIVATE_PAGE_CONTENT"));
+        }
+        String output = bytes.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("\"outcome\":\"TIMEOUT\""));
+        assertTrue(output.contains("\"outcome\":\"SUCCEEDED\""));
+        assertTrue(output.contains("\"sessionSlotReleased\":true"));
+        assertTrue(output.contains("\"durationMs\""));
+        assertFalse(output.contains("PRIVATE_PAGE_CONTENT"));
+        assertFalse(output.contains("one.example"));
+    }
+
+    @Test void interruptedPreflightReleasesTheSharedBrowserSlot() throws Exception {
+        var entered = new CountDownLatch(1);
+        var first = new AtomicBoolean(true);
+        var reason = new AtomicReference<BrowserRenderException.Reason>();
+        var renderer = new ResearchBrowserRenderer(new ResearchBrowserRenderer.ResourceFetcher() {
+            @Override public BrowserResource fetch(URI uri, java.time.Duration timeout, int maxBytes) {
+                return resource(uri, 200, "text/html", "", "<body>recovered</body>");
+            }
+            @Override public void validateDestination(URI uri, java.time.Duration timeout) {
+                if (!first.getAndSet(false)) return;
+                entered.countDown();
+                try {
+                    new CountDownLatch(1).await();
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new BrowserRenderException(BrowserRenderException.Reason.INTERRUPTED);
+                }
+            }
+        });
+        Thread worker = Thread.ofVirtual().start(() -> {
+            try {
+                renderer.render("https://one.example/page");
+            } catch (BrowserRenderException exception) {
+                reason.set(exception.reason());
+            }
+        });
+        try {
+            assertTrue(entered.await(5, TimeUnit.SECONDS));
+        } finally {
+            worker.interrupt();
+            worker.join(5_000);
+        }
+        assertFalse(worker.isAlive());
+        assertEquals(BrowserRenderException.Reason.INTERRUPTED, reason.get());
+        assertTrue(renderer.render("https://one.example/page").content().contains("recovered"));
+    }
+
     @Test void extractsBoundedStructuredBrowserSearchResultsWithoutOpeningLinks() {
         var requested = new CopyOnWriteArrayList<String>();
         var renderer = new ResearchBrowserRenderer((uri, timeout, maxBytes) -> {
