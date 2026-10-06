@@ -180,6 +180,22 @@ the command. A changed challenge or results layout may yield an unsupported
 layout failure. Search snippets remain unverified leads rather than
 corroborated page evidence.
 
+Feature [020.06](https://github.com/karanbabu2110/KAOS/issues/1106) checks the
+browser-search URL syntax and public DNS destination before Chromium starts.
+Each permitted same-origin resource is checked again and pinned at connection
+time. Unsupported schemes, credentials, unsafe query forms and non-public
+destinations fail before navigation. A recognized CAPTCHA reports `CAPTCHA`;
+a visible consent form or known consent page reports `CONSENT_INTERSTITIAL`;
+HTTP 403 and 429 report `ACCESS_DENIED` and `RATE_LIMITED`. Navigation and
+resource timeouts report `TIMEOUT`; changed result layouts report
+`UNSUPPORTED_LAYOUT`; an unavailable browser or unexpected runtime failure
+reports `UNAVAILABLE`. These are fixed content-free reasons. The command logs
+no page body, browser session, URL or runtime exception detail on failure.
+It does not retry, accept consent, solve challenges, switch identities or
+change origin. Any failure retains the primary SearXNG results; the final
+model continuation advertises no tools, so rendered content cannot grant
+tool authority or change the request policy.
+
 ## Approval, audit, and failure
 
 The approval prompt displays the exact query and explains that configured

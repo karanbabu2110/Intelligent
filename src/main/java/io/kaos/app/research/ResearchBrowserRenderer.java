@@ -20,6 +20,7 @@ import io.kaos.tool.httpget.HttpGetResult;
 import io.kaos.tool.websearch.WebSearchRequest;
 import io.kaos.tool.websearch.WebSearchResult;
 import io.kaos.tool.websearch.WebSearchToolContract;
+import io.kaos.tool.websearch.WebSearchException;
 import io.kaos.app.browsersearch.BrowserSearchProvider;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -108,7 +109,7 @@ public final class ResearchBrowserRenderer {
             throw new BrowserRenderException(BrowserRenderException.Reason.INVALID_REQUEST);
         }
         long deadline = System.nanoTime() + MAX_TOTAL_RUNTIME.toNanos();
-        fetcher.validateDestination(selected, Duration.ofMillis(remainingMillis(deadline).longValue()));
+        preflight(selected, deadline);
         return withPage(selected, page -> {
             if (page.locator("body").count() != 1) {
                 throw new BrowserRenderException(BrowserRenderException.Reason.EMPTY_CONTENT);
@@ -130,8 +131,16 @@ public final class ResearchBrowserRenderer {
     public WebSearchResult search(WebSearchRequest request, BrowserSearchProvider provider) {
         java.util.Objects.requireNonNull(request, "request");
         java.util.Objects.requireNonNull(provider, "provider");
+        URI selected;
+        try {
+            selected = HttpGetPermissionValidator.validateSyntax(
+                    new HttpGetRequest(provider.searchUri(request).toASCIIString())).uri();
+        } catch (RuntimeException exception) {
+            throw new BrowserRenderException(BrowserRenderException.Reason.INVALID_REQUEST);
+        }
         long deadline = System.nanoTime() + MAX_TOTAL_RUNTIME.toNanos();
-        return withPage(provider.searchUri(request), page -> {
+        preflight(selected, deadline);
+        return withPage(selected, page -> {
             WebSearchResult result = provider.extract(page, request);
             if (!request.equals(result.request()) || result.results().isEmpty()
                     || result.results().stream().anyMatch(entry ->
@@ -143,6 +152,17 @@ public final class ResearchBrowserRenderer {
             WebSearchToolContract.encodeResult(result);
             return result;
         }, true, deadline);
+    }
+
+    private void preflight(URI selected, long deadline) {
+        try {
+            fetcher.validateDestination(selected,
+                    Duration.ofMillis(remainingMillis(deadline).longValue()));
+        } catch (BrowserRenderException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
+        }
     }
 
     private <T> T withPage(URI selected, Function<Page, T> extract, boolean search, long deadline) {
@@ -212,6 +232,10 @@ public final class ResearchBrowserRenderer {
             }
             throw new BrowserRenderException(System.nanoTime() >= deadline
                     ? BrowserRenderException.Reason.TIMEOUT : BrowserRenderException.Reason.UNAVAILABLE);
+        } catch (WebSearchException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
         }
     }
 

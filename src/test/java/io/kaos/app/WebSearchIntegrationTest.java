@@ -13,6 +13,7 @@ import io.kaos.tool.websearch.SearxngClient;
 import io.kaos.tool.websearch.WebSearchException;
 import io.kaos.tool.websearch.BrowserSearchFallback;
 import io.kaos.tool.websearch.WebSearchResult;
+import io.kaos.tool.browserrender.BrowserRenderException;
 import io.kaos.tool.ToolExecutionOutcome;
 import io.kaos.tool.history.ToolHistoryDatabasePath;
 import java.io.*;
@@ -140,6 +141,31 @@ class WebSearchIntegrationTest {
             assertEquals(1, result.path("results").size());
             assertEquals("SEARXNG", result.path("results").get(0).path("provider").asText());
             assertTrue(f.output().contains("Browser search failed: UNAVAILABLE"));
+        }
+    }
+    @Test void browserFailuresAreVisibleWithoutLeakingRuntimeDetailsOrReplacingPrimaryResults() throws Exception {
+        System.setProperty(BrowserSearchFallback.PROPERTY, "true");
+        System.setProperty(BrowserSearchFallback.MIN_RESULTS_PROPERTY, "2");
+        for (boolean unexpected : List.of(false, true)) {
+            try (Fixture f = new Fixture(tool("web_search", "{\"query\":\"public facts\"}"))) {
+                f.searchResponse = "{\"results\":[" + searchEntry(1) + "]}";
+                var browserCalls = new AtomicInteger();
+                var command = f.command("approve\napprove\n").withBrowserSearch(request -> {
+                    browserCalls.incrementAndGet();
+                    if (unexpected) throw new IllegalStateException("PRIVATE_BROWSER_SESSION");
+                    throw new BrowserRenderException(BrowserRenderException.Reason.CONSENT_INTERSTITIAL);
+                });
+                assertEquals(0, command.execute("Find facts"), f.errors());
+                assertEquals(1, browserCalls.get());
+                JsonNode result = JSON.readTree(f.messages.getLast().path("messages").get(3)
+                        .path("content").asText());
+                assertEquals(1, result.path("results").size());
+                assertEquals("SEARXNG", result.path("results").get(0).path("provider").asText());
+                assertFalse(f.messages.getLast().has("tools"));
+                assertTrue(f.output().contains("Browser search failed: "
+                        + (unexpected ? "UNAVAILABLE" : "CONSENT_INTERSTITIAL")));
+                assertFalse(f.output().contains("PRIVATE_BROWSER_SESSION"));
+            }
         }
     }
     @Test void sufficientOrUnapprovedSearchNeverLaunchesBrowser() throws Exception {

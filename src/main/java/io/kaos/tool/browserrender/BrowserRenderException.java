@@ -2,7 +2,7 @@ package io.kaos.tool.browserrender;
 
 import java.util.Objects;
 
-/** Content-free classified failure for one explicitly approved research render. */
+/** Content-free classified failure for one explicitly approved Chromium operation. */
 public final class BrowserRenderException extends RuntimeException {
     private static final long serialVersionUID = 1L;
     private final Reason reason;
@@ -29,6 +29,7 @@ public final class BrowserRenderException extends RuntimeException {
         ACCESS_DENIED,
         RATE_LIMITED,
         CAPTCHA,
+        CONSENT_INTERSTITIAL,
         UNSUPPORTED_LAYOUT,
         UNSUPPORTED_CONTENT,
         EMPTY_CONTENT,

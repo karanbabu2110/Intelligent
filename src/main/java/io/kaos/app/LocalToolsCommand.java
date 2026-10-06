@@ -206,6 +206,9 @@ final class LocalToolsCommand {
                                 ? browser.reason().name() : ((WebSearchException) exception).reason().name();
                         context.output().println("Browser search failed: " + reason
                                 + ". SearXNG results retained.");
+                    } catch (RuntimeException exception) {
+                        audit("browser_search", browserAttempt, "APPROVED", "FAILED");
+                        context.output().println("Browser search failed: UNAVAILABLE. SearXNG results retained.");
                     }
                 } else {
                     audit("browser_search", browserAttempt, browserDecision.decision().name(), "NOT_EXECUTED");
