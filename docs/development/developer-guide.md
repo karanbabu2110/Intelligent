@@ -397,7 +397,13 @@ and SearXNG endpoint, then run:
 ```
 
 The question is the exact search query (at most 400 code points). Approve the
-search, then review the source roles, purposes and exact normalized URLs before
+search. With `KAOS_WEB_SEARCH_BROWSER_FALLBACK_ENABLED=true`, research evaluates
+the same configured result, domain and engine thresholds as `web-search`.
+Insufficient SearXNG results offer a separate one-use Bing Chromium search
+approval. Successful browser results merge in SearXNG-first order with deduplicated
+URLs and retained provider/engine provenance. Denial or failure retains the
+SearXNG results. No browser search runs for sufficient results. Review the source
+roles, purposes and exact normalized URLs before
 approving any new publisher hostnames. Approval permits future research reads of
 any HTTPS page on those exact hosts. Saved hosts skip the page prompt; search
 approval is still required each run. Each source retrieval failure is recorded
@@ -414,12 +420,13 @@ scripts, navigation, footers and common advertisement/consent blocks are removed
 Only extracted text capped at 64 KiB is sent to Ollama. Transient unavailable and
 timeout failures receive at most two short-backoff retries. Diagnostics preserve
 HTTP status, content type, final URL and safe response headers.
-After eligible direct failures (redirect, 401, 403, invalid content or invalid UTF-8) or an HTML
+After eligible direct failures (redirect, 401, 403, unavailable, oversized,
+invalid content or invalid UTF-8) or an HTML
 success with fewer than 200 readable code points, research displays the exact URL
 and host and explains that JavaScript will run. Type `approve` for that one browser
 operation or `deny` to skip it. The saved publisher-host file never supplies this
 approval. Denial and failure are not retried. Direct URL/configuration/DNS-policy
-failure, timeout, unavailability, size failure, rate limit, cancellation and
+failure, timeout, rate limit, cancellation and
 interruption are ineligible.
 
 Chromium runs headless in the KAOS process with a fresh context and no profile,

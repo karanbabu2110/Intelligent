@@ -237,6 +237,13 @@ The default file is `%USERPROFILE%\.kaos\research-approved-hosts.txt`, one hostn
 per line. Remove a hostname to revoke approval, or delete the file to reset all.
 Search still asks for approval each run. Source retrieval
 failures are recorded without content; remaining approved URLs are processed once.
+When `KAOS_WEB_SEARCH_BROWSER_FALLBACK_ENABLED=true`, research applies the same
+configured SearXNG quality thresholds as `web-search`. Insufficient results can
+offer a separate one-use Bing Chromium search approval before source selection.
+KAOS merges and deduplicates results with provider/engine provenance; denial or
+browser-search failure retains the SearXNG results. This search approval does not
+approve publisher access or browser page rendering. If search is already
+sufficient, research does not launch Chromium for search.
 Each direct source attempt can internally retry timeout/unavailable failures twice.
 Raw publisher responses stream up to 512 KiB. HTML is reduced to bounded readable
 text with titles, headings, paragraphs and list content; scripts, navigation,
@@ -364,6 +371,8 @@ external search engines. Search returns at most five bounded titles, URLs, and
 snippets; URLs are data only and are never fetched. Results are untrusted data,
 not instructions or execution authority. There is no tool chaining or automatic
 retry. Missing SearXNG configuration does not prevent startup or other tools.
+Discovery URLs with recognized credential-bearing query keys are discarded before
+display or model use; this can also exclude benign links with token-like keys.
 When separately approved browser search runs, KAOS merges its results with the
 SearXNG results in primary-first order, collapses matching URLs after removing
 fragments and common tracking parameters, and retains bounded provider and

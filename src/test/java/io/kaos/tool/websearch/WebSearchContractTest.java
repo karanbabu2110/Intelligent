@@ -67,7 +67,8 @@ class WebSearchContractTest {
     }
     @Test void resultFieldsAndTotalPayloadAreBounded() {
         for (String url : List.of("javascript:alert(1)", "file:///tmp/test", "relative",
-                "https://user:pass@example.com/")) {
+                "https://user:pass@example.com/", "https://example.com/?accessToken=PRIVATE_VALUE",
+                "https://example.com/?access%5Ftoken=PRIVATE_VALUE")) {
             assertThrows(WebSearchException.class, () -> new WebSearchResult.Entry("Title", url, ""));
         }
         assertThrows(WebSearchException.class,

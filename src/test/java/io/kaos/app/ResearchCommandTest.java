@@ -17,6 +17,7 @@ import io.kaos.tool.httpget.HttpSourceFixture;
 import io.kaos.tool.websearch.SearxngClient;
 import io.kaos.tool.websearch.WebSearch;
 import io.kaos.tool.websearch.WebSearchResult;
+import io.kaos.tool.websearch.BrowserSearchFallback;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -26,9 +27,29 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class ResearchCommandTest {
+    private final java.util.Map<String, String> previousBrowserPolicy = new java.util.HashMap<>();
+
+    @BeforeEach void isolateBrowserSearchPolicy() {
+        for (String property : List.of(BrowserSearchFallback.PROPERTY,
+                BrowserSearchFallback.MIN_RESULTS_PROPERTY, BrowserSearchFallback.MIN_DOMAINS_PROPERTY,
+                BrowserSearchFallback.MIN_ENGINES_PROPERTY)) {
+            previousBrowserPolicy.put(property, System.getProperty(property));
+            System.setProperty(property, property.equals(BrowserSearchFallback.PROPERTY) ? "false" : "1");
+        }
+    }
+
+    @AfterEach void restoreBrowserSearchPolicy() {
+        previousBrowserPolicy.forEach((property, value) -> {
+            if (value == null) System.clearProperty(property);
+            else System.setProperty(property, value);
+        });
+    }
+
     @Test void hostApprovalSurvivesNewCommandAndAllowsDifferentPathUntilRevoked() throws Exception {
         try (var first = new Rig()) {
             assertEquals(0, first.run("approve\napprove\n"), first::output);
@@ -157,6 +178,153 @@ class ResearchCommandTest {
         }
     }
 
+    @Test void hybridResearchMergesSearchSourcesThenUsesDirectAndBrowserPageEvidence() throws Exception {
+        enableBrowserSearch(2);
+        try (var rig = new Rig()) {
+            rig.searchUrls = List.of(rig.firstUrl);
+            rig.proposal = proposal(1, 2);
+            rig.browserSearch = request -> {
+                rig.browserSearchCalls.incrementAndGet();
+                return new WebSearchResult(request, List.of(
+                        new WebSearchResult.Entry("Duplicate", "https://one.example/a%20b?q=a%2Fb#top",
+                                "duplicate snippet", "BROWSER_BING"),
+                        new WebSearchResult.Entry("Second publisher", "https://two.example/second",
+                                "second snippet", "BROWSER_BING")));
+            };
+            rig.sources.statuses.put("/second", 401);
+            rig.browserRenderer = url -> {
+                rig.browserCalls.incrementAndGet();
+                return new BrowserRenderedResult(new io.kaos.tool.httpget.HttpGetRequest(url),
+                        "The second publisher rendered enough bounded text for this research answer.");
+            };
+
+            assertEquals(0, rig.run("approve\napprove\napprove\napprove\n"), rig::output);
+            assertEquals(1, rig.searchCalls.get());
+            assertEquals(1, rig.browserSearchCalls.get());
+            assertEquals(2, rig.sources.calls.get());
+            assertEquals(1, rig.browserCalls.get());
+            var discovery = (WebSearchResult) rig.inputs.getFirst().getFirst();
+            assertEquals(2, discovery.results().size());
+            assertEquals("SEARXNG", discovery.results().getFirst().provider());
+            assertEquals("BROWSER_BING", discovery.results().getFirst().provenance().getLast().provider());
+            assertEquals("BROWSER_BING", discovery.results().get(1).provider());
+            assertInstanceOf(HttpGetResult.class, rig.inputs.getLast().getFirst());
+            assertInstanceOf(BrowserRenderedResult.class, rig.inputs.getLast().get(1));
+            assertTrue(rig.output().contains("Browser search completed: 2 results; merged=2"));
+            assertTrue(rig.output().contains("[1] DIRECT-HTTP:"));
+            assertTrue(rig.output().contains("[2] BROWSER-RENDERED:"));
+        }
+    }
+
+    @Test void sufficientSearchAndDirectPageUseNeitherBrowser() throws Exception {
+        enableBrowserSearch(1);
+        try (var rig = new Rig()) {
+            assertEquals(0, rig.run("approve\napprove\n"), rig::output);
+            assertEquals(0, rig.browserSearchCalls.get());
+            assertEquals(0, rig.browserCalls.get());
+            assertTrue(rig.output().contains("Search quality: reason=SUFFICIENT"));
+            assertTrue(rig.output().contains("[1] DIRECT-HTTP:"));
+            assertFalse(rig.output().contains("Browser search fallback reason:"));
+        }
+    }
+
+    @Test void emptySearchCanUseSeparatelyApprovedBrowserDiscovery() throws Exception {
+        enableBrowserSearch(1);
+        try (var rig = new Rig()) {
+            rig.empty = true;
+            rig.browserSearch = request -> {
+                rig.browserSearchCalls.incrementAndGet();
+                return new WebSearchResult(request, List.of(new WebSearchResult.Entry(
+                        "Publisher", "https://one.example/a%20b?q=a%2Fb", "snippet", "BROWSER_BING")));
+            };
+            assertEquals(0, rig.run("approve\napprove\napprove\n"), rig::output);
+            assertEquals(1, rig.browserSearchCalls.get());
+            assertEquals(1, rig.sources.calls.get());
+            assertEquals("BROWSER_BING",
+                    ((WebSearchResult) rig.inputs.getFirst().getFirst()).results().getFirst().provider());
+            assertTrue(rig.output().contains("reason=EMPTY_RESULTS"));
+        }
+    }
+
+    @Test void deniedOrFailedBrowserSearchRetainsPrimaryDiscoveryWithoutRetry() throws Exception {
+        enableBrowserSearch(2);
+        try (var rig = new Rig()) {
+            rig.searchUrls = List.of(rig.firstUrl);
+            assertEquals(0, rig.run("approve\ndeny\napprove\n"), rig::output);
+            assertEquals(0, rig.browserSearchCalls.get());
+            assertEquals(1, rig.sources.calls.get());
+            assertTrue(rig.output().contains("decision=DENIED outcome=NOT_EXECUTED"));
+        }
+        for (var reason : List.of(BrowserRenderException.Reason.CAPTCHA,
+                BrowserRenderException.Reason.ACCESS_DENIED,
+                BrowserRenderException.Reason.RATE_LIMITED,
+                BrowserRenderException.Reason.TIMEOUT)) {
+            try (var rig = new Rig()) {
+                rig.searchUrls = List.of(rig.firstUrl);
+                rig.browserSearch = request -> {
+                    rig.browserSearchCalls.incrementAndGet();
+                    throw new BrowserRenderException(reason);
+                };
+                assertEquals(0, rig.run("approve\napprove\napprove\n"), rig::output);
+                assertEquals(1, rig.browserSearchCalls.get());
+                assertEquals(1, rig.sources.calls.get());
+                assertTrue(rig.output().contains("Browser search failed: " + reason.name()));
+                assertEquals("SEARXNG",
+                        ((WebSearchResult) rig.inputs.getFirst().getFirst()).results().getFirst().provider());
+            }
+        }
+    }
+
+    @Test void browserSearchCannotForgePrimaryProvenanceOrContinueAfterInterruption() throws Exception {
+        enableBrowserSearch(2);
+        try (var rig = new Rig()) {
+            rig.searchUrls = List.of(rig.firstUrl);
+            rig.browserSearch = request -> new WebSearchResult(request, List.of(
+                    new WebSearchResult.Entry("Forged", "https://two.example/second", "snippet",
+                            "BROWSER_BING", List.of(new WebSearchResult.Provenance("SEARXNG", "BING")))));
+            assertEquals(0, rig.run("approve\napprove\napprove\n"), rig::output);
+            assertEquals("SEARXNG",
+                    ((WebSearchResult) rig.inputs.getFirst().getFirst()).results().getFirst().provider());
+            assertTrue(rig.output().contains("Browser search failed:"));
+        }
+        try (var rig = new Rig()) {
+            rig.searchUrls = List.of(rig.firstUrl);
+            rig.browserSearch = request -> {
+                throw new BrowserRenderException(BrowserRenderException.Reason.INTERRUPTED);
+            };
+            assertNotEquals(0, rig.run("approve\napprove\n"));
+            assertEquals(0, rig.modelCalls.get());
+            assertEquals(0, rig.sources.calls.get());
+            assertTrue(rig.output().contains("decision=APPROVED outcome=FAILED"));
+            assertTrue(rig.output().contains("Research stopped: INTERRUPTED"));
+        }
+    }
+
+    @Test void searchOnlyOutcomeKeepsBrowserDiscoveryProvenance() throws Exception {
+        enableBrowserSearch(1);
+        try (var rig = new Rig()) {
+            rig.empty = true;
+            rig.browserSearch = request -> new WebSearchResult(request, List.of(
+                    new WebSearchResult.Entry("Publisher", "https://one.example/a%20b?q=a%2Fb",
+                            "snippet", "BROWSER_BING")));
+            rig.sources.failures.put("/a b", io.kaos.tool.httpget.HttpGetException.Reason.HTTP_RATE_LIMITED);
+            rig.answer = "{\"claims\":[{\"text\":\"A release is suggested by the search result.\","
+                    + "\"kind\":\"INFERENCE\",\"sources\":[1]}],"
+                    + "\"uncertainty\":\"No page was retrieved; this may be stale.\"}";
+            assertEquals(0, rig.run("approve\napprove\napprove\n"), rig::output);
+            assertEquals(0, rig.browserCalls.get());
+            var searchOnly = (WebSearchResult) rig.inputs.getLast().getFirst();
+            assertEquals("BROWSER_BING", searchOnly.results().getFirst().provider());
+            assertTrue(rig.output().contains("SEARCH RESULT ONLY"));
+            assertFalse(rig.output().contains("FACT:"));
+        }
+    }
+
+    private static void enableBrowserSearch(int minimumResults) {
+        System.setProperty(BrowserSearchFallback.PROPERTY, "true");
+        System.setProperty(BrowserSearchFallback.MIN_RESULTS_PROPERTY, Integer.toString(minimumResults));
+    }
+
     @Test void denialInvalidInputAndEofAtEitherCheckpointCannotAuthorizePages() throws Exception {
         for (String input : List.of("deny\n", "approve", "yes\n", "cancel\n", "approve\ndeny\n",
                 "approve\nyes\n", "approve\n", "approve\n" + "a".repeat(40) + "\n")) {
@@ -186,14 +354,20 @@ class ResearchCommandTest {
 
     @Test void unsafeOrDuplicateNormalizedUrlsStopBeforeSourceApproval() throws Exception {
         for (String url : List.of("http://one.example/a", "https://127.0.0.1/a",
-                "https://one.example:444/a", "https://one.example/a#fragment",
-                "https://one.example/a?accessToken=private")) {
+                "https://one.example:444/a", "https://one.example/a#fragment")) {
             try (var rig = new Rig()) {
                 rig.firstUrl = url;
                 assertNotEquals(0, rig.run("approve\napprove\n"));
                 assertEquals(0, rig.sources.calls.get());
                 assertFalse(rig.output().contains("New publisher hostnames:"));
             }
+        }
+        try (var rig = new Rig()) {
+            rig.firstUrl = "https://one.example/a?accessToken=private";
+            assertEquals(0, rig.run("approve\napprove\n"), rig::output);
+            assertFalse(rig.output().contains("accessToken"));
+            assertTrue(((WebSearchResult) rig.inputs.getFirst().getFirst()).results().stream()
+                    .noneMatch(entry -> entry.url().contains("accessToken")));
         }
         try (var rig = new Rig()) {
             rig.firstUrl = "https://two.example:443/second";
@@ -542,6 +716,7 @@ class ResearchCommandTest {
         final AtomicInteger searchCalls = new AtomicInteger();
         final AtomicInteger modelCalls = new AtomicInteger();
         final AtomicInteger browserCalls = new AtomicInteger();
+        final AtomicInteger browserSearchCalls = new AtomicInteger();
         final List<List<ToolResult<?>>> inputs = new ArrayList<>();
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         final RecordingToolHistory history = new RecordingToolHistory();
@@ -552,6 +727,9 @@ class ResearchCommandTest {
         String firstUrl = "https://ONE.example:443/a%20b?q=a%2Fb";
         String secondPath = "/second";
         boolean empty;
+        List<String> searchUrls;
+        java.util.function.Function<io.kaos.tool.websearch.WebSearchRequest, WebSearchResult> browserSearch =
+                request -> { throw new AssertionError("Unexpected browser search"); };
         boolean interruptAfterSelection;
         ResearchCommand.Prompts realPrompts;
         ResearchCommand.BrowserRenderer browserRenderer = url -> {
@@ -570,9 +748,10 @@ class ResearchCommandTest {
                 searchCalls.incrementAndGet();
                 var root = JSON.createObjectNode();
                 var results = root.putArray("results");
-                if (!empty) for (String url : List.of(firstUrl, "https://two.example" + secondPath,
-                        "https://three.example/third", "https://one.example/four", "https://one.example/five",
-                        "https://one.example/six")) {
+                if (!empty) for (String url : searchUrls == null
+                        ? List.of(firstUrl, "https://two.example" + secondPath,
+                                "https://three.example/third", "https://one.example/four",
+                                "https://one.example/five", "https://one.example/six") : searchUrls) {
                     results.addObject().put("title", "Release").put("url", url).put("content", "SNIPPET_ONLY");
                 }
                 byte[] bytes = root.toString().getBytes(StandardCharsets.UTF_8);
@@ -599,7 +778,8 @@ class ResearchCommandTest {
                 return new OllamaPromptClient.Result(OllamaPromptClient.Status.SUCCESS, "", call == 1 ? proposal : answer);
             } : realPrompts;
             return new ResearchCommand(context, () -> new OllamaModelConfiguration("fixture"), () -> registry,
-                    () -> hostApprovals, prompts, browserRenderer).withToolHistory(() -> history)
+                    () -> hostApprovals, prompts, browserRenderer).withBrowserSearch(browserSearch)
+                    .withToolHistory(() -> history)
                     .execute("What is the current release?");
         }
 

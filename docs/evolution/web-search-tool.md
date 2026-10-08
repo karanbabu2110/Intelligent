@@ -73,16 +73,19 @@ application retries, or automatic result URL fetches.
 | Total HTTP completion including body | 15 seconds |
 | Raw response | 65,536 bytes |
 | JSON nesting | 16 levels |
-| Results | First 5 in provider order |
+| Results | First 5 usable results in provider order |
 | Title | Required nonblank string, 256 code points |
-| URL | Required HTTP(S) URL with host and no credentials, 2,048 code points |
+| URL | Required HTTP(S) URL with host, no user info or recognized credential-bearing query key, 2,048 code points |
 | Snippet | Optional content string, defaults to empty, 512 code points |
 | Per-result provenance | At most 16 unique provider/engine pairs; engine identifiers use at most 32 uppercase letters, digits, or underscores |
 | Encoded KAOS result | 16,384 UTF-8 bytes |
 
 SearXNG does not expose a portable result-count parameter. KAOS retains only
-the first five results; it neither paginates nor reorders them. Invalid retained
-entries fail the whole result. Fields are not silently truncated. Bounded
+the first five usable results in provider order; it neither paginates nor
+reorders them. A result URL with a recognized credential-bearing query key is
+discarded before display or model use. This conservative filter can exclude
+benign token-like links. Other invalid retained entries fail the whole result.
+Fields are not silently truncated. Bounded
 per-result `engine` or `engines` identifiers are retained as provenance;
 unsupported identifiers are ignored and an entry with no usable identifier
 receives `UNKNOWN`. Other unknown provider metadata is

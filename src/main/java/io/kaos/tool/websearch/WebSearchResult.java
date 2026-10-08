@@ -2,6 +2,7 @@ package io.kaos.tool.websearch;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.kaos.tool.ToolResult;
+import io.kaos.tool.httpget.HttpGetPermissionValidator;
 import java.net.URI;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -70,7 +71,8 @@ public record WebSearchResult(WebSearchRequest request, List<Entry> results, Eng
                 URI uri = URI.create(url);
                 if (!("https".equalsIgnoreCase(uri.getScheme())
                         || "http".equalsIgnoreCase(uri.getScheme()))
-                        || uri.getHost() == null || uri.getRawUserInfo() != null) throw invalid();
+                        || uri.getHost() == null || uri.getRawUserInfo() != null
+                        || HttpGetPermissionValidator.hasCredentialQuery(uri)) throw invalid();
             } catch (IllegalArgumentException exception) {
                 throw invalid();
             }

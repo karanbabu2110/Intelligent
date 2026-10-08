@@ -24,8 +24,12 @@ enough; Docker Desktop must be running.
 
 The root [Compose file](../../compose.yaml) starts only the official SearXNG
 container. Its checked-in [settings](../../docker/searxng/settings.yml) inherit
-SearXNG defaults and enable HTML and JSON output. It does not containerize KAOS,
-start Ollama, add Valkey, or make Gradle depend on Docker.
+SearXNG settings and enable Google, Bing, DuckDuckGo, and Brave as upstream
+search engines, along with HTML and JSON output. Search queries approved in
+KAOS are sent to SearXNG and forwarded to these providers. Providers may throttle
+or block automated requests, so a valid JSON response can contain no results.
+It does not containerize KAOS, start Ollama, add Valkey, or make Gradle depend
+on Docker.
 
 From the KAOS repository root:
 
@@ -116,7 +120,7 @@ untrusted data; result URLs are not opened. Tool-backed conversation turns are
 not saved or carried into future history. Ordinary no-tool turns remain stored.
 
 The Java-to-SearXNG hop is local for the loopback example. The complete search
-is not local: SearXNG may forward the approved query to external engines.
+is not local: SearXNG forwards the approved query to configured search providers.
 Treat its logs and upstream retention separately from KAOS's metadata-only
 audit policy.
 
@@ -130,7 +134,7 @@ audit policy.
 | Model proposes an old year | Deny and ask again with the intended date |
 | Invalid response | Enable JSON; check service status and retained result fields |
 | Timeout or result too large | Review the service, then make a fresh request and approval |
-| No results | Rephrase the query or review configured upstream engines |
+| No results | Rephrase the query; upstream providers may throttle or block automated requests |
 
 Model selection and relevance remain model/engine dependent. The automated
 suite proves protocol and policy behavior with local stubs, not live search

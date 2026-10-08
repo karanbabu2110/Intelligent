@@ -1,6 +1,12 @@
 # KAOS local-development SearXNG configuration.
 # The official image defaults supply engines and other provider policy.
-use_default_settings: true
+use_default_settings:
+  engines:
+    keep_only:
+      - google
+      - bing
+      - duckduckgo
+      - brave
 
 general:
   instance_name: "KAOS Local Search"
@@ -9,6 +15,16 @@ search:
   formats:
     - html
     - json
+
+engines:
+  - name: google
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: duckduckgo
+    disabled: false
+  - name: brave
+    disabled: false
 
 server:
   limiter: false
