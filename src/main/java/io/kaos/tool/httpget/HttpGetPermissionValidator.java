@@ -138,6 +138,11 @@ public final class HttpGetPermissionValidator {
         return false;
     }
 
+    /** Shared syntax-only guard for untrusted discovery URLs before display or model use. */
+    public static boolean hasCredentialQuery(URI uri) {
+        return credentialQuery(Objects.requireNonNull(uri).getRawQuery());
+    }
+
     private static String normalizeHost(String host) {
         String ascii = IDN.toASCII(host, IDN.USE_STD3_ASCII_RULES)
                 .toLowerCase(Locale.ROOT);

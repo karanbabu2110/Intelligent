@@ -143,11 +143,14 @@ public final class SearxngClient {
                 throw failure(WebSearchException.Reason.INVALID_RESPONSE);
             }
             try {
+                // Search providers can return links carrying tokens; never display or model them.
+                if (io.kaos.tool.httpget.HttpGetPermissionValidator.hasCredentialQuery(
+                        java.net.URI.create(node.get("url").textValue()))) continue;
                 entries.add(new WebSearchResult.Entry(displayText(node.get("title").textValue(), 256),
                         node.get("url").textValue(), displayText(node.path("content").asText(""), 512),
                         "SEARXNG", entryProvenance(node)));
                 collectResultEngines(node, contributingEngines);
-            } catch (WebSearchException exception) {
+            } catch (WebSearchException | IllegalArgumentException exception) {
                 throw failure(WebSearchException.Reason.INVALID_RESPONSE);
             }
         }

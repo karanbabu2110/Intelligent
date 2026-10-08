@@ -76,6 +76,14 @@ class SearxngClientTest {
     @Test void emptyResultsAreSuccess() throws Exception {
         assertEquals(0, response(200, "{\"results\":[]}").results().size());
     }
+    @Test void skipsCredentialBearingDiscoveryUrlsAndKeepsSafeResults() throws Exception {
+        String unsafe = ENTRY.replace("https://spring.io", "https://spring.io/?accessToken=PRIVATE_VALUE");
+        String safe = ENTRY.replace("https://spring.io", "https://openjdk.org/release");
+        var result = response(200, "{\"results\":[" + unsafe + "," + safe + "]}");
+        assertEquals(1, result.results().size());
+        assertEquals("https://openjdk.org/release", result.results().getFirst().url());
+        assertFalse(WebSearchToolContract.encodeResult(result).toString().contains("PRIVATE_VALUE"));
+    }
     @Test void retainsBoundedPerResultEngineProvenanceWithoutFailureReasons() throws Exception {
         String first = ENTRY.replace("\"engine\":\"private\"",
                 "\"engines\":[\"bing\",\"brave\"]");

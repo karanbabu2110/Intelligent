@@ -20,8 +20,13 @@ import io.kaos.tool.httpget.HttpGetResult;
 import io.kaos.tool.permission.ToolPermissionDecision;
 import io.kaos.tool.permission.ToolPermissionPolicy;
 import io.kaos.tool.websearch.WebSearchException;
+import io.kaos.tool.websearch.BrowserSearchApproval;
+import io.kaos.tool.websearch.BrowserSearchFallback;
 import io.kaos.tool.websearch.WebSearchRequest;
 import io.kaos.tool.websearch.WebSearchResult;
+import io.kaos.tool.websearch.WebSearchResultMerger;
+import io.kaos.app.browsersearch.BingBrowserSearchProvider;
+import io.kaos.app.browsersearch.BrowserSearchProvider;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.CodingErrorAction;
@@ -30,6 +35,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** Fixed foreground research sequence; no mutable agent plan or model-driven execution loop. */
@@ -53,6 +59,9 @@ final class ResearchCommand {
     private final Supplier<ResearchHostApprovals> approvalsLoader;
     private final Prompts prompts;
     private final BrowserRenderer browserRenderer;
+    private final BrowserSearchProvider browserSearchProvider = new BingBrowserSearchProvider();
+    private Function<WebSearchRequest, WebSearchResult> browserSearch = request ->
+            new io.kaos.app.research.ResearchBrowserRenderer().search(request, browserSearchProvider);
     private ToolHistoryRecorder history;
 
     ResearchCommand(CommandContext context, Supplier<OllamaModelConfiguration> modelLoader,
@@ -75,6 +84,11 @@ final class ResearchCommand {
 
     ResearchCommand withToolHistory(Supplier<io.kaos.tool.history.ToolExecutionHistory> loader) {
         history = new ToolHistoryRecorder(context, loader);
+        return this;
+    }
+
+    ResearchCommand withBrowserSearch(Function<WebSearchRequest, WebSearchResult> search) {
+        browserSearch = java.util.Objects.requireNonNull(search);
         return this;
     }
 
@@ -111,9 +125,10 @@ final class ResearchCommand {
             }
             ToolResult<?> searched = attempt(searchPermission);
             record(searchPermission);
-            if (!searchSelection.matches(searched) || !(searched instanceof WebSearchResult search)) {
+            if (!searchSelection.matches(searched) || !(searched instanceof WebSearchResult)) {
                 throw new IllegalArgumentException();
             }
+            WebSearchResult search = searchWithBrowserFallback(reader, (WebSearchResult) searched);
             if (search.results().isEmpty()) return stopped("NO_SEARCH_RESULTS", 0, 0);
             checkInterrupted();
             stage = "SELECTION";
@@ -243,7 +258,8 @@ final class ResearchCommand {
                 for (int i = 0; i < selected; i++) {
                     var discovered = search.results().get(candidates.get(i).result() - 1);
                     fallbackEntries.add(new WebSearchResult.Entry(
-                            discovered.title(), urls.get(i), discovered.snippet()));
+                            discovered.title(), urls.get(i), discovered.snippet(),
+                            discovered.provider(), discovered.provenance()));
                 }
                 var fallback = prompts.submit(model,
                         new OllamaPrompt(goal.objective(), ResearchFormat.SYNTHESIZE_SEARCH_ONLY),
@@ -362,6 +378,71 @@ final class ResearchCommand {
 
     private static void checkInterrupted() {
         if (Thread.currentThread().isInterrupted()) throw new IllegalStateException();
+    }
+
+    private WebSearchResult searchWithBrowserFallback(BufferedReader reader, WebSearchResult primary)
+            throws java.io.IOException {
+        var quality = BrowserSearchFallback.evaluate(primary);
+        if (quality.reason() == BrowserSearchFallback.Reason.DISABLED) return primary;
+        context.output().println("Search quality: reason=" + quality.reason().name()
+                + " results=" + quality.results() + " unique_domains=" + quality.domains()
+                + " contributing_engines=" + quality.contributingEngines()
+                + " failed_engines=" + quality.failedEngines() + ".");
+        if (!quality.fallback()) return primary;
+
+        var approval = new BrowserSearchApproval(primary.request(), quality.reason());
+        String attempt = UUID.randomUUID().toString();
+        context.output().println(approval.prompt());
+        context.output().flush();
+        var decision = approval.decide(ApprovalInput.readBounded(reader));
+        if (decision.decision() != ToolPermissionDecision.APPROVED) {
+            browserSearchAudit(attempt, decision.decision().name(), "NOT_EXECUTED");
+            context.output().println("Browser search skipped; SearXNG results retained.");
+            return primary;
+        }
+        if (Thread.currentThread().isInterrupted()) {
+            browserSearchAudit(attempt, "APPROVED", "NOT_EXECUTED");
+            checkInterrupted();
+        }
+        long started = System.nanoTime();
+        try {
+            WebSearchResult rendered = browserSearch.apply(decision.grant().orElseThrow().claim());
+            if (!rendered.request().equals(primary.request())
+                    || rendered.results().stream().anyMatch(entry ->
+                            !browserSearchProvider.provenance().equals(entry.provider())
+                            || entry.provenance().stream().anyMatch(source ->
+                                    !browserSearchProvider.provenance().equals(source.provider())))) {
+                throw new BrowserRenderException(BrowserRenderException.Reason.UNAVAILABLE);
+            }
+            WebSearchResult merged = WebSearchResultMerger.merge(primary, rendered);
+            browserSearchAudit(attempt, "APPROVED", "SUCCEEDED");
+            context.output().println("Browser search completed: " + rendered.results().size()
+                    + " results; merged=" + merged.results().size()
+                    + "; provider=" + browserSearchProvider.provenance()
+                    + "; duration_ms=" + elapsedMillis(started) + ".");
+            return merged;
+        } catch (BrowserRenderException | WebSearchException exception) {
+            browserSearchAudit(attempt, "APPROVED", "FAILED");
+            if (Thread.currentThread().isInterrupted()
+                    || exception instanceof BrowserRenderException browser
+                            && browser.reason() == BrowserRenderException.Reason.INTERRUPTED) throw exception;
+            String reason = exception instanceof BrowserRenderException browser
+                    ? browser.reason().name() : ((WebSearchException) exception).reason().name();
+            context.output().println("Browser search failed: " + reason
+                    + "; duration_ms=" + elapsedMillis(started) + ". SearXNG results retained.");
+            return primary;
+        } catch (RuntimeException exception) {
+            browserSearchAudit(attempt, "APPROVED", "FAILED");
+            if (Thread.currentThread().isInterrupted()) throw exception;
+            context.output().println("Browser search failed: UNAVAILABLE; duration_ms="
+                    + elapsedMillis(started) + ". SearXNG results retained.");
+            return primary;
+        }
+    }
+
+    private void browserSearchAudit(String attempt, String decision, String outcome) {
+        context.output().println("AUDIT [browser_search] target=" + attempt
+                + " decision=" + decision + " outcome=" + outcome);
     }
 
     private ToolResult<?> renderFallback(BufferedReader reader, String url, int source,

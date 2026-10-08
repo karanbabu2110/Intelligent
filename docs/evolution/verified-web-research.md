@@ -28,7 +28,13 @@ query truncation or model rewrite. Configure the local Ollama model, SearXNG
 endpoint as shown in the [README](../../README.md).
 
 1. Approve the displayed search query. SearXNG contributes at most five titles,
-   URLs and snippets. They are discovery data; their URLs are not fetched yet.
+   URLs and snippets. With the optional browser-search policy enabled, KAOS
+   evaluates result, domain and engine thresholds. Insufficient results offer
+   a separate one-use Bing Chromium search approval. Browser results merge in
+   SearXNG-first order, deduplicate by conservative URL normalization and retain
+   provider/engine provenance. Denial or failure retains the primary results;
+   sufficient results never launch browser search. All discovery URLs remain
+   unfetched until the separately approved retrieval stage.
 2. One structured local-model call proposes one to three result numbers with a
    purpose, suitability reason and provisional PRIMARY, SECONDARY or ANECDOTAL
    role. The application rejects extra fields, invented result numbers, duplicate
@@ -92,7 +98,7 @@ limitations. No source is declared universally trusted.
 
 | Boundary | Enforced value |
 | --- | --- |
-| Search | One approved SearXNG operation; existing 15-second request bound; at most five results |
+| Search | One approved SearXNG operation; existing 15-second request bound; at most five merged results. Optional one-use separately approved Chromium search when configured quality thresholds fail |
 | Source set | One to three distinct normalized URLs; one prompt for new exact hostnames |
 | Source access | HTTPS; implicit port or 443; persisted approved hostname; all DNS answers public |
 | Raw source body | At most 524,288 UTF-8 bytes; `Content-Length` is checked and streaming reads stop at the bound |
